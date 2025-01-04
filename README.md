@@ -42,4 +42,5 @@
 
 ## 感谢
 
-本项目项目原型以及样式改进来自 @EmitPots, 非常感谢
+本项目项目原型以及样式改进来自 [@EmitPots](https://github.com/EmitPots), 非常感谢
+
