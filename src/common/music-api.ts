@@ -87,9 +87,9 @@ export class Lyric {
         } else {
             return;
         }
-        let lines = lyricText.split("\n");
+        let lines = lyricText.split(/(?=\[\d+:\d+\.\d+])/);
         for (const line of lines) {
-            const match = line.match(/\[([0-9]+):([0-9]+\.[0-9]+)\](.*)/);
+            const match = line.match(/^\[([0-9]+):([0-9]+\.[0-9]+)\](.*)/);
             if (match) {
                 const {time, text} = parse(match);
                 if (isNaN(time) || text.length == 0) {
@@ -105,7 +105,7 @@ export class Lyric {
 
         let n = 0;
 
-        lines = lyricText.split("\n");
+        lines = lyricText.split(/(?=\[\d+:\d+\.\d+])/);
         for (const line of lines) {
             const match = line.match(/\[([0-9]+):([0-9]+\.[0-9]+)\](.*)/);
             if (!match) {
@@ -139,7 +139,6 @@ export class Lyric {
             n++;
         }
 
-        console.log("", this.lyrics)
     }
 
     nextTime() {
@@ -148,7 +147,6 @@ export class Lyric {
     }
 
     jump(time: number) {
-        debugger
         if (this.lyrics.length == 0) return;
         if (time < 1.5) {
             this.cursor = 0;
