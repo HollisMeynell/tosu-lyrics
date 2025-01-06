@@ -1,19 +1,19 @@
 import {PROXY_URL} from "./constant.ts";
 
-type ProxyResult = {
+type RequestResult = {
     status: number,
     headers: Map<string, string>,
     body: string,
 }
 
-type ProxyProp = {
+type RequestProp = {
     url: string;
     method?: string;
     header?: object;
     body?: object;
 }
 
-export async function proxyRequest(prop: ProxyProp): Promise<ProxyResult> {
+export async function doRequest(prop: RequestProp): Promise<RequestResult> {
     const result = await fetch(PROXY_URL, {
         method: "POST",
         headers: {

@@ -1,8 +1,8 @@
 import React, {useEffect, useRef, useState} from "react";
 import ReconnectingWebSocket from "reconnecting-websocket"
-import {MAX_TIME, WS_URL} from "../../common/constant.ts";
+import {WS_URL} from "../../common/constant.ts";
 import {TosuAPi} from "../../common/tosu-types.ts";
-import {getAudioLength, getLyrics, Lyric, searchMusic} from "../../common/music-api.ts";
+import {getLyrics, Lyric} from "../../common/music-api.ts";
 import styles from './styles.module.scss';
 import clsx from "clsx";
 
@@ -70,7 +70,7 @@ function handleMessage(
         const showLyric = (lyric: Lyric) => {
             temp.lyric = lyric;
             const list = lyric.lyrics.map((x) => {
-                return x.translate ? {main: x.translate, translate: x.text} : {main: x.text}
+                return x.second ? {main: x.first, translate: x.second} : {main: x.first}
             });
             setLyrics(list);
             setCursor(lyric.cursor);
@@ -83,17 +83,7 @@ function handleMessage(
         }
 
         const action = async () => {
-            const [musicInfo, songLength] = await Promise.all([searchMusic(data.beatmap.titleUnicode), getAudioLength()])
-            // const musicInfo = await searchMusic(data.beatmap.titleUnicode);
-            // const songLength = data.beatmap.time.mp3Length;
-            const songDetail = musicInfo.result?.songs
-                ?.find((x) => Math.abs(x.duration - songLength) < MAX_TIME)
-            if (songDetail === undefined) {
-                print();
-                return;
-            }
-
-            const lyric = await getLyrics(songDetail.id);
+            const lyric = await getLyrics(data.beatmap.titleUnicode);
             if (lyric.lyrics.length == 0) {
                 print();
                 return;

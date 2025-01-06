@@ -1,144 +1,81 @@
-import {proxyRequest} from "./proxy-request.ts";
-import {AUDIO_URL, getLyricUrl, getMusicInfoUrl} from "./constant.ts";
+import {AUDIO_URL} from "./constant.ts";
+import NeteastLyricAdaptor from "./neteast";
 
-type ArtistDetail = {
-    id: number;
-    name: string;
-}
-
-type SongDetail = {
-    id: number;
-    name: string;
-    artists: ArtistDetail[];
-    duration: number;
-}
-
-type SongSearchResult = {
-    code: number;
-    result: {
-        songs: SongDetail[];
-        songCount: number;
-    }
-}
-
-export async function searchMusic(title: string): Promise<SongSearchResult> {
-    const url = getMusicInfoUrl(title);
-    const response = await proxyRequest({url})
-    return JSON.parse(response.body)
-}
-
-type SongLyric = {
-    // 原版
-    lrc: LyricItem;
-    // ?
-    klyric: LyricItem;
-    // 翻译
-    tlyric: LyricItem;
-    code: number;
-}
-
-type LyricItem = {
-    version: number;
-    lyric: string;
-}
 
 type LyricLine = {
     time: number;
-    text: string;
-    translate?: string,
+    first: string;
+    second?: string,
 }
 
-function checkText(text: string) {
-    if (text.match(/^..\s?:/)) return false;
-    return true;
+export enum AdaptorStatus {
+    "Pending",
+    "NotFound",
+    "NoAccept",
+    "Loading",
 }
 
-function parse(match: RegExpMatchArray) {
-    const minutes = parseInt(match[1]);
-    const seconds = parseFloat(match[2]);
-    const lyric = match[3];
-    const time = minutes * 60 + seconds;
-    const text = lyric.trim();
-    if (checkText(text)) {
-        return {time, text}
-    } else {
-        return {time: NaN, text: ""}
-    }
+export type MusicInfo = {
+    title: string;
+    artist: string;
+    length: number;
+    key: string;
+}
+
+export interface LyricAdaptor {
+    name: string;
+    status: AdaptorStatus;
+    result: MusicInfo[];
+
+    getLyrics(title: string, length: number): Promise<Lyric>;
+
+    getLyricsByKey(key: string): Promise<Lyric>;
 }
 
 export class Lyric {
     lyrics: LyricLine[];
+    endTime: number;
     cursor: number;
 
-    constructor(lyric?: SongLyric) {
+    constructor() {
         this.lyrics = [];
+        this.endTime = -1;
         this.cursor = 0
 
-        if (!lyric) return;
+    }
 
-        let lyricText: string;
-        if (lyric.lrc?.lyric?.length > 0) {
-            lyricText = lyric.lrc.lyric;
-        } else if (lyric.tlyric?.lyric?.length > 0) {
-            const temp = lyric.tlyric;
-            lyric.tlyric = lyric.lrc;
-            lyric.lrc = temp;
-            lyricText = lyric.lrc.lyric;
+    insert(time: number, t: string, n: number = 0): number {
+        const text = t.trim();
+        if (isNaN(time) || time < 0 || text.length == 0) return n + 1;
+
+        if (time > this.endTime) {
+            this.lyrics.push({time: time, first: text})
         } else {
-            return;
-        }
-        let lines = lyricText.split(/(?=\[\d+:\d+\.\d+])/);
-        for (const line of lines) {
-            const match = line.match(/^\[([0-9]+):([0-9]+\.[0-9]+)\](.*)/);
-            if (match) {
-                const {time, text} = parse(match);
-                if (isNaN(time) || text.length == 0) {
-                    continue;
-                }
-                this.lyrics.push({time: time, text: text})
-            }
-        }
-        if (!(lyric.tlyric?.lyric?.length > 0)) {
-            return;
-        }
-        lyricText = lyric.tlyric.lyric;
-
-        let n = 0;
-
-        lines = lyricText.split(/(?=\[\d+:\d+\.\d+])/);
-        for (const line of lines) {
-            const match = line.match(/\[([0-9]+):([0-9]+\.[0-9]+)\](.*)/);
-            if (!match) {
-                continue;
-            }
-            const {time, text} = parse(match);
-            if (isNaN(time) || text.length == 0) {
-                continue;
-            }
-
+            this.endTime = time;
             if (!this.lyrics[n]) {
-                this.lyrics.push({time: time, text: text})
+                this.lyrics.push({time: time, first: text})
             } else if (Math.abs(this.lyrics[n].time - time) < 1e-2) {
-                this.lyrics[n].translate = text
+                this.lyrics[n].second = this.lyrics[n].first;
+                this.lyrics[n].first = text;
             } else if (this.lyrics[n].time > time + 1e-2) {
-                this.lyrics.splice(n, 0, {time, text})
+                this.lyrics.splice(n, 0, {time, first: text})
             } else {
                 if (n + 1 >= this.lyrics.length) {
-                    this.lyrics.push({time: time, text: text})
+                    this.lyrics.push({time: time, first: text})
                 } else {
                     while (n < this.lyrics.length && this.lyrics[n + 1].time < time - 1e-2) {
                         n++;
                     }
                     if (Math.abs(this.lyrics[n + 1].time - time) < 1e-2) {
-                        this.lyrics[n + 1].translate = text
+                        this.lyrics[n + 1].second = this.lyrics[n + 1].first
+                        this.lyrics[n + 1].first = text
                     } else {
-                        this.lyrics.splice(n, 0, {time, text})
+                        this.lyrics.splice(n, 0, {time, first: text})
                     }
                 }
             }
-            n++;
         }
-
+        return n + 1;
     }
 
     nextTime() {
@@ -194,11 +131,9 @@ export class Lyric {
     }
 }
 
-export async function getLyrics(songID: number): Promise<Lyric> {
-    const url = getLyricUrl(songID);
-    const response = await proxyRequest({url})
-    const data: SongLyric = JSON.parse(response.body)
-    return new Lyric(data)
+
+export async function getLyrics(title: string): Promise<Lyric> {
+    return NeteastLyricAdaptor.getLyrics(title);
 }
 
 export async function getAudioLength(): Promise<number> {
