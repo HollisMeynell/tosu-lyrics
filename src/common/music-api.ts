@@ -1,5 +1,4 @@
 import {AUDIO_URL} from "./constant.ts";
-import NeteastLyricAdaptor from "./neteast";
 
 
 type LyricLine = {
@@ -27,6 +26,10 @@ export interface LyricAdaptor {
     status: AdaptorStatus;
     result: MusicInfo[];
 
+    // 检索是否有歌词
+    hasLyrics(title: string, length: number): Promise<boolean>;
+
+    // 获取歌词
     getLyrics(title: string, length: number): Promise<Lyric>;
 
     getLyricsByKey(key: string): Promise<Lyric>;
@@ -133,6 +136,7 @@ export class Lyric {
 
 
 export async function getLyrics(title: string): Promise<Lyric> {
+    const {default: NeteastLyricAdaptor} = await import('./neteast');
     return NeteastLyricAdaptor.getLyrics(title);
 }
 

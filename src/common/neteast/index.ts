@@ -57,14 +57,14 @@ function parse(match: RegExpMatchArray) {
     }
 }
 
-export async function searchMusic(title: string): Promise<SongSearchResult> {
+async function searchMusic(title: string): Promise<SongSearchResult> {
     const url = getMusicInfoUrl(title);
     const response = await doRequest({url})
     return JSON.parse(response.body)
 }
 
 
-export async function getLyrics(songID: number | string): Promise<Lyric> {
+async function getLyrics(songID: number | string): Promise<Lyric> {
     const url = getLyricUrl(songID);
     const response = await doRequest({url})
 
@@ -117,6 +117,13 @@ class NeteastLyricAdaptor implements LyricAdaptor {
     name = "网易云";
     status = AdaptorStatus.Pending;
     result: MusicInfo[] = [];
+
+    musicIdCache: number = 0;
+
+    async hasLyrics(): Promise<boolean> {
+        // 目前只有这一个适配器，所以直接返回 true
+        return true;
+    }
 
     async getLyrics(title: string): Promise<Lyric> {
         this.status = AdaptorStatus.Loading;
