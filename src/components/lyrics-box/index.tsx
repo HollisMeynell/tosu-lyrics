@@ -11,7 +11,7 @@ type LyricLine = {
 
 
 export default function LyricsBox(): React.JSX.Element {
-    const tosu = useRef<TosuAdapter>(null);
+    const tosu = useRef<TosuAdapter>(void 0);
     const lyricUL = useRef<HTMLUListElement>(null);
     const [scroll, setScroll] = useState(false);
     const [lyrics, setLyrics] = React.useState<LyricLine[]>([]);
@@ -20,7 +20,7 @@ export default function LyricsBox(): React.JSX.Element {
     useEffect(() => {
         tosu.current = new TosuAdapter(setLyrics, setCursor);
         return () => {
-            tosu.current.stop()
+            tosu.current?.stop()
         }
     }, []);
 
@@ -38,7 +38,7 @@ export default function LyricsBox(): React.JSX.Element {
             const offset = Math.round((maxWidth - 1200) / 2) + 10;
             p.style.setProperty('--offset', `${offset}px`);
             p.style.setProperty('--offset-f', `-${offset}px`);
-            p.style.setProperty('--time', `${tosu.current.getNextTime()}s`);
+            p.style.setProperty('--time', `${tosu.current?.getNextTime()}s`);
             setScroll(true);
         } else {
             setScroll(false);
