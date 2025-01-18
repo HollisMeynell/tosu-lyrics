@@ -1,32 +1,19 @@
-import React, {useEffect, useRef, useState} from "react";
 import styles from './styles.module.scss';
-import clsx from "clsx";
-import TosuAdapter from "../../common/tosu-adapter.ts";
+import TosuAdapter, {LyricLine} from "../../common/tosu-adapter.ts";
+import {createEffect, createSignal, Index, on, onCleanup, Show} from "solid-js";
 
+export default function LyricsBox() {
+    const [scroll, setScroll] = createSignal(false);
+    const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
+    const [cursor, setCursor] = createSignal(0);
 
-type LyricLine = {
-    main: string,
-    origin?: string,
-}
+    let lyricUL: HTMLUListElement;
+    let tosu: TosuAdapter = new TosuAdapter(setLyrics, setCursor);
 
+    onCleanup(() => tosu.stop())
 
-export default function LyricsBox(): React.JSX.Element {
-    const tosu = useRef<TosuAdapter>(void 0);
-    const lyricUL = useRef<HTMLUListElement>(null);
-    const [scroll, setScroll] = useState(false);
-    const [lyrics, setLyrics] = React.useState<LyricLine[]>([]);
-    const [cursor, setCursor] = useState<number>(0);
-
-    useEffect(() => {
-        tosu.current = new TosuAdapter(setLyrics, setCursor);
-        return () => {
-            tosu.current?.stop()
-        }
-    }, []);
-
-    useEffect(() => {
-        if (!lyricUL.current) return;
-        const p: HTMLLIElement = lyricUL.current.children[cursor] as HTMLLIElement;
+    createEffect(on([lyrics, cursor], () => {
+        const p = lyricUL.children[cursor()] as HTMLLIElement;
         if (!p) return;
         let maxWidth: number;
         if (p.children.length == 2) {
@@ -34,35 +21,40 @@ export default function LyricsBox(): React.JSX.Element {
         } else {
             maxWidth = p.children[0].scrollWidth * 1.2;
         }
+
         if (maxWidth > 1200) {
             const offset = Math.round((maxWidth - 1200) / 2) + 10;
             p.style.setProperty('--offset', `${offset}px`);
             p.style.setProperty('--offset-f', `-${offset}px`);
-            p.style.setProperty('--time', `${tosu.current?.getNextTime()}s`);
+            p.style.setProperty('--time', `${tosu.getNextTime()}s`);
             setScroll(true);
-        } else {
+        } else if (scroll()) {
             setScroll(false);
         }
-    }, [lyrics, cursor]);
+    }, {defer: true}))
 
     return <>
-        <div className={styles.box}>
-            <ul className={styles.lyricBox}
-                style={{transform: `translateY(${-(cursor - 1) * 100}px)`}}
-                ref={lyricUL}>
-                {lyrics.map((lyric, index) =>
-                    <li key={index}
-                        className={clsx(
-                            styles.lyric,
-                            cursor == index && styles.lyricNow,
-                            cursor == index && scroll && styles.lyricScrolling,
-                        )}>
-                        <p>
-                            {lyric.main}
-                        </p>
-                        {lyric.origin && <p>{lyric.origin}</p>}
-                    </li>
-                )}
+        <div class={styles.box}>
+            <ul ref={lyricUL}
+                class={styles.lyricBox}
+                style={{transform: `translateY(${-(cursor() - 1) * 100}px)`}}
+            >
+                <Index each={lyrics()}>
+                    {(lyric, index) =>
+                        <li classList={{
+                            [styles.lyric]: true,
+                            [styles.lyricNow]: cursor() == index,
+                            [styles.lyricScrolling]: cursor() == index && scroll(),
+                        }}>
+                            <p>
+                                {lyric().main}
+                            </p>
+                            <Show when={lyric().origin}>
+                                <p>{lyric().origin}</p>
+                            </Show>
+                        </li>
+                    }
+                </Index>
             </ul>
         </div>
     </>

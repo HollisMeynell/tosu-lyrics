@@ -1,8 +1,8 @@
-import React, {useEffect, useState} from "react";
 import styles from './styles.module.scss';
+import {children as createChildren, JSX, Show} from "solid-js";
 
 type CenterBoxProps = {
-    children?: React.ReactNode
+    children: JSX.Element
 }
 
 declare global {
@@ -11,22 +11,20 @@ declare global {
     }
 }
 
-export default function CenterBox({children}: CenterBoxProps): React.JSX.Element {
-    const [consoleShow, setConsoleShow] = useState(false);
-    useEffect(() => {
-        const url = new URL(window.location.href);
-        const params = new URLSearchParams(url.search);
-        if (params.get('cors')) {
-            window.ignoreCORS = true;
-        }
-        if (params.get('console')) {
-            setConsoleShow(true)
-        }
-    }, []);
-    return <>
-        <div className={styles.box}>
-            {children}
-            {consoleShow && <div>...</div>}
-        </div>
-    </>
+export default function CenterBox(props: CenterBoxProps) :JSX.Element{
+    const children = createChildren(() => props.children);
+
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams(url.search);
+    if (params.get('cors')) {
+        window.ignoreCORS = true;
+    }
+    const consoleShow = !!params.get('console')
+
+    return <div class={styles.box}>
+        {children()}
+        <Show when={consoleShow}>
+            <div>...</div>
+        </Show>
+    </div>
 }
