@@ -1,27 +1,33 @@
-import {getLyricUrl, getMusicInfoUrl} from "./constant.ts";
-import {doRequest} from "../do-request.ts";
-import {AdaptorStatus, getAudioLength, Lyric, LyricAdaptor, MusicInfo} from "../music-api.ts";
-import {MAX_TIME} from "../constant.ts";
+import { getLyricUrl, getMusicInfoUrl } from "./constant.ts";
+import { doRequest } from "../do-request.ts";
+import {
+    AdaptorStatus,
+    getAudioLength,
+    Lyric,
+    LyricAdaptor,
+    MusicInfo,
+} from "../music-api.ts";
+import { MAX_TIME } from "../constant.ts";
 
 type ArtistDetail = {
     id: number;
     name: string;
-}
+};
 
 type SongDetail = {
     id: number;
     name: string;
     artists: ArtistDetail[];
     duration: number;
-}
+};
 
 type SongSearchResult = {
     code: number;
     result: {
         songs: SongDetail[];
         songCount: number;
-    }
-}
+    };
+};
 
 type SongLyric = {
     // 原版
@@ -31,17 +37,16 @@ type SongLyric = {
     // 翻译
     tlyric: LyricItem;
     code: number;
-}
+};
 
 type LyricItem = {
     version: number;
     lyric: string;
-}
+};
 
 function checkText(text: string) {
     // 剔除类似 "翻译: xxx" 等无关信息
-    if (text.match(/^..\s?:/)) return false;
-    return true;
+    return !text.match(/^..\s?:/);
 }
 
 function parse(match: RegExpMatchArray) {
@@ -50,67 +55,58 @@ function parse(match: RegExpMatchArray) {
     const lyric = match[3];
     const time = minutes * 60 + seconds;
     const text = lyric.trim();
-    if (checkText(text)) {
-        return {time, text}
-    } else {
-        return {time: NaN, text: ""}
-    }
+    return checkText(text) ? { time, text } : { time: NaN, text: "" };
 }
 
 async function searchMusic(title: string): Promise<SongSearchResult> {
-    const url = getMusicInfoUrl(title);
-    const response = await doRequest({url})
-    return JSON.parse(response.body)
+    try {
+        const url = getMusicInfoUrl(title);
+        const response = await doRequest({ url });
+        return JSON.parse(response.body);
+    } catch (error) {
+        console.error("Failed to search music:", error);
+        throw new Error("Failed to search music");
+    }
 }
 
-
 async function getLyrics(songID: number | string): Promise<Lyric> {
-    const url = getLyricUrl(songID);
-    const response = await doRequest({url})
+    try {
+        const url = getLyricUrl(songID);
+        const response = await doRequest({ url });
+        const lyric: SongLyric = JSON.parse(response.body);
 
-    const lyric: SongLyric = JSON.parse(response.body)
+        const result = new Lyric();
 
-    const result = new Lyric()
-
-    let lyricText: string;
-
-    if (lyric.lrc?.lyric?.length > 0) {
-        lyricText = lyric.lrc.lyric;
-    } else if (lyric.tlyric?.lyric?.length > 0) {
-        const temp = lyric.tlyric;
-        lyric.tlyric = lyric.lrc;
-        lyric.lrc = temp;
-        lyricText = lyric.lrc.lyric;
-    } else {
-        throw new Error("无歌词");
-    }
-
-    const splitReg = /(?=\[\d+:\d+\.\d+])/;
-    const timeReg = /\[(\d+):(\d+\.\d+)](.*)/;
-    let lines = lyricText.split(splitReg);
-    for (const line of lines) {
-        const match = line.match(timeReg);
-        if (!match) continue;
-        const {time, text} = parse(match);
-        result.insert(time, text);
-    }
-    if (!(lyric.tlyric?.lyric?.length > 0)) {
-        return result;
-    }
-    lyricText = lyric.tlyric.lyric;
-
-    let n = 0;
-    lines = lyricText.split(splitReg);
-    for (const line of lines) {
-        const match = line.match(timeReg);
-        if (!match) {
-            continue;
+        // 解析原版歌词
+        if (lyric.lrc?.lyric?.length > 0) {
+            const lines = lyric.lrc.lyric.split(/(?=\[\d+:\d+\.\d+])/);
+            for (const line of lines) {
+                const match = line.match(/\[(\d+):(\d+\.\d+)](.*)/);
+                if (!match) continue;
+                const { time, text } = parse(match);
+                result.insert(time, text);
+            }
         }
-        const {time, text} = parse(match);
+        // 解析翻译歌词
+        if (lyric.tlyric?.lyric?.length > 0) {
+            const lines = lyric.tlyric.lyric.split(/(?=\[\d+:\d+\.\d+])/);
+            for (const line of lines) {
+                const match = line.match(/\[(\d+):(\d+\.\d+)](.*)/);
+                if (!match) continue;
+                const { time, text } = parse(match);
+                result.insert(time, text);
+            }
+        }
 
-        n = result.insert(time, text, n);
+        if (result.lyrics.length === 0) {
+            throw new Error("No lyrics found");
+        }
+
+        return result;
+    } catch (error) {
+        console.error("Failed to get lyrics:", error);
+        throw new Error("Failed to get lyrics");
     }
-    return result;
 }
 
 class NeteastLyricAdaptor implements LyricAdaptor {
@@ -127,26 +123,36 @@ class NeteastLyricAdaptor implements LyricAdaptor {
 
     async getLyrics(title: string): Promise<Lyric> {
         this.status = AdaptorStatus.Loading;
-        const [musicInfo, length] = await Promise.all([searchMusic(title), getAudioLength()]);
-        if (musicInfo.code !== 200 || musicInfo.result?.songCount === 0) {
-            this.status = AdaptorStatus.NotFound;
-        }
-        this.result = musicInfo.result?.songs.map((x) => {
-            return {
-                title: x.name,
-                artist: x.artists.map((x) => x.name).join(", "),
-                length: Math.round(x.duration / 1000),
-                key: x.id.toString(),
+        try {
+            const [musicInfo, length] = await Promise.all([
+                searchMusic(title),
+                getAudioLength(),
+            ]);
+            if (musicInfo.code !== 200 || musicInfo.result?.songCount === 0) {
+                this.status = AdaptorStatus.NotFound;
+                throw new Error("No songs found");
             }
-        }) || []
-        const songDetail = musicInfo.result
-            ?.songs
-            ?.find((x) => Math.abs(x.duration - length) < MAX_TIME)
-        if (songDetail === undefined) {
+            this.result =
+                musicInfo.result?.songs.map((x) => {
+                    return {
+                        title: x.name,
+                        artist: x.artists.map((x) => x.name).join(", "),
+                        length: Math.round(x.duration / 1000),
+                        key: x.id.toString(),
+                    };
+                }) || [];
+            const songDetail = musicInfo.result?.songs?.find(
+                (x) => Math.abs(x.duration - length) < MAX_TIME
+            );
+            if (!songDetail) {
+                this.status = AdaptorStatus.NoAccept;
+                throw new Error("未找到歌曲");
+            }
+            return await getLyrics(songDetail.id);
+        } catch (error) {
             this.status = AdaptorStatus.NoAccept;
-            throw new Error("未找到歌曲");
+            throw error;
         }
-        return await getLyrics(songDetail.id);
     }
 
     async getLyricsByKey(key: string): Promise<Lyric> {

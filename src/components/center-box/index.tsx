@@ -1,30 +1,35 @@
+import { ParentComponent, onMount, createMemo, Show } from "solid-js";
 import styles from './styles.module.scss';
-import {children as createChildren, JSX, Show} from "solid-js";
-
-type CenterBoxProps = {
-    children: JSX.Element
-}
 
 declare global {
     interface Window {
-        ignoreCORS?: boolean
+        ignoreCORS?: boolean;
     }
 }
 
-export default function CenterBox(props: CenterBoxProps) :JSX.Element{
-    const children = createChildren(() => props.children);
+const CenterBox: ParentComponent = (props) => {
+    const consoleShow = createMemo(() => {
+        const params = new URLSearchParams(window.location.search);
+        return !!params.get('console');
+    });
 
-    const url = new URL(window.location.href);
-    const params = new URLSearchParams(url.search);
-    if (params.get('cors')) {
-        window.ignoreCORS = true;
-    }
-    const consoleShow = !!params.get('console')
+    onMount(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('cors')) {
+            window.ignoreCORS = true;
+        }
+    });
 
-    return <div class={styles.box}>
-        {children()}
-        <Show when={consoleShow}>
-            <div>...</div>
-        </Show>
-    </div>
-}
+    return (
+        <div class={styles.box}>
+            {props.children}
+            <Show when={consoleShow()}>
+                <div class={styles.console}>
+                    Debug console is enabled.
+                </div>
+            </Show>
+        </div>
+    );
+};
+
+export default CenterBox;
