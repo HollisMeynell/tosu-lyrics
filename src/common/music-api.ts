@@ -52,9 +52,9 @@ export class Lyric {
         if (isNaN(time) || time < 0 || text.length == 0) return n + 1;
 
         if (time > this.endTime) {
+            this.endTime = time;
             this.lyrics.push({time: time, first: text})
         } else {
-            this.endTime = time;
             if (!this.lyrics[n]) {
                 this.lyrics.push({time: time, first: text})
             } else if (Math.abs(this.lyrics[n].time - time) < 1e-2) {

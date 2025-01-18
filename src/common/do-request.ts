@@ -15,6 +15,7 @@ type RequestProp = {
 
 export async function doRequest(prop: RequestProp): Promise<RequestResult> {
     // 使用 obs 的 '--disable-web-security' 参数禁用浏览器的 CORS 限制
+    // if obs is used, disable the CORS restriction of the browser with '--disable-web-security'
     if (window.ignoreCORS) {
         const result = await fetch(prop.url, {
             method: prop.method || "GET",
