@@ -81,8 +81,8 @@ export class Lyric {
         return n + 1;
     }
 
-    nextTime() {
-        if (this.cursor >= this.lyrics.length - 1) return 3;
+    nextTime():number {
+        if (this.cursor >= this.lyrics.length - 1) return 0;
         return this.lyrics[this.cursor + 1].time - this.lyrics[this.cursor].time;
     }
 
