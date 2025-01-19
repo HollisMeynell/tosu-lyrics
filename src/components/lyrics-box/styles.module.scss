@@ -19,19 +19,19 @@
     align-items: center;
 
     :first-child {
-      font-family: 'tLRC';
+      font-family: 'tLRC', 'LRC', serif;
       font-size: 36px;
       font-weight: bold;
       color: #ffffff;
-      text-shadow: 5px 5px 5px #000000; 
+      text-shadow: 5px 5px 5px #000000;
     }
 
     :nth-child(2) {
-      font-family: 'oLRC';
+      font-family: 'oLRC', 'LRC', serif;
       font-size: 24px;
       font-weight: bold;
-      color: #a0a0a0; 
-      text-shadow: 5px 5px 5px #000000; 
+      color: #a0a0a0;
+      text-shadow: 5px 5px 5px #000000;
       margin-top: 10px;
       display: none;
     }

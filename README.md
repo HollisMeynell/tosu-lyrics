@@ -31,7 +31,8 @@
 > - 请确保 `tosu-proxy` 和 `tosu` 位于同一目录下，静态文件应放置在 `[tosu根目录]/static/lyrics` 目录中。
 > - `tosu-proxy` 仅作为额外的代理工具，不会影响 `tosu` 或其他插件的正常使用。
 > - 其他插件可通过访问 [`http://127.0.0.1:24050`](http://127.0.0.1:24050) 正常使用。
-> - 您可以通过替换 `tLRC.otf` 和 `oLRC.otf` 文件来更改字体。支持 `ttf`、`woff` 等字体格式，但需将文件名严格更改为 `tLRC.otf` 或 `oLRC.otf`。
+> - 您可以通过修改 `LRC.otf` 更改全部字体, 或者添加 `tLRC.otf` (对应主歌词) 和 `oLRC.otf` (对应副歌词) 来更改字体。
+> - 自定义字体支持 `ttf`、`woff` 等字体格式，但需将文件名严格填写为 `LRC.otf`, `tLRC.otf` 或 `oLRC.otf` (即 'xxx.ttf' => 'LRC.otf')。
 
 ## 自行编译
 

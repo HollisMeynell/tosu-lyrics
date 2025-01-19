@@ -133,16 +133,18 @@ export class Lyric {
 
         while (low < high) {
             const mid = Math.floor((low + high) / 2);
-            if (mid == low) {
+            const smaller = this.lyrics[mid].time <= time;
+            const bigger = this.lyrics[mid + 1].time > time;
+            if (smaller && bigger) {
                 this.cursor = mid;
-                break;
-            }
-            if (this.lyrics[mid].time < time) {
-                low = mid;
+                return;
+            } else if (smaller) {
+                low = mid + 1;
             } else {
-                high = mid;
+                high = mid - 1;
             }
         }
+        this.cursor = low;
     }
 }
 

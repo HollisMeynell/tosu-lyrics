@@ -2,6 +2,7 @@
 
 import { render, ErrorBoundary } from "solid-js/web";
 import "./index.css";
+import Styles from "./main.module.scss";
 import LyricsBox from "./components/lyrics-box";
 import CenterBox from "./components/center-box";
 
@@ -16,20 +17,20 @@ if (import.meta.env.DEV && (root === null || !(root instanceof HTMLElement))) {
 // 错误回退组件
 const Fallback = (err: Error) => {
     return (
-        <div class="fallback-container">
-            <h2 class="fallback-title">
+        <div class={Styles.fallbackContainer}>
+            <h2 class={Styles.fallbackTitle}>
                 ⚠️ Oops! Something went wrong
             </h2>
-            <div class="fallback-error">
+            <div class={Styles.fallbackError}>
                 <p>{err.toString()}</p>
             </div>
             <button
-                class="fallback-button"
+                class={Styles.fallbackButton}
                 onClick={() => window.location.reload()}
             >
                 Reload Page
             </button>
-            <div class="fallback-footer">
+            <div class={Styles.fallbackFooter}>
                 <p>If the problem persists, please contact support.</p>
             </div>
         </div>
@@ -50,5 +51,5 @@ render(
             <Root />
         </ErrorBoundary>
     ),
-    document.getElementById("root")!
+    root!
 );
