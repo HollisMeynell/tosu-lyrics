@@ -1,13 +1,68 @@
 @font-face {
-    font-family: 'oLRC';
-    src: url('/oLRC.otf');
+    font-family: "oLRC";
+    src: url("/oLRC.otf");
 }
 @font-face {
-    font-family: 'tLRC';
-    src: url('/tLRC.otf');
+    font-family: "tLRC";
+    src: url("/tLRC.otf");
 }
 * {
     margin: 0;
     padding: 0;
     font-family: tLRC, serif;
+}
+
+.fallback-container {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+    color: #fff;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    max-width: 500px;
+    margin: 50px auto;
+    font-family: Arial, sans-serif;
+}
+
+.fallback-title {
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+.fallback-error {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+.fallback-error p {
+    margin: 0;
+    word-break: break-word;
+}
+
+.fallback-button {
+    background: #fff;
+    color: #ff6f61;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: background 0.3s ease;
+}
+
+.fallback-button:hover {
+    background: #f0f0f0;
+}
+
+.fallback-footer {
+    margin-top: 20px;
+}
+
+.fallback-footer p {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
 }

@@ -1,11 +1,10 @@
-import {AUDIO_URL} from "./constant.ts";
-
+import { AUDIO_URL } from "./constant.ts";
 
 type LyricLine = {
     time: number;
     first: string;
-    second?: string,
-}
+    second?: string;
+};
 
 export enum AdaptorStatus {
     "Pending",
@@ -19,7 +18,7 @@ export type MusicInfo = {
     artist: string;
     length: number;
     key: string;
-}
+};
 
 export interface LyricAdaptor {
     name: string;
@@ -32,6 +31,7 @@ export interface LyricAdaptor {
     // 获取歌词
     getLyrics(title: string, length: number): Promise<Lyric>;
 
+    // 通过 key 获取歌词
     getLyricsByKey(key: string): Promise<Lyric>;
 }
 
@@ -43,10 +43,10 @@ export class Lyric {
     constructor() {
         this.lyrics = [];
         this.endTime = -1;
-        this.cursor = 0
-
+        this.cursor = 0;
     }
 
+    // 插入歌词
     insert(time: number, t: string, n: number = 0): number {
         const text = t.trim();
         if (isNaN(time) || time < 0 || text.length == 0) return n + 1;
@@ -93,7 +93,7 @@ export class Lyric {
         return n + 1;
     }
 
-    nextTime():number {
+    nextTime(): number {
         if (this.cursor >= this.lyrics.length - 1) return 0;
         return this.lyrics[this.cursor + 1].time - this.lyrics[this.cursor].time;
     }
@@ -146,9 +146,8 @@ export class Lyric {
     }
 }
 
-
 export async function getLyrics(title: string): Promise<Lyric> {
-    const {default: NeteastLyricAdaptor} = await import('./neteast');
+    const { default: NeteastLyricAdaptor } = await import("./neteast");
     return NeteastLyricAdaptor.getLyrics(title);
 }
 
@@ -169,5 +168,5 @@ export async function getAudioLength(): Promise<number> {
             }
         }
         setInterval(check, 50);
-    })
+    });
 }

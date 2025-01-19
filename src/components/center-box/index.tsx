@@ -1,22 +1,32 @@
-import styles from './styles.module.scss';
-import {children as createChildren, JSX, Show} from "solid-js";
+import {children as createChildren, ParentComponent, onMount, Show } from "solid-js";
 import {consoleShow, paramParse} from "../../common/param-parse.ts";
+import styles from './styles.module.scss';
 
-type CenterBoxProps = {
-    children: JSX.Element
+declare global {
+    interface Window {
+        ignoreCORS?: boolean;
+    }
 }
 
-export default function CenterBox(props: CenterBoxProps) :JSX.Element{
+const CenterBox: ParentComponent = (props) => {
     const children = createChildren(() => props.children);
 
-    const url = new URL(window.location.href);
-    const params = new URLSearchParams(url.search);
-    paramParse(params)
+    onMount(() => {
+        const url = new URL(window.location.href);
+        const params = new URLSearchParams(url.search);
+        paramParse(params)
+    });
 
-    return <div class={styles.box}>
-        {children()}
-        <Show when={consoleShow()}>
-            <div>...</div>
-        </Show>
-    </div>
-}
+    return (
+        <div class={styles.box}>
+            {children()}
+            <Show when={consoleShow()}>
+                <div class={styles.console}>
+                    Debug console is enabled.
+                </div>
+            </Show>
+        </div>
+    );
+};
+
+export default CenterBox;
