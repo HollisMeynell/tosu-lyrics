@@ -61,7 +61,19 @@ export class Lyric {
                 this.lyrics[n].second = this.lyrics[n].first;
                 this.lyrics[n].first = text;
             } else if (this.lyrics[n].time > time + 1e-2) {
-                this.lyrics.splice(n, 0, {time, first: text})
+                if (n == 0) {
+                    this.lyrics.splice(n, 0, {time, first: text})
+                } else {
+                    while (n >= 0 && this.lyrics[n].time >= time + 1e-2) {
+                        n--;
+                    }
+                    if (Math.abs(this.lyrics[n].time - time) < 1e-2) {
+                        this.lyrics[n].second = this.lyrics[n].first;
+                        this.lyrics[n].first = text;
+                    } else {
+                        this.lyrics.splice(n, 0, {time, first: text})
+                    }
+                }
             } else {
                 if (n + 1 >= this.lyrics.length) {
                     this.lyrics.push({time: time, first: text})

@@ -1,14 +1,9 @@
 import styles from './styles.module.scss';
 import {children as createChildren, JSX, Show} from "solid-js";
+import {consoleShow, paramParse} from "../../common/param-parse.ts";
 
 type CenterBoxProps = {
     children: JSX.Element
-}
-
-declare global {
-    interface Window {
-        ignoreCORS?: boolean
-    }
 }
 
 export default function CenterBox(props: CenterBoxProps) :JSX.Element{
@@ -16,14 +11,11 @@ export default function CenterBox(props: CenterBoxProps) :JSX.Element{
 
     const url = new URL(window.location.href);
     const params = new URLSearchParams(url.search);
-    if (params.get('cors')) {
-        window.ignoreCORS = true;
-    }
-    const consoleShow = !!params.get('console')
+    paramParse(params)
 
     return <div class={styles.box}>
         {children()}
-        <Show when={consoleShow}>
+        <Show when={consoleShow()}>
             <div>...</div>
         </Show>
     </div>

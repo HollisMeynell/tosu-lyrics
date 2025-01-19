@@ -112,7 +112,10 @@ function clearLyricsByIndexedDB() {
     if (!lyricsDB) return;
     const transaction = lyricsDB.transaction([STORE_NAME], 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
-    store.clear();
+    const result = store.clear();
+    result.onerror = function (event) {
+        console.error('Error clearing lyrics:', event);
+    };
 }
 
 function saveLyricsByLocalStorage(name: string, lyrics: Lyric) {
@@ -151,13 +154,13 @@ function clearLyricsByLocalStorage() {
     }
 }
 
-function setConfig(obj: object) {
+function setConfig<T>(obj: T) {
     localStorage.setItem(CONFIG_KEY, JSON.stringify(obj));
 }
 
-function getConfig(): object {
+function getConfig<T>(): T | undefined {
     const dataString = localStorage.getItem(CONFIG_KEY);
-    if (!dataString) return {};
+    if (!dataString) return undefined;
     return JSON.parse(dataString);
 }
 
@@ -166,6 +169,9 @@ export default {
     getLyricsCache: getLyrics,
     getLyricsCacheList: getLyricsList,
     clearLyricsCache: clearLyrics,
+
+    clearLyricsByLocalStorage,
+    clearLyricsByIndexedDB,
 
     setConfig,
     getConfig,

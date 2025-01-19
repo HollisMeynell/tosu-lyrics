@@ -65,7 +65,7 @@ export default class TosuAdapter {
     private async updateLyric(title: string) {
         const lyric = await getLyrics(title);
         if (lyric.lyrics.length == 0) {
-            print();
+            this.print();
             return;
         }
         Cache.setLyricsCache(title, lyric);
