@@ -24,7 +24,17 @@ export async function doRequest(prop: RequestProp): Promise<RequestResult> {
             },
             body: JSON.stringify(prop.body)
         })
-        return await result.json()
+        const body = await result.text();
+
+        const headers = new Map<string, string>();
+        result.headers.forEach((value, key) => {
+            headers.set(key, value);
+        });
+        return {
+            status: result.status,
+            headers,
+            body,
+        };
     }
     const result = await fetch(PROXY_URL, {
         method: "POST",

@@ -1,4 +1,4 @@
-import {children as createChildren, ParentComponent, onMount, Show } from "solid-js";
+import {ParentComponent, onMount, Show } from "solid-js";
 import {consoleShow, paramParse} from "../../common/param-parse.ts";
 import styles from './styles.module.scss';
 
@@ -9,7 +9,6 @@ declare global {
 }
 
 const CenterBox: ParentComponent = (props) => {
-    const children = createChildren(() => props.children);
 
     onMount(() => {
         const url = new URL(window.location.href);
@@ -19,7 +18,7 @@ const CenterBox: ParentComponent = (props) => {
 
     return (
         <div class={styles.box}>
-            {children()}
+            {props.children}
             <Show when={consoleShow()}>
                 <div class={styles.console}>
                     Debug console is enabled.
