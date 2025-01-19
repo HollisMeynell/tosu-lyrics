@@ -90,11 +90,12 @@ async function getLyrics(songID: number | string): Promise<Lyric> {
         // 解析翻译歌词
         if (lyric.tlyric?.lyric?.length > 0) {
             const lines = lyric.tlyric.lyric.split(/(?=\[\d+:\d+\.\d+])/);
+            let n = 0; // 初始化指针 n
             for (const line of lines) {
                 const match = line.match(/\[(\d+):(\d+\.\d+)](.*)/);
                 if (!match) continue;
                 const { time, text } = parse(match);
-                result.insert(time, text);
+                n = result.insert(time, text, n);
             }
         }
 

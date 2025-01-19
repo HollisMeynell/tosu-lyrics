@@ -49,47 +49,61 @@ export class Lyric {
     // 插入歌词
     insert(time: number, t: string, n: number = 0): number {
         const text = t.trim();
+
+        // 检查时间戳和歌词文本是否有效
         if (isNaN(time) || time < 0 || text.length == 0) return n + 1;
 
+        // 时间戳大于当前最大时间戳，直接插入到末尾
         if (time > this.endTime) {
             this.endTime = time;
-            this.lyrics.push({time: time, first: text})
-        } else {
-            if (!this.lyrics[n]) {
-                this.lyrics.push({time: time, first: text})
-            } else if (Math.abs(this.lyrics[n].time - time) < 1e-2) {
-                this.lyrics[n].second = this.lyrics[n].first;
-                this.lyrics[n].first = text;
-            } else if (this.lyrics[n].time > time + 1e-2) {
-                if (n == 0) {
-                    this.lyrics.splice(n, 0, {time, first: text})
-                } else {
-                    while (n >= 0 && this.lyrics[n].time >= time + 1e-2) {
-                        n--;
-                    }
-                    if (Math.abs(this.lyrics[n].time - time) < 1e-2) {
-                        this.lyrics[n].second = this.lyrics[n].first;
-                        this.lyrics[n].first = text;
-                    } else {
-                        this.lyrics.splice(n, 0, {time, first: text})
-                    }
-                }
+            this.lyrics.push({ time: time, first: text });
+            return n + 1;
+        }
+
+        // 时间戳小于或等于当前最大时间戳，从指针 n 开始查找插入位置
+        if (!this.lyrics[n]) {
+            // 指针 n 超出数组范围，直接插入到末尾
+            this.lyrics.push({ time: time, first: text });
+        } else if (Math.abs(this.lyrics[n].time - time) < 1e-2) {
+            // 时间戳接近（差值小于 1e-2），更新已有歌词 (翻译在前)
+            this.lyrics[n].second = this.lyrics[n].first;
+            this.lyrics[n].first = text;
+        } else if (this.lyrics[n].time > time + 1e-2) {
+            // 时间戳小于指针 n 的时间戳，向前查找插入位置
+            if (n == 0) {
+                // 直接插入到数组开头
+                this.lyrics.splice(n, 0, { time, first: text });
             } else {
-                if (n + 1 >= this.lyrics.length) {
-                    this.lyrics.push({time: time, first: text})
+                // 否则，向前查找合适的位置
+                while (n >= 0 && this.lyrics[n].time >= time + 1e-2) {
+                    n--;
+                }
+                if (Math.abs(this.lyrics[n].time - time) < 1e-2) {
+                    this.lyrics[n].second = this.lyrics[n].first;
+                    this.lyrics[n].first = text;
                 } else {
-                    while (n < this.lyrics.length && this.lyrics[n + 1].time < time - 1e-2) {
-                        n++;
-                    }
-                    if (Math.abs(this.lyrics[n + 1].time - time) < 1e-2) {
-                        this.lyrics[n + 1].second = this.lyrics[n + 1].first
-                        this.lyrics[n + 1].first = text
-                    } else {
-                        this.lyrics.splice(n, 0, {time, first: text})
-                    }
+                    this.lyrics.splice(n, 0, { time, first: text });
+                }
+            }
+        } else {
+            // 时间戳大于指针 n 的时间戳，向后查找插入位置
+            if (n + 1 >= this.lyrics.length) {
+                // n + 1 超出数组范围，直接插入到末尾
+                this.lyrics.push({ time: time, first: text });
+            } else {
+                // 否则，向后查找合适的位置
+                while (n < this.lyrics.length && this.lyrics[n + 1].time < time - 1e-2) {
+                    n++;
+                }
+                if (Math.abs(this.lyrics[n + 1].time - time) < 1e-2) {
+                    this.lyrics[n + 1].second = this.lyrics[n + 1].first;
+                    this.lyrics[n + 1].first = text;
+                } else {
+                    this.lyrics.splice(n, 0, { time, first: text });
                 }
             }
         }
+        // 返回新的指针位置
         return n + 1;
     }
 
@@ -168,7 +182,7 @@ export async function getAudioLength(): Promise<number> {
             } else {
                 setInterval(check, 50);
             }
-        }
+        };
         setInterval(check, 50);
     });
 }
