@@ -170,19 +170,10 @@ export async function getLyrics(title: string): Promise<Lyric> {
 export async function getAudioLength(): Promise<number> {
     return new Promise((resolve) => {
         const audio = new Audio(AUDIO_URL);
+        audio.preload = "metadata";
+        audio.addEventListener("loadedmetadata", () => {
+            resolve(audio.duration * 1000);
+        });
         audio.load();
-        const check = () => {
-            if (audio.readyState > 0) {
-                if (audio.duration === Infinity) {
-                    audio.currentTime = 1e6;
-                    setInterval(check, 50);
-                    return;
-                }
-                resolve(audio.duration * 1000);
-            } else {
-                setInterval(check, 50);
-            }
-        };
-        setInterval(check, 50);
     });
 }
