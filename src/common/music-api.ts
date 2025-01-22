@@ -17,7 +17,7 @@ export type MusicInfo = {
     title: string;
     artist: string;
     length: number;
-    key: string;
+    key: number | string;
 };
 
 export interface LyricAdaptor {
@@ -164,16 +164,27 @@ export class Lyric {
 
 export async function getLyrics(title: string): Promise<Lyric> {
     const { default: NeteastLyricAdaptor } = await import("./neteast");
-    return NeteastLyricAdaptor.getLyrics(title);
+    const { default: QQLyricAdaptor } = await import("./qq");
+    const length = await getAudioLength();
+
+    const [neteast, qq] = await Promise.all([NeteastLyricAdaptor.hasLyrics(title, length), QQLyricAdaptor.hasLyrics(title, length)]);
+
+    if (neteast) {
+        return await NeteastLyricAdaptor.getLyrics();
+    } else if (qq) {
+        return await QQLyricAdaptor.getLyrics();
+    } else {
+        throw new Error("No lyrics found");
+    }
 }
 
 export async function getAudioLength(): Promise<number> {
     return new Promise((resolve) => {
         const audio = new Audio(AUDIO_URL);
         audio.preload = "metadata";
-        audio.addEventListener("loadedmetadata", () => {
+        audio.onloadedmetadata = () => {
             resolve(audio.duration * 1000);
-        });
+        };
         audio.load();
     });
 }

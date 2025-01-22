@@ -1,12 +1,12 @@
 import {PROXY_URL} from "./constant.ts";
 
-type RequestResult = {
+export type RequestResult = {
     status: number,
     headers: Map<string, string>,
     body: string,
 }
 
-type RequestProp = {
+export type RequestProp = {
     url: string;
     method?: string;
     header?: object;

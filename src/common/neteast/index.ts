@@ -1,8 +1,7 @@
-import { getLyricUrl, getMusicInfoUrl } from "./constant.ts";
+import {getLyricUrl, getMusicInfoUrl, parseReg, splitReg} from "./constant.ts";
 import { doRequest } from "../do-request.ts";
 import {
     AdaptorStatus,
-    getAudioLength,
     Lyric,
     LyricAdaptor,
     MusicInfo,
@@ -29,7 +28,7 @@ type SongSearchResult = {
     };
 };
 
-type SongLyric = {
+type LyricResult = {
     // 原版
     lrc: LyricItem;
     // ?
@@ -58,56 +57,62 @@ function parse(match: RegExpMatchArray) {
     return checkText(text) ? { time, text } : { time: NaN, text: "" };
 }
 
-async function searchMusic(title: string): Promise<SongSearchResult> {
+async function searchMusic(title: string): Promise<MusicInfo[]> {
     try {
         const url = getMusicInfoUrl(title);
         const response = await doRequest({ url });
-        return JSON.parse(response.body);
+        const data:SongSearchResult =  JSON.parse(response.body);
+        if (data.code !== 200 || !data.result?.songCount) {
+            return [];
+        }
+        return data.result?.songs.map((x) => {
+            return {
+                title: x.name,
+                artist: x.artists.map((x) => x.name).join(", ") || "Unknown",
+                length: Math.round(x.duration / 1000),
+                key: x.id,
+            };
+        }) || [];
     } catch (error) {
-        console.error("Failed to search music:", error);
-        throw new Error("Failed to search music");
+        console.error("[网易云]Failed to search music:", error);
+        throw new Error("[网易云]Failed to search music");
     }
 }
 
 async function getLyrics(songID: number | string): Promise<Lyric> {
-    try {
-        const url = getLyricUrl(songID);
-        const response = await doRequest({ url });
-        const lyric: SongLyric = JSON.parse(response.body);
+    const url = getLyricUrl(songID);
+    const response = await doRequest({ url });
+    const lyric: LyricResult = JSON.parse(response.body);
 
-        const result = new Lyric();
+    const result = new Lyric();
 
-        // 解析原版歌词
-        if (lyric.lrc?.lyric?.length > 0) {
-            const lines = lyric.lrc.lyric.split(/(?=\[\d+:\d+\.\d+])/);
-            for (const line of lines) {
-                const match = line.match(/\[(\d+):(\d+\.\d+)](.*)/);
-                if (!match) continue;
-                const { time, text } = parse(match);
-                result.insert(time, text);
-            }
+    // 解析原版歌词
+    if (lyric.lrc?.lyric?.length > 0) {
+        const lines = lyric.lrc.lyric.split(splitReg);
+        for (const line of lines) {
+            const match = line.match(parseReg);
+            if (!match) continue;
+            const { time, text } = parse(match);
+            result.insert(time, text);
         }
-        // 解析翻译歌词
-        if (lyric.tlyric?.lyric?.length > 0) {
-            const lines = lyric.tlyric.lyric.split(/(?=\[\d+:\d+\.\d+])/);
-            let n = 0; // 初始化指针 n
-            for (const line of lines) {
-                const match = line.match(/\[(\d+):(\d+\.\d+)](.*)/);
-                if (!match) continue;
-                const { time, text } = parse(match);
-                n = result.insert(time, text, n);
-            }
-        }
-
-        if (result.lyrics.length === 0) {
-            throw new Error("No lyrics found");
-        }
-
-        return result;
-    } catch (error) {
-        console.error("Failed to get lyrics:", error);
-        throw new Error("Failed to get lyrics");
     }
+    // 解析翻译歌词
+    if (lyric.tlyric?.lyric?.length > 0) {
+        const lines = lyric.tlyric.lyric.split(splitReg);
+        let n = 0; // 初始化指针 n
+        for (const line of lines) {
+            const match = line.match(parseReg);
+            if (!match) continue;
+            const { time, text } = parse(match);
+            n = result.insert(time, text, n);
+        }
+    }
+
+    if (result.lyrics.length === 0) {
+        throw new Error("No lyrics found");
+    }
+
+    return result;
 }
 
 class NeteastLyricAdaptor implements LyricAdaptor {
@@ -117,39 +122,27 @@ class NeteastLyricAdaptor implements LyricAdaptor {
 
     musicIdCache: number = 0;
 
-    async hasLyrics(): Promise<boolean> {
-        // 目前只有这一个适配器，所以直接返回 true
-        return true;
+
+
+    async hasLyrics(title: string, length: number): Promise<boolean> {
+        this.status = AdaptorStatus.Loading;
+        const songs = await searchMusic(title);
+        this.result = songs.filter(song => Math.abs(song.length - length) < MAX_TIME);
+        if (this.result.length > 0) {
+            this.status = AdaptorStatus.Pending;
+            return true;
+        } else {
+            this.status = AdaptorStatus.NotFound;
+            return false;
+        }
     }
 
-    async getLyrics(title: string): Promise<Lyric> {
+    async getLyrics(): Promise<Lyric> {
         this.status = AdaptorStatus.Loading;
         try {
-            const [musicInfo, length] = await Promise.all([
-                searchMusic(title),
-                getAudioLength(),
-            ]);
-            if (musicInfo.code !== 200 || musicInfo.result?.songCount === 0) {
-                this.status = AdaptorStatus.NotFound;
-                throw new Error("No songs found");
-            }
-            this.result =
-                musicInfo.result?.songs.map((x) => {
-                    return {
-                        title: x.name,
-                        artist: x.artists.map((x) => x.name).join(", "),
-                        length: Math.round(x.duration / 1000),
-                        key: x.id.toString(),
-                    };
-                }) || [];
-            const songDetail = musicInfo.result?.songs?.find(
-                (x) => Math.abs(x.duration - length) < MAX_TIME
-            );
-            if (!songDetail) {
-                this.status = AdaptorStatus.NoAccept;
-                throw new Error("未找到歌曲");
-            }
-            return await getLyrics(songDetail.id);
+            const result = await getLyrics(this.result[0].key);
+            this.status = AdaptorStatus.Pending;
+            return result;
         } catch (error) {
             this.status = AdaptorStatus.NoAccept;
             throw error;

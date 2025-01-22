@@ -63,13 +63,17 @@ export default class TosuAdapter {
     }
 
     private async updateLyric(title: string) {
-        const lyric = await getLyrics(title);
-        if (lyric.lyrics.length == 0) {
-            this.print();
-            return;
+        try {
+            const lyric = await getLyrics(title);
+            if (lyric.lyrics.length == 0) {
+                this.print();
+                return;
+            }
+            Cache.setLyricsCache(title, lyric);
+            this.showLyric(lyric);
+        } catch (e) {
+            console.error("Failed to get lyrics:", e);
         }
-        Cache.setLyricsCache(title, lyric);
-        this.showLyric(lyric);
     }
 
     private async handleMessage(event: MessageEvent) {
