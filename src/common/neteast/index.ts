@@ -56,7 +56,7 @@ async function searchMusic(title: string): Promise<MusicInfo[]> {
             return {
                 title: x.name,
                 artist: x.artists.map((x) => x.name).join(", ") || "Unknown",
-                length: Math.round(x.duration / 1000),
+                length: Math.round(x.duration),
                 key: x.id,
             };
         }) || [];
@@ -91,7 +91,11 @@ class NeteastLyricAdaptor implements LyricAdaptor {
     async hasLyrics(title: string, length: number): Promise<boolean> {
         this.status = AdaptorStatus.Loading;
         const songs = await searchMusic(title);
-        this.result = songs.filter(song => Math.abs(song.length - length) < MAX_TIME);
+        if (length <= 0) {
+            this.result = songs;
+        } else {
+            this.result = songs.filter(song => Math.abs(song.length - length) < MAX_TIME);
+        }
         if (this.result.length > 0) {
             this.status = AdaptorStatus.Pending;
             return true;

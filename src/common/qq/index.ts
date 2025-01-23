@@ -56,7 +56,7 @@ async function searchMusic(title: string): Promise<MusicInfo[]> {
             const songInfo: MusicInfo = {
                 title: song.songname,
                 artist: song.singer.map(s => s.name).join(", ") || "Unknown",
-                length: song.interval,
+                length: song.interval * 1000,
                 key: song.songmid
             }
             return songInfo
@@ -93,7 +93,11 @@ class QQLyricAdaptor implements LyricAdaptor {
 
     async hasLyrics(title: string, length: number): Promise<boolean> {
         const songs = await searchMusic(title);
-        this.result = songs.filter(song => Math.abs(song.length - length) < MAX_TIME)
+        if (length <= 0) {
+            this.result = songs;
+        } else {
+            this.result = songs.filter(song => Math.abs(song.length - length) < MAX_TIME);
+        }
         if (this.result.length > 0) {
             return true;
         } else {

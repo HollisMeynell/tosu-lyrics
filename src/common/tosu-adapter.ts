@@ -1,5 +1,5 @@
 import ReconnectingWebSocket from "reconnecting-websocket";
-import {AUDIO_URL, WS_DELAY_TIME, WS_URL} from "./constant.ts";
+import {AUDIO_URL, WAIT_AUDIO_METADATA, WS_DELAY_TIME, WS_URL} from "./constant.ts";
 import {Lyric} from "./music-api.ts";
 import Cache from "./cache.ts";
 import {TosuAPi} from "./tosu-types.ts";
@@ -20,6 +20,7 @@ type Temp = {
 
 export async function getLyrics(title: string): Promise<Lyric> {
     const length = await getAudioLength();
+    console.log(`title: ${title}, length: ${length}`);
 
     const [neteast, qq] = await Promise.all([NeteastLyricAdaptor.hasLyrics(title, length), QQLyricAdaptor.hasLyrics(title, length)]);
 
@@ -32,12 +33,27 @@ export async function getLyrics(title: string): Promise<Lyric> {
     }
 }
 
+/**
+ * 获取音频长度, 毫秒, 3秒超时
+ */
 export async function getAudioLength(): Promise<number> {
     return new Promise((resolve) => {
         const audio = new Audio(AUDIO_URL);
         audio.preload = "metadata";
+        let timeoutFlag = false;
+        // 超时
+        const backup = setTimeout(() => {
+            timeoutFlag = true;
+            resolve(-1)
+        }, WAIT_AUDIO_METADATA);
         audio.onloadedmetadata = () => {
-            resolve(audio.duration * 1000);
+            // 超时了就不再管了
+            if (timeoutFlag) return;
+            clearTimeout(backup);
+            if (isNaN(audio.duration) || audio.duration == Infinity) {
+                resolve(-1);
+            }
+            resolve(audio.duration  * 1000);
         };
         audio.load();
     });
