@@ -1,7 +1,8 @@
 import {AdaptorStatus, Lyric, LyricAdaptor, MusicInfo} from "../music-api.ts";
-import {getLyricUrl, getMusicInfoUrl, LyricUrlHeader, parseReg, splitReg} from "./constant.ts";
+import {getLyricUrl, getMusicInfoUrl, LyricUrlHeader} from "./constant.ts";
 import {doRequest, RequestProp} from "../do-request.ts";
 import {MAX_TIME} from "../constant.ts";
+import LrcParse from "../lrc-parse.ts";
 
 type ArtistDetail = {
     id: number;
@@ -43,20 +44,6 @@ type LyricResult = {
     trans: string;
 }
 
-// 很巧 qq 音乐的歌词格式与网易云十分类似, 难道说这是一种通用的格式?
-function checkText(text: string) {
-    return !text.match(/^..\s?:/);
-}
-
-function parse(match: RegExpMatchArray) {
-    const minutes = parseInt(match[1]);
-    const seconds = parseFloat(match[2]);
-    const lyric = match[3];
-    const time = minutes * 60 + seconds;
-    const text = lyric.trim();
-    return checkText(text) ? {time, text} : {time: NaN, text: ""};
-}
-
 async function searchMusic(title: string): Promise<MusicInfo[]> {
     try {
         const url = getMusicInfoUrl(title);
@@ -87,29 +74,10 @@ async function getLyrics(songID: number | string): Promise<Lyric> {
         header: LyricUrlHeader,
     }
     const response = await doRequest(requestProp);
+
     const lyrics: LyricResult = JSON.parse(response.body);
-    const result = new Lyric();
 
-    if (lyrics.lyric.length > 0) {
-        const lines = lyrics.lyric.split(splitReg);
-        lines.forEach(line => {
-            const regMatcher = line.match(parseReg);
-            if (!regMatcher) return;
-            const {time, text} = parse(regMatcher);
-            result.insert(time, text);
-        });
-    }
-
-    if (lyrics.trans.length > 0) {
-        const lines = lyrics.trans.split(splitReg);
-        let cursor = 0;
-        lines.forEach(line => {
-            const regMatcher = line.match(parseReg);
-            if (!regMatcher) return;
-            const {time, text} = parse(regMatcher);
-            cursor = result.insert(time, text, cursor);
-        });
-    }
+    const result = LrcParse(lyrics.lyric, lyrics.trans);
 
     if (result.lyrics.length === 0) {
         throw new Error("No lyrics found");

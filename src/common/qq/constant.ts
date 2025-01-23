@@ -3,5 +3,3 @@ export const getLyricUrl = (songID: number|string) => `https://c.y.qq.com/lyric/
 export const LyricUrlHeader = {
     "Referer": "https://y.qq.com/portal/player.html"
 }
-export const splitReg = /(?=\[\d+:\d+\.\d+])/;
-export const parseReg = /\[(\d+):(\d+\.\d+)](.*)/

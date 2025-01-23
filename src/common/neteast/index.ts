@@ -1,12 +1,13 @@
-import {getLyricUrl, getMusicInfoUrl, parseReg, splitReg} from "./constant.ts";
-import { doRequest } from "../do-request.ts";
+import {getLyricUrl, getMusicInfoUrl} from "./constant.ts";
+import {doRequest} from "../do-request.ts";
 import {
     AdaptorStatus,
     Lyric,
     LyricAdaptor,
     MusicInfo,
 } from "../music-api.ts";
-import { MAX_TIME } from "../constant.ts";
+import {MAX_TIME} from "../constant.ts";
+import LrcParse from "../lrc-parse.ts";
 
 type ArtistDetail = {
     id: number;
@@ -43,25 +44,11 @@ type LyricItem = {
     lyric: string;
 };
 
-function checkText(text: string) {
-    // 剔除类似 "翻译: xxx" 等无关信息
-    return !text.match(/^..\s?:/);
-}
-
-function parse(match: RegExpMatchArray) {
-    const minutes = parseInt(match[1]);
-    const seconds = parseFloat(match[2]);
-    const lyric = match[3];
-    const time = minutes * 60 + seconds;
-    const text = lyric.trim();
-    return checkText(text) ? { time, text } : { time: NaN, text: "" };
-}
-
 async function searchMusic(title: string): Promise<MusicInfo[]> {
     try {
         const url = getMusicInfoUrl(title);
-        const response = await doRequest({ url });
-        const data:SongSearchResult =  JSON.parse(response.body);
+        const response = await doRequest({url});
+        const data: SongSearchResult = JSON.parse(response.body);
         if (data.code !== 200 || !data.result?.songCount) {
             return [];
         }
@@ -81,32 +68,10 @@ async function searchMusic(title: string): Promise<MusicInfo[]> {
 
 async function getLyrics(songID: number | string): Promise<Lyric> {
     const url = getLyricUrl(songID);
-    const response = await doRequest({ url });
+    const response = await doRequest({url});
     const lyric: LyricResult = JSON.parse(response.body);
 
-    const result = new Lyric();
-
-    // 解析原版歌词
-    if (lyric.lrc?.lyric?.length > 0) {
-        const lines = lyric.lrc.lyric.split(splitReg);
-        for (const line of lines) {
-            const match = line.match(parseReg);
-            if (!match) continue;
-            const { time, text } = parse(match);
-            result.insert(time, text);
-        }
-    }
-    // 解析翻译歌词
-    if (lyric.tlyric?.lyric?.length > 0) {
-        const lines = lyric.tlyric.lyric.split(splitReg);
-        let n = 0; // 初始化指针 n
-        for (const line of lines) {
-            const match = line.match(parseReg);
-            if (!match) continue;
-            const { time, text } = parse(match);
-            n = result.insert(time, text, n);
-        }
-    }
+    const result = LrcParse(lyric.lrc.lyric, lyric.tlyric.lyric);
 
     if (result.lyrics.length === 0) {
         throw new Error("No lyrics found");
@@ -121,7 +86,6 @@ class NeteastLyricAdaptor implements LyricAdaptor {
     result: MusicInfo[] = [];
 
     musicIdCache: number = 0;
-
 
 
     async hasLyrics(title: string, length: number): Promise<boolean> {

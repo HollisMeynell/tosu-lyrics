@@ -1,8 +1,10 @@
 import ReconnectingWebSocket from "reconnecting-websocket";
-import {WS_DELAY_TIME, WS_URL} from "./constant.ts";
-import {getLyrics, Lyric} from "./music-api.ts";
+import {AUDIO_URL, WS_DELAY_TIME, WS_URL} from "./constant.ts";
+import {Lyric} from "./music-api.ts";
 import Cache from "./cache.ts";
 import {TosuAPi} from "./tosu-types.ts";
+import NeteastLyricAdaptor from "./neteast";
+import QQLyricAdaptor from "./qq";
 
 export type LyricLine = {
     main: string,
@@ -10,17 +12,42 @@ export type LyricLine = {
 }
 
 type Temp = {
-    title: string,
+    latestId: number,
     songTime?: number,
     currentTimeId?: number,
     lyric?: Lyric,
+}
+
+export async function getLyrics(title: string): Promise<Lyric> {
+    const length = await getAudioLength();
+
+    const [neteast, qq] = await Promise.all([NeteastLyricAdaptor.hasLyrics(title, length), QQLyricAdaptor.hasLyrics(title, length)]);
+
+    if (neteast) {
+        return await NeteastLyricAdaptor.getLyrics();
+    } else if (qq) {
+        return await QQLyricAdaptor.getLyrics();
+    } else {
+        throw new Error("No lyrics found");
+    }
+}
+
+export async function getAudioLength(): Promise<number> {
+    return new Promise((resolve) => {
+        const audio = new Audio(AUDIO_URL);
+        audio.preload = "metadata";
+        audio.onloadedmetadata = () => {
+            resolve(audio.duration * 1000);
+        };
+        audio.load();
+    });
 }
 
 export default class TosuAdapter {
     private readonly setLyrics: (value: LyricLine[]) => void;
     private readonly setCursor: (value: number) => void;
     private temp: Temp = {
-        title: "",
+        latestId: 0,
     };
     private readonly ws: ReconnectingWebSocket;
 
@@ -62,7 +89,7 @@ export default class TosuAdapter {
         }
     }
 
-    private async updateLyric(title: string) {
+    private async updateLyric(title: string, bid: number) {
         try {
             const lyric = await getLyrics(title);
             if (lyric.lyrics.length == 0) {
@@ -70,6 +97,7 @@ export default class TosuAdapter {
                 return;
             }
             Cache.setLyricsCache(title, lyric);
+            this.assertBid(bid);
             this.showLyric(lyric);
         } catch (e) {
             console.error("Failed to get lyrics:", e);
@@ -78,19 +106,23 @@ export default class TosuAdapter {
 
     private async handleMessage(event: MessageEvent) {
         const data: TosuAPi = JSON.parse(event.data);
-        const title = data.beatmap.titleUnicode;
+        const bid = data.beatmap.id;
 
-        if (title == this.temp.title) {
+        if (this.temp.latestId == bid) {
             this.show(data.beatmap.time.live);
             return;
-        } else {
-            this.temp.title = title;
-            this.print()
         }
 
-        const lyric = await Cache.getLyricsCache(data.beatmap.titleUnicode);
+        this.temp.latestId = bid;
+        this.print()
+
+
+        const title = data.beatmap.titleUnicode;
+
+        const lyric = await Cache.getLyricsCache(title);
         if (lyric && lyric.lyrics.length > 0) {
             this.temp.songTime = data.beatmap.time.live;
+            this.assertBid(bid);
             this.showLyric(lyric);
             return;
         }
@@ -101,15 +133,24 @@ export default class TosuAdapter {
 
         this.temp.currentTimeId = setTimeout(() => {
             this.temp.songTime = data.beatmap.time.live;
-            this.updateLyric(title);
+            this.updateLyric(title, bid);
         }, WS_DELAY_TIME);
     }
 
-    getNextTime () {
+    getNextTime() {
         return this.temp.lyric?.nextTime() || 0;
     }
 
     stop() {
         this.ws.close();
+    }
+
+    /**
+     * 防止前面请求延迟, 覆盖了后面请求
+     */
+    private assertBid(bid: number) {
+        if (this.temp.latestId != bid) {
+            throw new Error("Invalid bid");
+        }
     }
 }
