@@ -92,7 +92,16 @@ class QQLyricAdaptor implements LyricAdaptor {
     result: MusicInfo[] = [];
 
     async hasLyrics(title: string, length: number): Promise<boolean> {
-        const songs = await searchMusic(title);
+        this.status = AdaptorStatus.Loading;
+        let songs: MusicInfo[];
+        try {
+            songs = await searchMusic(title);
+            console.log(this.name, songs);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (error) {
+            this.status = AdaptorStatus.NotFound;
+            return false
+        }
         if (length <= 0) {
             this.result = songs;
         } else {
@@ -108,14 +117,17 @@ class QQLyricAdaptor implements LyricAdaptor {
 
     async getLyrics(): Promise<Lyric> {
         this.status = AdaptorStatus.Loading;
-        try {
-            const result = await getLyrics(this.result[0].key);
-            this.status = AdaptorStatus.Pending;
-            return result;
-        } catch (error) {
-            this.status = AdaptorStatus.NoAccept;
-            throw error;
+        for (const song of this.result) {
+            try {
+                const result = await getLyrics(song.key);
+                this.status = AdaptorStatus.Pending;
+                return result;
+            } catch (error) {
+                console.error(error)
+            }
         }
+        this.status = AdaptorStatus.NoAccept;
+        throw Error("QQ: No lyrics found");
     }
 
     async getLyricsByKey(key: string): Promise<Lyric> {

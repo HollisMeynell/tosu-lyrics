@@ -18,27 +18,12 @@ type Temp = {
     lyric?: Lyric,
 }
 
-export async function getLyrics(title: string, mp3length: number): Promise<Lyric> {
-    const length = await getAudioLength(mp3length);
-    console.log(`title: ${title}, length: ${length}`);
-
-    const [neteast, qq] = await Promise.all([NeteastLyricAdaptor.hasLyrics(title, length), QQLyricAdaptor.hasLyrics(title, length)]);
-
-    if (neteast) {
-        return await NeteastLyricAdaptor.getLyrics();
-    } else if (qq) {
-        return await QQLyricAdaptor.getLyrics();
-    } else {
-        throw new Error("No lyrics found");
-    }
-}
-
 /**
  * 获取音频长度, 毫秒, 3秒超时
  */
-export async function getAudioLength(defaultTime: number = -1): Promise<number> {
-    let length = await new Promise<number>((resolve) => {
-        const audio = new Audio(AUDIO_URL);
+export async function getAudioLength(): Promise<number> {
+    return await new Promise<number>((resolve) => {
+        const audio = new Audio(AUDIO_URL + "?t=" + Date.now());
         audio.preload = "metadata";
         let timeoutFlag = false;
         // 超时
@@ -60,15 +45,6 @@ export async function getAudioLength(defaultTime: number = -1): Promise<number> 
 
         audio.load();
     });
-    if (length < 0) {
-        if (defaultTime > 1000) {
-            return defaultTime;
-        } else {
-            return defaultTime * 1000;
-        }
-    } else {
-        return length;
-    }
 }
 
 export default class TosuAdapter {
@@ -117,9 +93,9 @@ export default class TosuAdapter {
         }
     }
 
-    private async updateLyric(title: string, bid: number, mp3length: number) {
+    private async updateLyric(title: string, bid: number) {
         try {
-            const lyric = await getLyrics(title, mp3length);
+            const lyric = await this.getLyrics(title, bid);
             if (lyric.lyrics.length == 0) {
                 this.print();
                 return;
@@ -161,9 +137,7 @@ export default class TosuAdapter {
 
         this.temp.currentTimeId = setTimeout(() => {
             this.temp.songTime = data.beatmap.time.live;
-            // tosu 获取的时间, 有一定的偏差
-            const mp3length = data.beatmap.time.mp3Length;
-            this.updateLyric(title, bid, mp3length);
+            this.updateLyric(title, bid);
         }, WS_DELAY_TIME);
     }
 
@@ -180,7 +154,34 @@ export default class TosuAdapter {
      */
     private assertBid(bid: number) {
         if (this.temp.latestId != bid) {
-            throw new Error("Invalid bid");
+            throw new Error("请求过期, 无需处理");
         }
+    }
+
+    private async getLyrics(title: string, bid: number): Promise<Lyric> {
+        const length = await getAudioLength();
+        this.assertBid(bid);
+
+        console.log(`title: ${title}, length: ${length}`);
+
+        const [neteast, qq] = await Promise.all([NeteastLyricAdaptor.hasLyrics(title, length), QQLyricAdaptor.hasLyrics(title, length)]);
+
+        if (neteast) {
+            try {
+                return await NeteastLyricAdaptor.getLyrics();
+            } catch (err) {
+                console.info(NeteastLyricAdaptor.name, err);
+            }
+        }
+
+        if (qq) {
+            try {
+                return await QQLyricAdaptor.getLyrics();
+            } catch (err) {
+                console.info(QQLyricAdaptor.name, err);
+            }
+        }
+
+        throw new Error("No lyrics found");
     }
 }

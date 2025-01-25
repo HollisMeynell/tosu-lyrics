@@ -62,7 +62,7 @@ async function searchMusic(title: string): Promise<MusicInfo[]> {
         }) || [];
     } catch (error) {
         console.error("[网易云]Failed to search music:", error);
-        throw new Error("[网易云]Failed to search music");
+        throw error;
     }
 }
 
@@ -71,7 +71,7 @@ async function getLyrics(songID: number | string): Promise<Lyric> {
     const response = await doRequest({url});
     const lyric: LyricResult = JSON.parse(response.body);
 
-    const result = LrcParse(lyric.lrc.lyric, lyric.tlyric.lyric);
+    const result = LrcParse(lyric?.lrc?.lyric, lyric?.tlyric?.lyric);
 
     if (result.lyrics.length === 0) {
         throw new Error("No lyrics found");
@@ -90,7 +90,15 @@ class NeteastLyricAdaptor implements LyricAdaptor {
 
     async hasLyrics(title: string, length: number): Promise<boolean> {
         this.status = AdaptorStatus.Loading;
-        const songs = await searchMusic(title);
+        let songs: MusicInfo[];
+        try {
+            songs = await searchMusic(title);
+            console.log(this.name, songs);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (error) {
+            this.status = AdaptorStatus.NotFound;
+            return false
+        }
         if (length <= 0) {
             this.result = songs;
         } else {
@@ -107,14 +115,17 @@ class NeteastLyricAdaptor implements LyricAdaptor {
 
     async getLyrics(): Promise<Lyric> {
         this.status = AdaptorStatus.Loading;
-        try {
-            const result = await getLyrics(this.result[0].key);
-            this.status = AdaptorStatus.Pending;
-            return result;
-        } catch (error) {
-            this.status = AdaptorStatus.NoAccept;
-            throw error;
+        for (const song of this.result) {
+            try {
+                const result = await getLyrics(song.key);
+                this.status = AdaptorStatus.Pending;
+                return result;
+            } catch (error) {
+                console.error(error)
+            }
         }
+        this.status = AdaptorStatus.NoAccept;
+        throw Error("网易云: No lyrics found");
     }
 
     async getLyricsByKey(key: string): Promise<Lyric> {
