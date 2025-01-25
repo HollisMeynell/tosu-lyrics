@@ -60,7 +60,15 @@ export async function getAudioLength(defaultTime: number = -1): Promise<number> 
 
         audio.load();
     });
-    return length < 0 ? defaultTime < 1000 ? defaultTime : defaultTime * 1000 : length;
+    if (length < 0) {
+        if (defaultTime > 1000) {
+            return defaultTime;
+        } else {
+            return defaultTime * 1000;
+        }
+    } else {
+        return length;
+    }
 }
 
 export default class TosuAdapter {
