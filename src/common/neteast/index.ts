@@ -6,7 +6,7 @@ import {
     LyricAdaptor,
     MusicInfo,
 } from "../music-api.ts";
-import {MAX_TIME} from "../constant.ts";
+import {TIME_DIFF_FILERT} from "../constant.ts";
 import LrcParse from "../lrc-parse.ts";
 
 type ArtistDetail = {
@@ -94,7 +94,7 @@ class NeteastLyricAdaptor implements LyricAdaptor {
         if (length <= 0) {
             this.result = songs;
         } else {
-            this.result = songs.filter(song => Math.abs(song.length - length) < MAX_TIME);
+            this.result = songs.filter(song => TIME_DIFF_FILERT(song.length, length));
         }
         if (this.result.length > 0) {
             this.status = AdaptorStatus.Pending;

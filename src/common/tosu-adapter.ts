@@ -18,8 +18,8 @@ type Temp = {
     lyric?: Lyric,
 }
 
-export async function getLyrics(title: string): Promise<Lyric> {
-    const length = await getAudioLength();
+export async function getLyrics(title: string, mp3length: number): Promise<Lyric> {
+    const length = await getAudioLength(mp3length);
     console.log(`title: ${title}, length: ${length}`);
 
     const [neteast, qq] = await Promise.all([NeteastLyricAdaptor.hasLyrics(title, length), QQLyricAdaptor.hasLyrics(title, length)]);
@@ -36,8 +36,8 @@ export async function getLyrics(title: string): Promise<Lyric> {
 /**
  * 获取音频长度, 毫秒, 3秒超时
  */
-export async function getAudioLength(): Promise<number> {
-    return new Promise((resolve) => {
+export async function getAudioLength(defaultTime: number = -1): Promise<number> {
+    let length = await new Promise<number>((resolve) => {
         const audio = new Audio(AUDIO_URL);
         audio.preload = "metadata";
         let timeoutFlag = false;
@@ -46,17 +46,21 @@ export async function getAudioLength(): Promise<number> {
             timeoutFlag = true;
             resolve(-1)
         }, WAIT_AUDIO_METADATA);
-        audio.onloadedmetadata = () => {
+        const onLoad = () => {
             // 超时了就不再管了
             if (timeoutFlag) return;
-            clearTimeout(backup);
             if (isNaN(audio.duration) || audio.duration == Infinity) {
-                resolve(-1);
+                return;
             }
-            resolve(audio.duration  * 1000);
+            clearTimeout(backup);
+            resolve(audio.duration * 1000);
         };
+        audio.onloadedmetadata = onLoad;
+        audio.ondurationchange = onLoad;
+
         audio.load();
     });
+    return length < 0 ? defaultTime < 1000 ? defaultTime : defaultTime * 1000 : length;
 }
 
 export default class TosuAdapter {
@@ -105,9 +109,9 @@ export default class TosuAdapter {
         }
     }
 
-    private async updateLyric(title: string, bid: number) {
+    private async updateLyric(title: string, bid: number, mp3length: number) {
         try {
-            const lyric = await getLyrics(title);
+            const lyric = await getLyrics(title, mp3length);
             if (lyric.lyrics.length == 0) {
                 this.print();
                 return;
@@ -149,7 +153,9 @@ export default class TosuAdapter {
 
         this.temp.currentTimeId = setTimeout(() => {
             this.temp.songTime = data.beatmap.time.live;
-            this.updateLyric(title, bid);
+            // tosu 获取的时间, 有一定的偏差
+            const mp3length = data.beatmap.time.mp3Length;
+            this.updateLyric(title, bid, mp3length);
         }, WS_DELAY_TIME);
     }
 
