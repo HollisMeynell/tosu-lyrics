@@ -1,37 +1,10 @@
+import { parseLyricText } from "@/utils/lrc-parse";
+
 type LyricLine = {
     time: number;
     first: string;
     second?: string;
 };
-
-export enum AdaptorStatus {
-    "Pending",
-    "NotFound",
-    "NoAccept",
-    "Loading",
-}
-
-export type MusicInfo = {
-    title: string;
-    artist: string;
-    length: number;
-    key: number | string;
-};
-
-export interface LyricAdaptor {
-    name: string;
-    status: AdaptorStatus;
-    result: MusicInfo[];
-
-    // 检索是否有歌词
-    hasLyrics(title: string, length: number): Promise<boolean>;
-
-    // 获取歌词
-    getLyrics(title: string, length: number): Promise<Lyric>;
-
-    // 通过 key 获取歌词
-    getLyricsByKey(key: string): Promise<Lyric>;
-}
 
 export class Lyric {
     lyrics: LyricLine[];
@@ -44,7 +17,7 @@ export class Lyric {
         this.cursor = 0;
     }
 
-    // 插入歌词
+    // 插入单句歌词
     insert(time: number, t: string, n: number = 0): number {
         const text = t.trim();
 
@@ -105,11 +78,45 @@ export class Lyric {
         return n + 1;
     }
 
+    insertAll(lyric: string, trans?: string) {
+        if (!lyric?.trim()?.length) {
+            throw Error("Empty lyric");
+        }
+
+        try {
+            // 解析原版歌词
+            const lyricLines = parseLyricText(lyric);
+            for (const { time, text } of lyricLines) {
+                if (!this.insert(time, text)) {
+                    console.warn(`Failed to insert lyric at ${time}: ${text}`);
+                }
+            }
+
+            // 解析翻译歌词
+            if (trans?.trim()?.length) {
+                const transLines = parseLyricText(trans);
+                let cursor = 0;
+                for (const { time, text } of transLines) {
+                    cursor = this.insert(time, text, cursor);
+                    if (cursor === -1) {
+                        console.warn(`Failed to insert translation at ${time}: ${text}`);
+                        break;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Failed to parse lyric:", error);
+            throw error;
+        }
+    }
+
+    // 获取当前歌词
     nextTime(): number {
         if (this.cursor >= this.lyrics.length - 1) return 0;
         return this.lyrics[this.cursor + 1].time - this.lyrics[this.cursor].time;
     }
 
+    // 跳转到指定时间
     jump(time: number) {
         if (this.lyrics.length == 0) return;
         if (time < 1.5) {

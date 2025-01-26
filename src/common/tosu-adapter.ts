@@ -1,22 +1,25 @@
 import ReconnectingWebSocket from "reconnecting-websocket";
-import {AUDIO_URL, WAIT_AUDIO_METADATA, WS_DELAY_TIME, WS_URL} from "./constant.ts";
-import {Lyric} from "./music-api.ts";
-import Cache from "./cache.ts";
-import {TosuAPi} from "./tosu-types.ts";
-import NeteastLyricAdaptor from "./neteast";
-import QQLyricAdaptor from "./qq";
+import { Lyric } from "./music-api.ts";
+import Cache from "@/utils/cache.ts";
+import { TosuAPi } from "@/types/tosu-types.ts";
+import { QQLyricAdaptor, NeteastLyricAdaptor } from "@/adapters";
 
 export type LyricLine = {
-    main: string,
-    origin?: string,
-}
+    main: string;
+    origin?: string;
+};
 
 type Temp = {
-    latestId: number,
-    songTime?: number,
-    currentTimeId?: number,
-    lyric?: Lyric,
-}
+    latestId: number;
+    songTime?: number;
+    currentTimeId?: ReturnType<typeof setTimeout>;
+    lyric?: Lyric;
+};
+
+const AUDIO_URL = "http://127.0.0.1:24050/files/beatmap/audio"
+const WS_URL = "ws://127.0.0.1:24050/websocket/v2"
+const WS_DELAY_TIME = 100
+const WAIT_AUDIO_METADATA = 1000
 
 /**
  * 获取音频长度, 毫秒, 3秒超时
@@ -29,7 +32,7 @@ export async function getAudioLength(): Promise<number> {
         // 超时
         const backup = setTimeout(() => {
             timeoutFlag = true;
-            resolve(-1)
+            resolve(-1);
         }, WAIT_AUDIO_METADATA);
         const onLoad = () => {
             // 超时了就不再管了
@@ -57,7 +60,7 @@ export default class TosuAdapter {
 
     constructor(
         setLyrics: (value: LyricLine[]) => void,
-        setCursor: (value: number) => void,
+        setCursor: (value: number) => void
     ) {
         this.setLyrics = setLyrics;
         this.setCursor = setCursor;
@@ -67,7 +70,7 @@ export default class TosuAdapter {
 
     private print(text: string = "") {
         this.temp.lyric = void 0;
-        this.setLyrics([{main: text}]);
+        this.setLyrics([{ main: text }]);
         this.setCursor(0);
     }
 
@@ -75,15 +78,15 @@ export default class TosuAdapter {
         if (!this.temp.lyric) {
             return;
         }
-        const time = (now || 0) / 1000
-        this.temp.lyric?.jump(time)
+        const time = (now || 0) / 1000;
+        this.temp.lyric?.jump(time);
         this.setCursor(this.temp.lyric?.cursor || 0);
     }
 
     private showLyric(lyric: Lyric) {
         this.temp.lyric = lyric;
         const list = lyric.lyrics.map((x) => {
-            return x.second ? {main: x.first, origin: x.second} : {main: x.first}
+            return x.second ? { main: x.first, origin: x.second } : { main: x.first };
         });
         this.setLyrics(list);
         if (this.temp.songTime) {
@@ -118,8 +121,7 @@ export default class TosuAdapter {
         }
 
         this.temp.latestId = bid;
-        this.print()
-
+        this.print();
 
         const title = data.beatmap.titleUnicode;
 
@@ -164,24 +166,37 @@ export default class TosuAdapter {
 
         console.log(`title: ${title}, length: ${length}`);
 
-        const [neteast, qq] = await Promise.all([NeteastLyricAdaptor.hasLyrics(title, length), QQLyricAdaptor.hasLyrics(title, length)]);
+        // 并行检查是否有歌词
+        const [neteastHasLyrics, qqHasLyrics] = await Promise.all([
+            NeteastLyricAdaptor.hasLyrics(title, length),
+            QQLyricAdaptor.hasLyrics(title, length),
+        ]);
 
-        if (neteast) {
+        const newLyric = new Lyric();
+
+        // 如果网易云适配器有歌词
+        if (neteastHasLyrics) {
             try {
-                return await NeteastLyricAdaptor.getLyrics();
+                const lyric = await NeteastLyricAdaptor.getLyricsFromResult();
+                newLyric.insertAll(lyric.lyric, lyric.trans);
+                return newLyric;
             } catch (err) {
                 console.info(NeteastLyricAdaptor.name, err);
             }
         }
 
-        if (qq) {
+        // 如果 QQ 音乐适配器有歌词
+        if (qqHasLyrics) {
             try {
-                return await QQLyricAdaptor.getLyrics();
+                const lyric = await QQLyricAdaptor.getLyricsFromResult();
+                newLyric.insertAll(lyric.lyric, lyric.trans);
+                return newLyric;
             } catch (err) {
                 console.info(QQLyricAdaptor.name, err);
             }
         }
 
+        // 如果都没有歌词，抛出错误
         throw new Error("No lyrics found");
     }
 }

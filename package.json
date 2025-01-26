@@ -11,10 +11,14 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^22.10.10",
     "@typescript-eslint/eslint-plugin": "^8.21.0",
     "@typescript-eslint/parser": "^8.21.0",
     "eslint": "^9.18.0",
     "globals": "^15.14.0",
+    "prettier": "^3.4.2",
+    "rollup-plugin-visualizer": "^5.14.0",
     "sass": "^1.83.4",
     "typescript": "5.7.3",
     "vite": "^6.0.11",
@@ -23,6 +27,7 @@
   },
   "dependencies": {
     "reconnecting-websocket": "^4.4.0",
-    "solid-js": "^1.9.4"
+    "solid-js": "^1.9.4",
+    "tailwindcss": "^4.0.0"
   }
 }

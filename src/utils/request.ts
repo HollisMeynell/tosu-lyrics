@@ -1,5 +1,3 @@
-import {PROXY_URL} from "./constant.ts";
-
 export type RequestResult = {
     status: number,
     headers: Map<string, string>,
@@ -12,6 +10,8 @@ export type RequestProp = {
     header?: object;
     body?: object;
 }
+
+const PROXY_URL = "/api/proxy"
 
 export async function doRequest(prop: RequestProp): Promise<RequestResult> {
     // 使用 obs 的 '--disable-web-security' 参数禁用浏览器的 CORS 限制

@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 @font-face {
     font-family: "LRC";
     src: url("/LRC.otf");
@@ -14,7 +16,60 @@
 }
 
 * {
-    margin: 0;
-    padding: 0;
     font-family: LRC, tLRC, oLRC, serif;
+}
+
+@layer utilities {
+    @keyframes scroll {
+        0% {
+            transform: scale(1.2) translateX(calc(var(--offset, 5%) + 50px));
+        }
+        25% {
+            transform: scale(1.2) translateX(calc(var(--offset, 5%) + 50px));
+        }
+        75% {
+            transform: scale(1.2) translateX(calc(var(--offset-f, -5%) - 50px));
+        }
+        100% {
+            transform: scale(1.2) translateX(calc(var(--offset-f, -5%) - 50px));
+        }
+    }
+
+    @keyframes scrollX {
+        0% {
+            transform: scale(1.2) translateX(var(--offset, 5%));
+        }
+        50% {
+            transform: scale(1.2) translateX(var(--offset-f, -5%));
+        }
+        100% {
+            transform: scale(1.2) translateX(var(--offset, 5%));
+        }
+    }
+
+    .animate-scroll {
+        animation: scroll var(--time) linear infinite;
+    }
+
+    .animate-scrollX {
+        animation: scrollX var(--time) linear infinite;
+    }
+}
+
+/*
+    The default border color has changed to `currentColor` in Tailwind CSS v4,
+    so we've added these compatibility styles to make sure everything still
+    looks the same as it did with Tailwind CSS v3.
+
+    If we ever want to remove these styles, we need to add an explicit border
+    color utility to any element that depends on these defaults.
+  */
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
 }
