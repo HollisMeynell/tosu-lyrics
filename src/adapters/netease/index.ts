@@ -39,7 +39,7 @@ const GET_LYRIC_URL = (songID: number | string) =>
     `https://music.163.com/api/song/lyric?os=pc&id=${songID}&lv=1&kv=1&tv=1`;
 
 // 网易云音乐适配器
-export class NeteastLyricAdaptor extends LyricAdaptor {
+export class NeteaseLyricAdaptor extends LyricAdaptor {
     constructor() {
         super("网易云");
     }
@@ -83,4 +83,4 @@ export class NeteastLyricAdaptor extends LyricAdaptor {
     }
 }
 
-export default new NeteastLyricAdaptor();
+export default new NeteaseLyricAdaptor();

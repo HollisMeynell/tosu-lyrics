@@ -1,4 +1,4 @@
 import QQLyricAdaptor from "@/adapters/qq";
-import NeteastLyricAdaptor from "@/adapters/netease";
+import NeteaseLyricAdaptor from "@/adapters/netease";
 
-export { QQLyricAdaptor, NeteastLyricAdaptor };
+export { QQLyricAdaptor, NeteaseLyricAdaptor };

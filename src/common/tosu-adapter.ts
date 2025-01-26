@@ -2,7 +2,7 @@ import ReconnectingWebSocket from "reconnecting-websocket";
 import { Lyric } from "./music-api.ts";
 import Cache from "@/utils/cache.ts";
 import { TosuAPi } from "@/types/tosu-types.ts";
-import { QQLyricAdaptor, NeteastLyricAdaptor } from "@/adapters";
+import { QQLyricAdaptor, NeteaseLyricAdaptor } from "@/adapters";
 
 export type LyricLine = {
     main: string;
@@ -167,21 +167,21 @@ export default class TosuAdapter {
         console.log(`title: ${title}, length: ${length}`);
 
         // 并行检查是否有歌词
-        const [neteastHasLyrics, qqHasLyrics] = await Promise.all([
-            NeteastLyricAdaptor.hasLyrics(title, length),
+        const [neteaseHasLyrics, qqHasLyrics] = await Promise.all([
+            NeteaseLyricAdaptor.hasLyrics(title, length),
             QQLyricAdaptor.hasLyrics(title, length),
         ]);
 
         const newLyric = new Lyric();
 
         // 如果网易云适配器有歌词
-        if (neteastHasLyrics) {
+        if (neteaseHasLyrics) {
             try {
-                const lyric = await NeteastLyricAdaptor.getLyricsFromResult();
+                const lyric = await NeteaseLyricAdaptor.getLyricsFromResult();
                 newLyric.insertAll(lyric.lyric, lyric.trans);
                 return newLyric;
             } catch (err) {
-                console.info(NeteastLyricAdaptor.name, err);
+                console.info(NeteaseLyricAdaptor.name, err);
             }
         }
 
