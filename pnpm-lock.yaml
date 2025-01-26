@@ -45,9 +45,6 @@ importers:
       rollup-plugin-visualizer:
         specifier: ^5.14.0
         version: 5.14.0(rollup@4.31.0)
-      sass:
-        specifier: ^1.83.4
-        version: 1.83.4
       typescript:
         specifier: 5.7.3
         version: 5.7.3
@@ -2115,6 +2112,7 @@ snapshots:
   chokidar@4.0.3:
     dependencies:
       readdirp: 4.1.1
+    optional: true
 
   cliui@8.0.1:
     dependencies:
@@ -2330,7 +2328,8 @@ snapshots:
 
   ignore@5.3.2: {}
 
-  immutable@5.0.3: {}
+  immutable@5.0.3:
+    optional: true
 
   import-fresh@3.3.0:
     dependencies:
@@ -2526,7 +2525,8 @@ snapshots:
 
   queue-microtask@1.2.3: {}
 
-  readdirp@4.1.1: {}
+  readdirp@4.1.1:
+    optional: true
 
   reconnecting-websocket@4.4.0: {}
 
@@ -2581,6 +2581,7 @@ snapshots:
       source-map-js: 1.2.1
     optionalDependencies:
       '@parcel/watcher': 2.5.0
+    optional: true
 
   semver@6.3.1: {}
 
