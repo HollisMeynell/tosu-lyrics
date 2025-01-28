@@ -1,3 +1,5 @@
+// 对各缓存类型的CURD操作进行封装，提供统一的接口
+
 import { Lyric } from "@/common/music-api.ts";
 
 const LYRICS_PREFIX = "lyrics_";

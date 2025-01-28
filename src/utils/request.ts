@@ -1,3 +1,5 @@
+// 功能: 封装请求方法
+
 export type RequestResult = {
     status: number,
     headers: Map<string, string>,

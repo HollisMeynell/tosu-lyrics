@@ -1,3 +1,5 @@
+// 功能: 歌词展示组件
+
 import TosuAdapter, { LyricLine } from "@/common/tosu-adapter.ts";
 import {
     createEffect,
@@ -60,7 +62,7 @@ export default function LyricsBox() {
     );
 
     return (
-        <div class="w-[1920px] h-[300px] rounded-[30px] bg-transparent overflow-hidden">
+        <div class="w-full h-[300px] bg-transparent overflow-hidden mx-auto flex justify-center items-center">
             <ul
                 ref={lyricUL}
                 class="list-none transition-transform duration-300"
@@ -70,7 +72,8 @@ export default function LyricsBox() {
                     {(lyric, index) => (
                         <li
                             classList={{
-                                "w-full h-[100px] flex flex-col justify-center items-center scale-[0.6] transition-all duration-200": true,
+                                "w-full h-[100px] flex flex-col justify-center items-center scale-[0.6] transition-all duration-200":
+                                    true,
                                 "scale-[1.2]": cursor() === index,
                                 "text-white": cursor() === index,
                                 "animate-scroll": cursor() === index && scroll(),
@@ -80,11 +83,14 @@ export default function LyricsBox() {
                                 {lyric().main}
                             </p>
                             <Show when={lyric().origin}>
-                                <p classList={{
-                                    "font-oLRC text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4": true,
-                                    "block": cursor() === index,
-                                    "hidden": cursor() !== index,
-                                }}>
+                                <p
+                                    classList={{
+                                        "font-oLRC text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4":
+                                            true,
+                                        block: cursor() === index,
+                                        hidden: cursor() !== index,
+                                    }}
+                                >
                                     {lyric().origin}
                                 </p>
                             </Show>

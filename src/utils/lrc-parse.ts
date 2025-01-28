@@ -1,4 +1,4 @@
-// Purpose: Parse LRC lyric text into Lyric object.
+// 功能: 将 LRC 格式的歌词文本解析为 ParsedLyricLine 数组
 
 type ParsedLyricLine = {
     time: number;

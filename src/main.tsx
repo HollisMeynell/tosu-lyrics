@@ -2,8 +2,15 @@
 
 import { render, ErrorBoundary } from "solid-js/web";
 import "./index.css";
-import LyricsBox from "./components/LyricsBox";
-import CenterBox from "./components/CenterBox";
+import LyricsBox from "@/components/LyricsBox";
+import { onMount, Show } from "solid-js";
+import { consoleEnabled, paramParse, parseUrlParams } from "@/utils/param-parse";
+
+declare global {
+    interface Window {
+        ignoreCORS?: boolean;
+    }
+}
 
 const root = document.getElementById("root");
 
@@ -37,11 +44,23 @@ const Fallback = (err: Error) => {
 };
 
 // 根组件
-const Root = () => (
-    <CenterBox>
-        <LyricsBox />
-    </CenterBox>
-);
+const Root = () => {
+    onMount(() => {
+        const params = parseUrlParams(window.location.href);
+        paramParse(params);
+    });
+
+    return (
+        <>
+            <LyricsBox />
+            <Show when={consoleEnabled()}>
+                <div class="bg-gray-800 text-white p-2 rounded text-sm">
+                    Debug console is enabled.
+                </div>
+            </Show>
+        </>
+    );
+};
 
 // 渲染应用
 render(

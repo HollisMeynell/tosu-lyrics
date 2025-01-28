@@ -1,5 +1,5 @@
 import ReconnectingWebSocket from "reconnecting-websocket";
-import { Lyric } from "./music-api.ts";
+import { Lyric } from "@/common/music-api.ts";
 import Cache from "@/utils/cache.ts";
 import { TosuAPi } from "@/types/tosu-types.ts";
 import { QQLyricAdaptor, NeteaseLyricAdaptor } from "@/adapters";
@@ -16,10 +16,10 @@ type Temp = {
     lyric?: Lyric;
 };
 
-const AUDIO_URL = "http://127.0.0.1:24050/files/beatmap/audio"
-const WS_URL = "ws://127.0.0.1:24050/websocket/v2"
-const WS_DELAY_TIME = 100
-const WAIT_AUDIO_METADATA = 1000
+const AUDIO_URL = "http://127.0.0.1:24050/files/beatmap/audio";
+const WS_URL = "ws://127.0.0.1:24050/websocket/v2";
+const WS_DELAY_TIME = 100;
+const WAIT_AUDIO_METADATA = 1000;
 
 /**
  * 获取音频长度, 毫秒, 3秒超时
@@ -75,9 +75,8 @@ export default class TosuAdapter {
     }
 
     private show(now: number) {
-        if (!this.temp.lyric) {
-            return;
-        }
+        if (!this.temp.lyric) return;
+
         const time = (now || 0) / 1000;
         this.temp.lyric?.jump(time);
         this.setCursor(this.temp.lyric?.cursor || 0);
