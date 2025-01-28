@@ -62,7 +62,7 @@ export default function LyricsBox() {
     );
 
     return (
-        <div class="w-full h-[300px] bg-transparent overflow-hidden mx-auto flex justify-center items-center">
+        <div class="w-full h-[300px] bg-transparent overflow-hidden">
             <ul
                 ref={lyricUL}
                 class="list-none transition-transform duration-300"
