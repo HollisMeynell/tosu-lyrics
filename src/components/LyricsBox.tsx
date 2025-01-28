@@ -72,20 +72,20 @@ export default function LyricsBox() {
                     {(lyric, index) => (
                         <li
                             classList={{
-                                "w-full h-[100px] flex flex-col justify-center items-center scale-[0.6] transition-all duration-200":
+                                "h-[100px] mx-auto flex flex-col justify-center items-center scale-[0.6] transition-all duration-200":
                                     true,
                                 "scale-[1.2]": cursor() === index,
                                 "text-white": cursor() === index,
                                 "animate-scroll": cursor() === index && scroll(),
                             }}
                         >
-                            <p class="font-tLRC text-4xl font-bold text-white drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff]">
+                            <p class="font-tLRC whitespace-nowrap text-4xl font-bold text-white drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff]">
                                 {lyric().main}
                             </p>
                             <Show when={lyric().origin}>
                                 <p
                                     classList={{
-                                        "font-oLRC text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4":
+                                        "font-oLRC whitespace-nowrap text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4":
                                             true,
                                         block: cursor() === index,
                                         hidden: cursor() !== index,
