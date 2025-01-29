@@ -1,6 +1,6 @@
 import { parseLyricText } from "@/utils/lrc-parse";
 
-type LyricLine = {
+export type LyricLine = {
     time: number;
     first: string;
     second?: string;

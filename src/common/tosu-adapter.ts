@@ -102,7 +102,7 @@ export default class TosuAdapter {
                 this.print();
                 return;
             }
-            Cache.setLyricsCache(title, lyric);
+            Cache.setLyricsCache(bid, title, lyric);
             this.assertBid(bid);
             this.showLyric(lyric);
         } catch (e) {
@@ -114,6 +114,8 @@ export default class TosuAdapter {
         const data: TosuAPi = JSON.parse(event.data);
         const bid = data.beatmap.id;
 
+        localStorage.setItem("nowPlaying", JSON.stringify(bid));
+
         if (this.temp.latestId == bid) {
             this.show(data.beatmap.time.live);
             return;
@@ -124,7 +126,11 @@ export default class TosuAdapter {
 
         const title = data.beatmap.titleUnicode;
 
-        const lyric = await Cache.getLyricsCache(title);
+        const result = await Cache.getLyricsCache(bid);
+        const lyric = new Lyric();
+        if (result) {
+            lyric.lyrics = result;
+        }
         if (lyric && lyric.lyrics.length > 0) {
             this.temp.songTime = data.beatmap.time.live;
             this.assertBid(bid);

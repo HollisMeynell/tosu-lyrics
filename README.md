@@ -9,6 +9,21 @@
 >
 > - 本项目所有代码均已开源，如果您对安全性有疑虑，可以自行查看代码并编译。
 
+## TODO
+
+- [ ] Controller
+  - [x] 查看当前播放歌曲的歌词
+  - [x] 提供单句的复制
+  - [ ] 屏蔽单个曲子的歌词
+  - [ ] 手动上传新歌词
+  - [ ] 对歌词缓存的CURD操作
+  - [ ] 换源
+  - [ ] 字体修改
+  - [ ] 文字色彩修改
+  - [ ] 选择显示翻译与否
+  - [ ] 左对齐右对齐居中
+- [ ] Fix: Cache.ts/Cannot read properties of undefined (reading 'getLyrics')
+
 ## 使用
 
 1. 下载 [tosu](https://github.com/tosuapp/tosu/releases) 并解压到任意目录（例如 `/AppData/Roaming` 或 `Program Files`等）。**注意：无需运行 `tosu.exe`。**

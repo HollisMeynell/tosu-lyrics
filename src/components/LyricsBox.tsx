@@ -62,7 +62,7 @@ export default function LyricsBox() {
     );
 
     return (
-        <div class="w-full h-[300px] bg-transparent overflow-hidden">
+        <div class="w-full h-[300px] bg-black overflow-hidden">
             <ul
                 ref={lyricUL}
                 class="list-none transition-transform duration-300"
@@ -72,7 +72,7 @@ export default function LyricsBox() {
                     {(lyric, index) => (
                         <li
                             classList={{
-                                "h-[100px] mx-auto flex flex-col justify-center items-center scale-[0.6] transition-all duration-200":
+                                "h-[100px] mx-auto flex flex-col justify-center items-center select-none scale-[0.6] transition-all duration-200":
                                     true,
                                 "scale-[1.2]": cursor() === index,
                                 "text-white": cursor() === index,

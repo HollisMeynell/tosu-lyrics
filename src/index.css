@@ -19,6 +19,21 @@
     font-family: LRC, tLRC, oLRC, serif;
 }
 
+html,
+body,
+#root {
+    height: 100%;
+}
+
+.scrollbar-hide {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, and Opera */
+}
+
 @layer utilities {
     @keyframes scroll {
         0% {

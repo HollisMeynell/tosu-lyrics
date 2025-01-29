@@ -1,6 +1,6 @@
 // 对各缓存类型的CURD操作进行封装，提供统一的接口
 
-import { Lyric } from "@/common/music-api.ts";
+import { Lyric, LyricLine } from "@/common/music-api.ts";
 
 const LYRICS_PREFIX = "lyrics_";
 const CONFIG_KEY = "l_config";
@@ -45,8 +45,8 @@ function getConfig<T>(): T | undefined {
 }
 
 interface StorageAdapter {
-    setLyrics(name: string, lyrics: Lyric): Promise<void>;
-    getLyrics(name: string): Promise<Lyric | undefined>;
+    setLyrics(bid: number, name: string, lyrics: Lyric): Promise<void>;
+    getLyrics(bid: number): Promise<LyricLine[] | undefined>;
     getLyricsList(): Promise<string[]>;
     clearLyrics(): Promise<void>;
 }
@@ -58,28 +58,26 @@ class IndexedDBAdapter implements StorageAdapter {
         this.db = db;
     }
 
-    setLyrics(name: string, lyrics: Lyric): Promise<void> {
+    setLyrics(bid: number, name: string, lyrics: Lyric): Promise<void> {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], "readwrite");
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.put({ name, lyrics: lyrics.lyrics });
+            const request = store.put({ bid, name, lyrics: lyrics.lyrics });
 
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
         });
     }
 
-    getLyrics(name: string): Promise<Lyric | undefined> {
+    getLyrics(bid: number): Promise<LyricLine[] | undefined> {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], "readonly");
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.get(name);
+            const request = store.get(bid);
 
             request.onsuccess = () => {
                 if (request.result) {
-                    const lyric = new Lyric();
-                    lyric.lyrics = request.result.lyrics;
-                    resolve(lyric);
+                    resolve(request.result.lyrics);
                 } else {
                     resolve(undefined);
                 }
@@ -112,21 +110,22 @@ class IndexedDBAdapter implements StorageAdapter {
 }
 
 class LocalStorageAdapter implements StorageAdapter {
-    setLyrics(name: string, lyrics: Lyric): Promise<void> {
-        const key = `${LYRICS_PREFIX}${name}`;
+    setLyrics(bid: number, name: string, lyrics: Lyric): Promise<void> {
+        const key = `${LYRICS_PREFIX}${bid}`;
         const dataString = JSON.stringify(lyrics.lyrics);
         localStorage.setItem(key, dataString);
         return Promise.resolve();
     }
 
-    getLyrics(name: string): Promise<Lyric | undefined> {
-        const key = `${LYRICS_PREFIX}${name}`;
+    getLyrics(bid: number): Promise<LyricLine[] | undefined> {
+        const key = `${LYRICS_PREFIX}${bid}`;
         const dataString = localStorage.getItem(key);
         if (!dataString) return Promise.resolve(undefined);
         const data = JSON.parse(dataString);
-        const lyric = new Lyric();
-        lyric.lyrics = data;
-        return Promise.resolve(lyric);
+        // const lyric = new Lyric();
+        // lyric.lyrics = data;
+        // return Promise.resolve(lyric);
+        return Promise.resolve(data);
     }
 
     getLyricsList(): Promise<string[]> {
@@ -144,24 +143,41 @@ class LocalStorageAdapter implements StorageAdapter {
     }
 }
 
-let storageAdapter: StorageAdapter;
+let storageAdapter: StorageAdapter | undefined;
 
 // 初始化存储适配器
-initIndexedDB()
-    .then((db) => {
-        storageAdapter = new IndexedDBAdapter(db);
-    })
-    .catch(() => {
-        console.warn("IndexedDB initialization failed, falling back to localStorage.");
-        storageAdapter = new LocalStorageAdapter();
-    });
+const getStorageAdapter = async (): Promise<StorageAdapter> => {
+    if (!storageAdapter) {
+        try {
+            const db = await initIndexedDB();
+            storageAdapter = new IndexedDBAdapter(db);
+        } catch {
+            console.warn(
+                "IndexedDB initialization failed, falling back to localStorage."
+            );
+            storageAdapter = new LocalStorageAdapter();
+        }
+    }
+    return storageAdapter;
+};
 
 export default {
-    setLyricsCache: (name: string, lyrics: Lyric) =>
-        storageAdapter.setLyrics(name, lyrics),
-    getLyricsCache: (name: string) => storageAdapter.getLyrics(name),
-    getLyricsCacheList: () => storageAdapter.getLyricsList(),
-    clearLyricsCache: () => storageAdapter.clearLyrics(),
+    setLyricsCache: async (bid: number, name: string, lyrics: Lyric) => {
+        const adapter = await getStorageAdapter();
+        return adapter.setLyrics(bid, name, lyrics);
+    },
+    getLyricsCache: async (bid: number) => {
+        const adapter = await getStorageAdapter();
+        return adapter.getLyrics(bid);
+    },
+    getLyricsCacheList: async () => {
+        const adapter = await getStorageAdapter();
+        return adapter.getLyricsList();
+    },
+    clearLyricsCache: async () => {
+        const adapter = await getStorageAdapter();
+        return adapter.clearLyrics();
+    },
 
     setConfig,
     getConfig,
