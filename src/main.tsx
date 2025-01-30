@@ -5,7 +5,7 @@ import "./index.css";
 import LyricsBox from "@/components/LyricsBox";
 import Controller from "@/components/Controller";
 import { onMount, Show } from "solid-js";
-import { consoleEnabled, paramParse, parseUrlParams } from "@/utils/param-parse";
+import { showController, consoleEnabled, paramParse, parseUrlParams } from "@/utils/param-parse";
 
 declare global {
     interface Window {
@@ -52,9 +52,11 @@ const Root = () => {
     });
 
     return (
-        <div class="h-full flex flex-col justify-center bg-[#ebebeb]">
+        <div class="h-full flex flex-col justify-center bg-transparent">
             <LyricsBox />
-            <Controller />
+            <Show when={showController()}>
+                <Controller />
+            </Show>
             <Show when={consoleEnabled()}>
                 <div class="bg-gray-800 text-white p-2 rounded text-sm">
                     Debug console is enabled.

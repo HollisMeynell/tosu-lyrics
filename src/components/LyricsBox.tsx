@@ -1,6 +1,7 @@
 // 功能: 歌词展示组件
 
 import TosuAdapter, { LyricLine } from "@/common/tosu-adapter.ts";
+import { useTextColor } from "@/stores/lyricsStore.ts";
 import {
     createEffect,
     createSignal,
@@ -15,6 +16,7 @@ export default function LyricsBox() {
     const [scroll, setScroll] = createSignal(false);
     const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
     const [cursor, setCursor] = createSignal(0);
+    const textColor = useTextColor();
 
     let lyricUL: HTMLUListElement | undefined;
     let tosu: TosuAdapter | undefined;
@@ -62,7 +64,7 @@ export default function LyricsBox() {
     );
 
     return (
-        <div class="w-full h-[300px] bg-black overflow-hidden">
+        <div class="w-full h-[300px] overflow-hidden">
             <ul
                 ref={lyricUL}
                 class="list-none transition-transform duration-300"
@@ -79,7 +81,10 @@ export default function LyricsBox() {
                                 "animate-scroll": cursor() === index && scroll(),
                             }}
                         >
-                            <p class="font-tLRC whitespace-nowrap text-4xl font-bold text-white drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff]">
+                            <p
+                                class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff]"
+                                style={{ color: textColor().first }}
+                            >
                                 {lyric().main}
                             </p>
                             <Show when={lyric().origin}>
@@ -90,6 +95,7 @@ export default function LyricsBox() {
                                         block: cursor() === index,
                                         hidden: cursor() !== index,
                                     }}
+                                    style={{ color: textColor().second }}
                                 >
                                     {lyric().origin}
                                 </p>

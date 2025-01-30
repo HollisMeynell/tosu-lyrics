@@ -4,6 +4,7 @@ import { createSignal } from "solid-js";
 import Cache from "@/utils/cache.ts";
 
 export const [consoleEnabled, setConsoleEnabled] = createSignal(false);
+export const [showController, setShowController] = createSignal(true);
 
 // 解析 URL 参数
 export function parseUrlParams(url: string): URLSearchParams {
@@ -22,11 +23,13 @@ function clearCache(): void {
 
 // 解析参数
 export function paramParse(params: URLSearchParams): void {
-    if (params.get('cors')) {
+    if (params.get("cors")) {
         window.ignoreCORS = true;
     }
-    if (params.get('clear-cache')) {
+    if (params.get("clear-cache")) {
         clearCache();
     }
-    setConsoleEnabled(!!params.get('console'));
+    const controllerParam = params.get("controller");
+    setShowController(controllerParam === "true");
+    setConsoleEnabled(!!params.get("console"));
 }

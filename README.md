@@ -19,10 +19,10 @@
   - [ ] 对歌词缓存的CURD操作
   - [ ] 换源
   - [ ] 字体修改
-  - [ ] 文字色彩修改
+  - [x] 文字色彩修改(支持主歌词、翻译歌词独立色彩)
   - [ ] 选择显示翻译与否
-  - [ ] 左对齐右对齐居中
-- [ ] Fix: Cache.ts/Cannot read properties of undefined (reading 'getLyrics')
+  - [ ] 左右对齐、居中对齐
+- [ ] FIX: OBS对lyricsStore.getInitialTextColor()恒返回回退值，浏览器正常显示。(可能最终通过路由参数解决...)
 
 ## 使用
 
@@ -47,6 +47,7 @@
 > - 隔离说明: `tosu-proxy` 仅作为额外的代理工具，不影响 `tosu` 或其他插件的正常使用。可访问 [`http://127.0.0.1:24050`](http://127.0.0.1:24050) 使用他们。
 > - 字体修改: 您可以通过修改 `LRC.otf` 更改全部字体, 或者添加 `tLRC.otf` (对应主歌词) 和 `oLRC.otf` (对应副歌词) 来更改字体。
 > - 自定义字体支持 `ttf`、`woff` 等字体格式，但需将文件名严格填写为 `LRC.otf`, `tLRC.otf` 或 `oLRC.otf` (即 'xxx.ttf' => 'LRC.otf')。
+> OBS 设置: 自定义CSS中默认添加的 `body { background-color: rgba(0, 0, 0, 0)` 用于将背景透明化，这实际上是覆盖了原效果中 body 的纯黑色样式（为了您更好的调试清晰度）。轻易调整自定义css会影响显示效果。
 
 ## 如何更新
 

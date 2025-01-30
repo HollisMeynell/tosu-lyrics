@@ -3,6 +3,7 @@ import { Lyric } from "@/common/music-api.ts";
 import Cache from "@/utils/cache.ts";
 import { TosuAPi } from "@/types/tosu-types.ts";
 import { QQLyricAdaptor, NeteaseLyricAdaptor } from "@/adapters";
+import lyricsStore from "@/stores/lyricsStore.ts";
 
 export type LyricLine = {
     main: string;
@@ -102,6 +103,7 @@ export default class TosuAdapter {
                 this.print();
                 return;
             }
+            lyricsStore.updateCurrentLyrics(lyric.lyrics);
             Cache.setLyricsCache(bid, title, lyric);
             this.assertBid(bid);
             this.showLyric(lyric);
@@ -135,6 +137,7 @@ export default class TosuAdapter {
             this.temp.songTime = data.beatmap.time.live;
             this.assertBid(bid);
             this.showLyric(lyric);
+            lyricsStore.updateCurrentLyrics(lyric.lyrics);
             return;
         }
 
