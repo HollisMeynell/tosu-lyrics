@@ -24,7 +24,7 @@ export default function Controller() {
             <div class="flex flex-row items-center">
                 <h2 class="text-2xl font-bold">歌词</h2>
                 <button
-                    class="bg-[#ff6f61] text-white border-none px-5 py-1 ml-4 rounded cursor-pointer text-base font-bold shadow-sm hover:bg-[#ff6f61] transition-colors duration-300"
+                    class="bg-[#ec4899] text-white border-none px-5 py-1 ml-4 rounded-md cursor-pointer text-base font-bold shadow-sm hover:bg-[#db2777] transition-colors duration-300"
                     onClick={searchCacheCurrent}
                 >
                     刷新

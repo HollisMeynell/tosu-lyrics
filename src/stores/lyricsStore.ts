@@ -11,6 +11,8 @@ interface LyricsState {
         first: string;
         second: string;
     };
+    useTranslationAsMain: boolean;
+    showSecond: boolean;
     alignment: AlignType;
     currentLyrics: LyricLine[] | undefined;
 }
@@ -38,10 +40,14 @@ const [currentLyrics, setCurrentLyrics] = createSignal<LyricLine[] | undefined>(
     undefined
 );
 const [textColorSignal, setTextColorSignal] = createSignal(getInitialTextColor());
+const [useTranslationAsMain, setUseTranslationAsMain] = createSignal(false);
+const [showSecond, setShowSecond] = createSignal(true);
 
 // 创建初始状态
 const [state, setState] = createStore<LyricsState>({
     textColor: textColorSignal(),
+    useTranslationAsMain: useTranslationAsMain(),
+    showSecond: showSecond(),
     alignment: "center",
     currentLyrics: undefined,
 });
@@ -88,6 +94,18 @@ export const lyricsStore = {
         } catch (error) {
             console.error("Error updating text color:", error);
         }
+    },
+
+    // 设置是否使用翻译歌词作为主要歌词
+    setUseTranslationAsMain: (use: boolean) => {
+        setUseTranslationAsMain(use);
+        setState("useTranslationAsMain", use);
+    },
+
+    // 设置是否显示翻译歌词
+    setShowTranslation: (show: boolean) => {
+        setShowSecond(show);
+        setState("showSecond", show);
     },
 
     // 设置对齐方式

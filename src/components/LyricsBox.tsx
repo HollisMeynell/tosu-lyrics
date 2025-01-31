@@ -1,7 +1,7 @@
 // 功能: 歌词展示组件
 
 import TosuAdapter, { LyricLine } from "@/common/tosu-adapter.ts";
-import { useTextColor } from "@/stores/lyricsStore.ts";
+import lyricsStore, { useTextColor } from "@/stores/lyricsStore.ts";
 import {
     createEffect,
     createSignal,
@@ -85,9 +85,11 @@ export default function LyricsBox() {
                                 class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff]"
                                 style={{ color: textColor().first }}
                             >
-                                {lyric().main}
+                                {lyricsStore.getState().useTranslationAsMain
+                                    ? lyric().main || lyric().origin
+                                    : lyric().origin}
                             </p>
-                            <Show when={lyric().origin}>
+                            <Show when={lyric().origin && lyricsStore.getState().showSecond}>
                                 <p
                                     classList={{
                                         "font-oLRC whitespace-nowrap text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4":
@@ -97,7 +99,9 @@ export default function LyricsBox() {
                                     }}
                                     style={{ color: textColor().second }}
                                 >
-                                    {lyric().origin}
+                                    {lyricsStore.getState().useTranslationAsMain
+                                        ? lyric().origin
+                                        : lyric().main}
                                 </p>
                             </Show>
                         </li>
