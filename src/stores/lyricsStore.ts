@@ -1,125 +1,183 @@
-import { createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createSignal, onMount } from "solid-js";
 import { LyricLine } from "@/common/music-api.ts";
 
-// 定义对齐方式类型
 type AlignType = "left" | "center" | "right";
 
-// Store 状态接口
-interface LyricsState {
-    textColor: {
-        first: string;
-        second: string;
-    };
+type TextColorValue = { first: string; second: string };
+type StateUpdate =
+    | { keyToChange: "textColor"; value: TextColorValue }
+    | { keyToChange: "useTranslationAsMain"; value: boolean }
+    | { keyToChange: "showSecond"; value: boolean }
+    | { keyToChange: "currentLyrics"; value: LyricLine[] | undefined }
+    | { keyToChange: "alignment"; value: AlignType };
+
+interface Config {
+    textColor: TextColorValue;
     useTranslationAsMain: boolean;
     showSecond: boolean;
-    alignment: AlignType;
     currentLyrics: LyricLine[] | undefined;
+    alignment: AlignType;
 }
 
-const getInitialTextColor = () => {
-    try {
-        const storedValue = localStorage.getItem("textColor");
-        if (storedValue) {
-            const parsed = JSON.parse(storedValue);
-            return {
-                first: parsed.first,
-                second: parsed.second,
-            };
-        }
-    } catch (error) {
-        console.error("Error parsing stored text color:", error);
-    }
-    return {
-        first: "#ffffff",
-        second: "#a0a0a0",
-    };
-};
+interface ConfigMessage {
+    command: string;
+    echo: string | null;
+}
+
+const connect_ws = new WebSocket("ws://localhost:41280/api/ws");
 
 const [currentLyrics, setCurrentLyrics] = createSignal<LyricLine[] | undefined>(
     undefined
 );
-const [textColorSignal, setTextColorSignal] = createSignal(getInitialTextColor());
+const [textColor, setTextColor] = createSignal({
+    first: "#ffffff",
+    second: "#a0a0a0",
+});
 const [useTranslationAsMain, setUseTranslationAsMain] = createSignal(false);
 const [showSecond, setShowSecond] = createSignal(true);
+const [alignment, setAlignment] = createSignal<AlignType>("center");
 
-// 创建初始状态
-const [state, setState] = createStore<LyricsState>({
-    textColor: textColorSignal(),
-    useTranslationAsMain: useTranslationAsMain(),
-    showSecond: showSecond(),
-    alignment: "center",
-    currentLyrics: undefined,
-});
+// WebSocket event handlers
+connect_ws.onmessage = (event) => {
+    const data: StateUpdate = event.data;
+    console.log("Received state update:", data);
 
-// 监听 localStorage 变化
-window.addEventListener("storage", (e) => {
-    if (e.key === "textColor" && e.newValue) {
-        try {
-            const newColor = JSON.parse(e.newValue);
-            setTextColorSignal(newColor);
-            setState("textColor", newColor);
-        } catch (error) {
-            console.error("Error handling storage event:", error);
-        }
+    switch (data.keyToChange) {
+        case "textColor":
+            setTextColor(data.value);
+            break;
+        case "useTranslationAsMain":
+            setUseTranslationAsMain(data.value);
+            break;
+        case "showSecond":
+            setShowSecond(data.value);
+            break;
+        case "currentLyrics":
+            setCurrentLyrics(data.value);
+            break;
+        case "alignment":
+            setAlignment(data.value);
+            break;
     }
-});
-
-// Store 操作方法
-export const lyricsStore = {
-    // 获取状态
-    getState: () => state,
-
-    // 获取当前歌词
-    currentLyrics,
-
-    // 设置文字颜色
-    setTextColor: (order: "first" | "second", color: string) => {
-        const newTextColor = {
-            ...state.textColor,
-            [order]: color,
-        };
-        try {
-            localStorage.setItem("textColor", JSON.stringify(newTextColor)); // 更新 localStorage
-            setTextColorSignal(newTextColor); // 更新信号
-            setState("textColor", newTextColor); // 更新 store 状态
-            // 手动触发 storage 事件以确保跨窗口同步
-            window.dispatchEvent(
-                new StorageEvent("storage", {
-                    key: "textColor",
-                    newValue: JSON.stringify(newTextColor),
-                    storageArea: localStorage,
-                })
-            );
-        } catch (error) {
-            console.error("Error updating text color:", error);
-        }
-    },
-
-    // 设置是否使用翻译歌词作为主要歌词
-    setUseTranslationAsMain: (use: boolean) => {
-        setUseTranslationAsMain(use);
-        setState("useTranslationAsMain", use);
-    },
-
-    // 设置是否显示翻译歌词
-    setShowTranslation: (show: boolean) => {
-        setShowSecond(show);
-        setState("showSecond", show);
-    },
-
-    // 设置对齐方式
-    setAlignment: (alignment: AlignType) => {
-        setState("alignment", alignment);
-    },
-
-    // 更新当前歌词
-    updateCurrentLyrics: (lyrics: LyricLine[] | undefined) => {
-        setCurrentLyrics(lyrics);
-        setState("currentLyrics", lyrics);
-    },
 };
 
-export const useTextColor = () => textColorSignal;
+connect_ws.onerror = (error) => {
+    console.error("WebSocket error:", error);
+};
+
+connect_ws.onclose = () => {
+    console.log("WebSocket connection closed");
+};
+
+async function saveConfig(config: Config) {
+    try {
+        const response = await fetch('/api/config', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(config), // 将配置对象转换为 JSON 字符串
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('Config saved successfully:', result);
+    } catch (error) {
+        console.error('Failed to save config:', error);
+    }
+}
+
+// 加载配置
+async function loadConfig() {
+    try {
+        const response = await fetch('/api/config', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const config = await response.json();
+        console.log('Config loaded successfully:', config);
+        return config;
+    } catch (error) {
+        console.error('Failed to load config:', error);
+        return null;
+    }
+}
+
+// Update state and send over WebSocket
+const updateState = (newState: StateUpdate) => {
+    if (connect_ws.readyState === WebSocket.OPEN) {
+        const configMessage: ConfigMessage = {
+            command: JSON.stringify(newState),
+            echo: null,
+        };
+        connect_ws.send(JSON.stringify(configMessage));
+        saveConfig(lyricsStore.state);
+    } else {
+        console.error("WebSocket is not open.");
+    }
+};
+
+// Load config
+const loadConfigAndSetState = async () => {
+    const config = await loadConfig();
+    if (config) {
+        setCurrentLyrics(config.currentLyrics);
+        setTextColor(config.textColor);
+        setUseTranslationAsMain(config.useTranslationAsMain);
+        setShowSecond(config.showSecond);
+        setAlignment(config.alignment);
+    }
+};
+
+onMount(loadConfigAndSetState);
+
+// Store
+export const lyricsStore = {
+    get state() {
+        return {
+            currentLyrics: currentLyrics(),
+            textColor: textColor(),
+            useTranslationAsMain: useTranslationAsMain(),
+            showSecond: showSecond(),
+            alignment: alignment(),
+        };
+    },
+
+    updateCurrentLyrics: (lyrics: LyricLine[] | undefined) => {
+        setCurrentLyrics(lyrics);
+        updateState({ keyToChange: "currentLyrics", value: lyrics });
+    },
+
+    setTextColor: (order: "first" | "second", color: string) => {
+        const newTextColor = { ...textColor(), [order]: color };
+        setTextColor(newTextColor);
+        updateState({ keyToChange: "textColor", value: newTextColor });
+    },
+
+    setShowSecond: (show: boolean) => {
+        setShowSecond(show);
+        updateState({ keyToChange: "showSecond", value: show });
+    },
+
+    setUseTranslationAsMain: (use: boolean) => {
+        setUseTranslationAsMain(use);
+        updateState({ keyToChange: "useTranslationAsMain", value: use });
+    },
+
+    setAlignment: (align: AlignType) => {
+        setAlignment(align);
+        updateState({ keyToChange: "alignment", value: align });
+    },
+};
 
 export default lyricsStore;

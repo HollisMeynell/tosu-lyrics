@@ -1,7 +1,7 @@
 // 功能: 歌词展示组件
 
 import TosuAdapter, { LyricLine } from "@/common/tosu-adapter.ts";
-import lyricsStore, { useTextColor } from "@/stores/lyricsStore.ts";
+import lyricsStore from "@/stores/lyricsStore.ts";
 import {
     createEffect,
     createSignal,
@@ -16,7 +16,6 @@ export default function LyricsBox() {
     const [scroll, setScroll] = createSignal(false);
     const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
     const [cursor, setCursor] = createSignal(0);
-    const textColor = useTextColor();
 
     let lyricUL: HTMLUListElement | undefined;
     let tosu: TosuAdapter | undefined;
@@ -83,13 +82,13 @@ export default function LyricsBox() {
                         >
                             <p
                                 class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff]"
-                                style={{ color: textColor().first }}
+                                style={{ color: lyricsStore.state.textColor.first }}
                             >
-                                {lyricsStore.getState().useTranslationAsMain
+                                {lyricsStore.state.useTranslationAsMain
                                     ? lyric().main || lyric().origin
                                     : lyric().origin}
                             </p>
-                            <Show when={lyric().origin && lyricsStore.getState().showSecond}>
+                            <Show when={lyric().origin && lyricsStore.state.showSecond}>
                                 <p
                                     classList={{
                                         "font-oLRC whitespace-nowrap text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4":
@@ -97,9 +96,9 @@ export default function LyricsBox() {
                                         block: cursor() === index,
                                         hidden: cursor() !== index,
                                     }}
-                                    style={{ color: textColor().second }}
+                                    style={{ color: lyricsStore.state.textColor.second }}
                                 >
-                                    {lyricsStore.getState().useTranslationAsMain
+                                    {lyricsStore.state.useTranslationAsMain
                                         ? lyric().origin
                                         : lyric().main}
                                 </p>

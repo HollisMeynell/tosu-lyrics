@@ -31,7 +31,7 @@ export default function Controller() {
                 </button>
             </div>
             <div class="h-[calc(100%-45px)] border border-[#313131] rounded-lg px-4 py-2 mt-4 max-w-[650px] overflow-auto scrollbar-hide">
-                <For each={lyricsStore.currentLyrics() || []}>
+                <For each={lyricsStore.state.currentLyrics || []}>
                     {(item) => (
                         <div class="flex flex-row items-center my-3 gap-3 max-w-[700px]">
                             <div class="grow flex flex-row justify-between items-center select-none">
