@@ -2,6 +2,7 @@
 
 import { createSignal } from "solid-js";
 import Cache from "@/utils/cache.ts";
+import { PROXY_URL, setProxyUrl } from "@/utils/request.ts";
 
 export const [consoleEnabled, setConsoleEnabled] = createSignal(false);
 export const [showController, setShowController] = createSignal(true);
@@ -28,6 +29,10 @@ export function paramParse(params: URLSearchParams): void {
     }
     if (params.get("clear-cache")) {
         clearCache();
+    }
+    if (params.get("proxy-backend")) {
+        const url = params.get("proxy-backend") || PROXY_URL;
+        setProxyUrl(url);
     }
     const controllerParam = params.get("controller");
     setShowController(controllerParam === "true");

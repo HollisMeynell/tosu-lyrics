@@ -110,7 +110,7 @@ class IndexedDBAdapter implements StorageAdapter {
 }
 
 class LocalStorageAdapter implements StorageAdapter {
-    setLyrics(bid: number, name: string, lyrics: Lyric): Promise<void> {
+    setLyrics(bid: number, _: string, lyrics: Lyric): Promise<void> {
         const key = `${LYRICS_PREFIX}${bid}`;
         const dataString = JSON.stringify(lyrics.lyrics);
         localStorage.setItem(key, dataString);

@@ -4,6 +4,7 @@ mod websocket;
 
 use actix_web::{web, App, HttpServer};
 use std::path::PathBuf;
+use actix_cors::Cors;
 use tokio::process::{Child, Command as TokioCommand};
 
 const ENV_PORT: &str = "TOSU_PROXY_PORT";
@@ -68,9 +69,18 @@ async fn main() -> std::io::Result<()> {
     println!("application started!\n{url}\n");
 
     HttpServer::new(|| {
-        let proxy = web::resource("/api/proxy").route(web::post().to(proxy::handler));
+        let cors_proxy = Cors::default()
+            .allow_any_origin()
+            .allow_any_header()
+            .allowed_methods(vec!["POST"]);
+        let cors_conf = Cors::default()
+            .allow_any_origin()
+            .allow_any_header()
+            .allowed_methods(vec!["GET", "PUT"]);
+        let proxy = web::resource("/api/proxy").wrap(cors_proxy).route(web::post().to(proxy::handler));
         let websocket = web::resource("/api/ws").route(web::get().to(websocket::handle));
         let config = web::resource("/api/config")
+            .wrap(cors_conf)
             .route(web::put().to(config::handler_put))
             .route(web::get().to(config::handler_get));
 
