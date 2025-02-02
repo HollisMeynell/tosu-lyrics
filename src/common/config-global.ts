@@ -10,6 +10,8 @@ export type Settings = {
     showSecond: boolean;
     currentLyrics: LyricLine[] | undefined;
     alignment: AlignType;
+    // 歌词黑名单
     blackListBid: Set<number>,
+    // 标题黑名单
     blackListTitle: Set<string>,
 }

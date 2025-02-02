@@ -68,41 +68,28 @@ impl WsSessions {
 
     fn get_online_json(key: &str) -> String {
         format!(
-            r##"{{
-                "command": {{
-                    "type": "online",
-                    "id": "{key}",
-                    "status": "online"
-                }}
-            }}"##)
+            r##"{{"command":{{"type":"online","id":"{key}","status":"online"}}}}"##
+        )
     }
 
     async fn get_new_client_json(key: &str) -> String {
-        let others = ALL_WS_SESSION.0.read().await.keys()
-            .map(|x| format!("\"{x}\""))
+        let others = ALL_WS_SESSION.0.read().await
+            .keys()
+            .filter_map(|x|
+                if x == key { None } else { Some(format!("\"{x}\"")) }
+            )
             .collect::<Vec<String>>()
             .join(", ");
 
         format!(
-            r##"{{
-                "command": {{
-                    "type": "online",
-                    "id": "{key}",
-                    "status": "online",
-                    "others": [{others}]
-                }}
-            }}"##)
+            r##"{{"command":{{"type":"online","id":"{key}","status":"online","others":[{others}]}}}}"##
+        )
     }
 
     fn get_offline_json(key: &str) -> String {
         format!(
-            r##"{{
-                "command": {{
-                    "type": "online",
-                    "id": "{key}",
-                    "status": "offline"
-                }}
-            }}"##)
+            r##"{{"command":{{"type":"online","id":"{key}","status":"offline"}}}}"##
+        )
     }
 }
 
@@ -138,13 +125,13 @@ pub async fn handle_ws(
         .max_continuation_size(2_usize.pow(20));
 
     let mut session_clone = session.clone();
-    let key_copy = key.clone();
+    let key_clone = key.clone();
     rt::spawn(async move {
-        let online_message = WsSessions::get_new_client_json(&key_copy).await;
+        let online_message = WsSessions::get_new_client_json(&key_clone).await;
         let _ = session_clone.text(online_message).await;
         while let Some(msg) = rx.recv().await {
             if let Err(_) = session_clone.text(msg).await {
-                WsSessions::get_static().remove_session(&key_copy).await;
+                WsSessions::get_static().remove_session(&key_clone).await;
             }
         }
     });
