@@ -163,11 +163,12 @@ function handleWebsocketMessage(e: WebsocketMessage) {
  * 推送配置, key 与监听的 key 保持一致
  */
 export function pushSettingMessage(key: string, value: unknown) {
-    const message: SettingMessage = {
+    const command:SettingMessage = {
         type: "setting",
         key,
         value,
-    };
+    }
+    const message = { command };
     websocket.send(JSON.stringify(message));
 }
 
