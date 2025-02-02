@@ -2,7 +2,7 @@
 
 import { createSignal } from "solid-js";
 import Cache from "@/utils/cache.ts";
-import { PROXY_URL, setProxyUrl } from "@/utils/request.ts";
+import { PROXY_URL, setProxyUrl } from "@/config/constants";
 
 export const [consoleEnabled, setConsoleEnabled] = createSignal(false);
 export const [showController, setShowController] = createSignal(true);

@@ -1,3 +1,4 @@
+import { SEARCH_MUSIC_URL, GET_LYRIC_URL } from "@/config/constants";
 import { doRequest } from "@/utils/request.ts";
 import { LyricAdaptor } from "@/adapters/lyric-adaptor.ts";
 
@@ -33,11 +34,6 @@ type LyricItem = {
     lyric: string; // 歌词文本
 };
 
-const SEARCH_MUSIC_URL = (title: string) =>
-    `https://music.163.com/api/search/get/?s=${title}&type=1&limit=5`;
-const GET_LYRIC_URL = (songID: number | string) =>
-    `https://music.163.com/api/song/lyric?os=pc&id=${songID}&lv=1&kv=1&tv=1`;
-
 // 网易云音乐适配器
 export class NeteaseLyricAdaptor extends LyricAdaptor {
     constructor() {
@@ -48,7 +44,7 @@ export class NeteaseLyricAdaptor extends LyricAdaptor {
 
     async searchMusic(title: string) {
         try {
-            const url = SEARCH_MUSIC_URL(title);
+            const url = SEARCH_MUSIC_URL("Netease", title);
             const response = await doRequest({ url });
             const data: SongSearchResult = JSON.parse(response.body);
             if (data.code !== 200 || !data.result?.songCount) {
@@ -71,7 +67,7 @@ export class NeteaseLyricAdaptor extends LyricAdaptor {
     }
 
     async fetchLyrics(songID: number | string) {
-        const url = GET_LYRIC_URL(songID);
+        const url = GET_LYRIC_URL("Netease", songID);
         const response = await doRequest({ url });
         const lyric: GETLyricResult = JSON.parse(response.body);
 

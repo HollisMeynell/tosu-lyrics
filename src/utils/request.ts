@@ -1,4 +1,5 @@
 // 功能: 封装请求方法
+import { PROXY_URL } from "@/config/constants";
 
 export type RequestResult = {
     status: number,
@@ -13,10 +14,7 @@ export type RequestProp = {
     body?: object;
 }
 
-export let PROXY_URL = "http://127.0.0.1:41280/api/proxy"
-export const setProxyUrl = (url: string) => {
-    PROXY_URL = url;
-}
+
 
 export async function doRequest(prop: RequestProp): Promise<RequestResult> {
     // 使用 obs 的 '--disable-web-security' 参数禁用浏览器的 CORS 限制

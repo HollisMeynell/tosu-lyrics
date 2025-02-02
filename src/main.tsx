@@ -5,7 +5,14 @@ import "./index.css";
 import LyricsBox from "@/components/LyricsBox";
 import Controller from "@/components/Controller";
 import { onMount, Show } from "solid-js";
-import { showController, consoleEnabled, paramParse, parseUrlParams } from "@/utils/param-parse";
+import { lyricsStore } from "@/stores/lyricsStore";
+import { configService } from "@/services/ConfigService";
+import {
+    showController,
+    consoleEnabled,
+    paramParse,
+    parseUrlParams,
+} from "@/utils/param-parse";
 
 declare global {
     interface Window {
@@ -49,6 +56,15 @@ const Root = () => {
     onMount(() => {
         const params = parseUrlParams(window.location.href);
         paramParse(params);
+    });
+
+    onMount(async () => {
+        try {
+            const config = await configService.fetchConfig();
+            lyricsStore.parseSettings(config);
+        } catch (error) {
+            console.error("Failed to initialize:", error);
+        }
     });
 
     return (

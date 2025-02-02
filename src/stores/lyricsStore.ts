@@ -1,8 +1,8 @@
 import { createSignal } from "solid-js";
-import { LyricLine } from "@/common/music-api.ts";
-import { AlignType, Settings } from "@/common/config-global.ts";
-import { pushSettingMessage, registerSetterHandle } from "@/common/config-async.ts";
-
+import { LyricLine } from "@/types/config-global";
+import { wsService } from "@/services/WebSocketService";
+import { configService } from "@/services/ConfigService";
+import { AlignType, Settings } from "@/types/config-global";
 
 const [currentLyrics, setCurrentLyrics] = createSignal<LyricLine[] | undefined>(
     undefined
@@ -15,22 +15,18 @@ const [useTranslationAsMain, setUseTranslationAsMain] = createSignal(false);
 const [showSecond, setShowSecond] = createSignal(true);
 const [alignment, setAlignment] = createSignal<AlignType>("center");
 
-const init = (
-    () => {
-        registerSetterHandle({key: "currentLyrics", handle: setCurrentLyrics})
-        registerSetterHandle({key: "textColor", handle: setTextColor})
-        registerSetterHandle({key: "useTranslationAsMain", handle: setUseTranslationAsMain})
-        registerSetterHandle({key: "showSecond", handle: setShowSecond})
-        registerSetterHandle({key: "alignment", handle: setAlignment})
-        return true;
-    }
-)()
-
-console.log(`init: ${init}`);
+// Initialize WebSocket handlers
+(() => {
+    wsService.registerHandler("currentLyrics", setCurrentLyrics);
+    wsService.registerHandler("textColor", setTextColor);
+    wsService.registerHandler("useTranslationAsMain", setUseTranslationAsMain);
+    wsService.registerHandler("showSecond", setShowSecond);
+    wsService.registerHandler("alignment", setAlignment);
+})();
 
 // Store
 export const lyricsStore = {
-    get state() {
+    get getState() {
         return {
             currentLyrics: currentLyrics(),
             textColor: textColor(),
@@ -50,30 +46,34 @@ export const lyricsStore = {
         }
     },
 
-    updateCurrentLyrics: (lyrics: LyricLine[] | undefined) => {
+    updateCurrentLyrics(lyrics: LyricLine[] | undefined) {
         setCurrentLyrics(lyrics);
-        pushSettingMessage("currentLyrics", lyrics);
+        wsService.pushSetting("currentLyrics", lyrics);
     },
 
-    setTextColor: (order: "first" | "second", color: string) => {
+    setTextColor(order: "first" | "second", color: string) {
         const newTextColor = { ...textColor(), [order]: color };
         setTextColor(newTextColor);
-        pushSettingMessage("textColor", newTextColor);
+        wsService.pushSetting("textColor", newTextColor);
+        configService.saveConfig(this.getState); // 触发防抖保存
     },
 
-    setShowSecond: (show: boolean) => {
+    setShowSecond(show: boolean) {
         setShowSecond(show);
-        pushSettingMessage("showSecond", show);
+        wsService.pushSetting("showSecond", show);
+        configService.saveConfig(this.getState);
     },
 
-    setUseTranslationAsMain: (use: boolean) => {
+    setUseTranslationAsMain(use: boolean) {
         setUseTranslationAsMain(use);
-        pushSettingMessage("useTranslationAsMain", use);
+        wsService.pushSetting("useTranslationAsMain", use);
+        configService.saveConfig(this.getState);
     },
 
-    setAlignment: (align: AlignType) => {
+    setAlignment(align: AlignType) {
         setAlignment(align);
-        pushSettingMessage("alignment", align);
+        wsService.pushSetting("alignment", align);
+        configService.saveConfig(this.getState);
     },
 };
 

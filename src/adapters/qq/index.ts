@@ -1,3 +1,4 @@
+import { SEARCH_MUSIC_URL, GET_LYRIC_URL } from "@/config/constants";
 import { LyricAdaptor } from "@/adapters/lyric-adaptor.ts";
 import { doRequest } from "@/utils/request.ts";
 
@@ -41,11 +42,6 @@ type LyricResult = {
     trans: string;
 };
 
-const SEARCH_MUSIC_URL = (title: string) =>
-    `https://c.y.qq.com/soso/fcgi-bin/client_search_cp?p=1&n=10&format=json&w=${title}`;
-const GET_LYRIC_URL = (songID: number | string) =>
-    `https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid=${songID}&format=json&nobase64=1`;
-
 export class QQLyricAdaptor extends LyricAdaptor {
     constructor() {
         super("QQ");
@@ -53,7 +49,7 @@ export class QQLyricAdaptor extends LyricAdaptor {
 
     async searchMusic(title: string) {
         try {
-            const url = SEARCH_MUSIC_URL(title);
+            const url = SEARCH_MUSIC_URL("QQ", title);
             const result = await doRequest({ url });
             const data: SongSearchResult = JSON.parse(result.body);
             if (data.code !== 0) {
@@ -75,7 +71,7 @@ export class QQLyricAdaptor extends LyricAdaptor {
     }
 
     async fetchLyrics(songID: number | string) {
-        const url = GET_LYRIC_URL(songID);
+        const url = GET_LYRIC_URL("QQ", songID);
         const LyricUrlHeader = {
             Referer: "https://y.qq.com/portal/player.html",
         };

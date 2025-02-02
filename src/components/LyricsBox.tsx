@@ -82,13 +82,13 @@ export default function LyricsBox() {
                         >
                             <p
                                 class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff]"
-                                style={{ color: lyricsStore.state.textColor.first }}
+                                style={{ color: lyricsStore.getState.textColor.first }}
                             >
-                                {lyricsStore.state.useTranslationAsMain
+                                {lyricsStore.getState.useTranslationAsMain
                                     ? lyric().main || lyric().origin
                                     : lyric().origin}
                             </p>
-                            <Show when={lyric().origin && lyricsStore.state.showSecond}>
+                            <Show when={lyric().origin && lyricsStore.getState.showSecond}>
                                 <p
                                     classList={{
                                         "font-oLRC whitespace-nowrap text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4":
@@ -96,9 +96,9 @@ export default function LyricsBox() {
                                         block: cursor() === index,
                                         hidden: cursor() !== index,
                                     }}
-                                    style={{ color: lyricsStore.state.textColor.second }}
+                                    style={{ color: lyricsStore.getState.textColor.second }}
                                 >
-                                    {lyricsStore.state.useTranslationAsMain
+                                    {lyricsStore.getState.useTranslationAsMain
                                         ? lyric().origin
                                         : lyric().main}
                                 </p>

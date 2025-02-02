@@ -1,10 +1,5 @@
 import { parseLyricText } from "@/utils/lrc-parse";
-
-export type LyricLine = {
-    time: number;
-    first: string;
-    second?: string;
-};
+import { LyricLine } from "@/types/config-global";
 
 export class Lyric {
     lyrics: LyricLine[];

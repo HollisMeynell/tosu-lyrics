@@ -16,14 +16,14 @@ export default function Controller() {
                     <input
                         type="color"
                         class="mx-4 w-12 h-8 rounded-full cursor-pointer"
-                        value={lyricsStore.state.textColor.first}
+                        value={lyricsStore.getState.textColor.first}
                         onInput={(e) => changeTextColor("first", e.currentTarget.value)}
                     />
                     <p>副歌词:</p>
                     <input
                         type="color"
                         class="ml-4 w-12 h-8 rounded-full cursor-pointer"
-                        value={lyricsStore.state.textColor.second}
+                        value={lyricsStore.getState.textColor.second}
                         onInput={(e) => changeTextColor("second", e.currentTarget.value)}
                     />
                 </div>
@@ -36,18 +36,18 @@ export default function Controller() {
             </div>
             <div class="flex flex-row items-center gap-3">
             <ToggleSwitch
-                    modelValue={lyricsStore.state.useTranslationAsMain}
+                    modelValue={lyricsStore.getState.useTranslationAsMain}
                     onUpdateModelValue={lyricsStore.setUseTranslationAsMain}
                 />
                 <h2 class="text-2xl font-bold">以翻译歌词为主</h2>
             </div>
             <div class="flex flex-row items-center gap-3">
                 <ToggleSwitch
-                    modelValue={lyricsStore.state.showSecond}
+                    modelValue={lyricsStore.getState.showSecond}
                     onUpdateModelValue={lyricsStore.setShowSecond}
                 />
                 <h2 class="text-2xl font-bold"
-                style={{ color: lyricsStore.state.useTranslationAsMain ? "#a0a0a0" : "#ffffff" }}
+                style={{ color: lyricsStore.getState.useTranslationAsMain ? "#a0a0a0" : "#ffffff" }}
                 >显示副歌词</h2>
             </div>
         </div>

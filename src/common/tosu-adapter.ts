@@ -1,4 +1,5 @@
 import ReconnectingWebSocket from "reconnecting-websocket";
+import { AUDIO_URL, WS_URL } from "@/config/constants";
 import { Lyric } from "@/common/music-api.ts";
 import Cache from "@/utils/cache.ts";
 import { TosuAPi } from "@/types/tosu-types.ts";
@@ -17,8 +18,7 @@ type Temp = {
     lyric?: Lyric;
 };
 
-const AUDIO_URL = "http://127.0.0.1:24050/files/beatmap/audio";
-const WS_URL = "ws://127.0.0.1:24050/websocket/v2";
+
 const WS_DELAY_TIME = 100;
 const WAIT_AUDIO_METADATA = 1000;
 
