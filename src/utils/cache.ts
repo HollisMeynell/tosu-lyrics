@@ -1,7 +1,7 @@
 // 对各缓存类型的CURD操作进行封装，提供统一的接口
 
 import { Lyric } from "@/common/music-api.ts";
-import { LyricLine } from "@/common/tosu-adapter.ts";
+import { LyricLine } from "@/types/config-global";
 
 const LYRICS_PREFIX = "lyrics_";
 const CONFIG_KEY = "l_config";

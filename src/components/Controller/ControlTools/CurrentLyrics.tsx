@@ -42,7 +42,7 @@ export default function Controller() {
                             </div>
                             <div class="flex justify-end">
                                 <button
-                                    class="h-7 w-18 flex items-center gap-1 bg-white dark:bg-[#21314d] text-gray-500 border-none px-3 py-1 rounded cursor-pointer text-sm font-bold shadow-md hover:bg-[#f0f0f0] dark:hover:bg-[#3b4a63] transition-colors duration-300"
+                                    class="h-7 w-18 flex items-center gap-1 bg-white dark:bg-[#21314d] text-gray-500 dark:text-gray-200 border-none px-3 py-1 rounded cursor-pointer text-sm font-bold shadow-md hover:bg-[#f0f0f0] dark:hover:bg-[#3b4a63] transition-colors duration-300"
                                     onClick={() => {
                                         navigator.clipboard.writeText(
                                             `${item.first}\n${item.second}`

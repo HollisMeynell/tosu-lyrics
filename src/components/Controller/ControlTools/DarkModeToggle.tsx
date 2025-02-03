@@ -13,7 +13,7 @@ export default function Controller() {
                 class="w-6 h-6"
                 fill="none"
                 viewBox="0 0 24 24"
-                stroke={lyricsStore.getState.darkMode ? "#f0f0f0" : "#313131"}
+                stroke="#6a7282"
                 stroke-width={2}
             >
                 <Switch>
