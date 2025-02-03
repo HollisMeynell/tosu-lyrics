@@ -37,14 +37,14 @@ type LyricItem = {
 // 网易云音乐适配器
 export class NeteaseLyricAdaptor extends LyricAdaptor {
     constructor() {
-        super("网易云");
+        super("Netease");
     }
 
     musicIdCache: number = 0;
 
     async searchMusic(title: string) {
         try {
-            const url = SEARCH_MUSIC_URL("Netease", title);
+            const url = SEARCH_MUSIC_URL(this.name, title);
             const response = await doRequest({ url });
             const data: SongSearchResult = JSON.parse(response.body);
             if (data.code !== 200 || !data.result?.songCount) {
@@ -67,7 +67,7 @@ export class NeteaseLyricAdaptor extends LyricAdaptor {
     }
 
     async fetchLyrics(songID: number | string) {
-        const url = GET_LYRIC_URL("Netease", songID);
+        const url = GET_LYRIC_URL(this.name, songID);
         const response = await doRequest({ url });
         const lyric: GETLyricResult = JSON.parse(response.body);
 

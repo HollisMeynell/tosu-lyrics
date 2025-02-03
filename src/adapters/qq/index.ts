@@ -71,7 +71,7 @@ export class QQLyricAdaptor extends LyricAdaptor {
     }
 
     async fetchLyrics(songID: number | string) {
-        const url = GET_LYRIC_URL("QQ", songID);
+        const url = GET_LYRIC_URL(this.name, songID);
         const LyricUrlHeader = {
             Referer: "https://y.qq.com/portal/player.html",
         };

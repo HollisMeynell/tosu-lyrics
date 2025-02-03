@@ -17,14 +17,16 @@ export default function Controller() {
                         type="color"
                         class="mx-4 w-12 h-8 rounded-full cursor-pointer"
                         value={lyricsStore.getState.textColor.first}
-                        onChange={(e) => changeTextColor("first", e.currentTarget.value)}
+                        onInput={(e) => changeTextColor("first", e.currentTarget.value)}
+                        onChange={lyricsStore.sendColorConfig}
                     />
                     <p>副歌词:</p>
                     <input
                         type="color"
                         class="ml-4 w-12 h-8 rounded-full cursor-pointer"
                         value={lyricsStore.getState.textColor.second}
-                        onChange={(e) => changeTextColor("second", e.currentTarget.value)}
+                        onInput={(e) => changeTextColor("second", e.currentTarget.value)}
+                        onChange={lyricsStore.sendColorConfig}
                     />
                 </div>
             </div>

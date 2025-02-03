@@ -65,12 +65,30 @@ export const lyricsStore = {
         wsService.pushSetting("currentLyrics", lyrics);
     },
 
+    /**
+     * 分段处理, 当设置颜色时实时显示在歌词上
+     */
     setTextColor(order: "first" | "second", color: string) {
         const newTextColor = { ...textColor(), [order]: color };
         setTextColor(newTextColor);
         // 应该当 color 被应用时再触发保存
-        wsService.pushSetting("textColor", newTextColor);
+
+        /*
+        这里我认为没有必要在拖动颜色选择器时就应用到歌词上
+        首先控制台可能是在手机或者另一个屏幕的浏览器上
+        控制台界面不会显示位于顶部的动态歌词, 以避免重复的查询导致 api 超限
+        另外也没有必要连 tosu 来同步时间轴
+        所以仅使用 onChange 足够了, 也就不需要拆分 setTextColor 与 sendColorConfig
+        */
         configService.saveConfig(this.getState);
+    },
+
+    /**
+     * 分段处理, 当颜色设置被确定时发送广播
+     */
+    sendColorConfig() {
+        const nowColor = textColor();
+        wsService.pushSetting("textColor", nowColor);
     },
 
     setShowSecond(show: boolean) {
