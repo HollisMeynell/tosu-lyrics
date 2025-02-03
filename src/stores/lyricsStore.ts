@@ -118,14 +118,17 @@ export const lyricsStore = {
     },
 
     initializeDarkMode() {
-        const darkModeMemo = localStorage.getItem("darkMode") === "true";
-        console.log("darkModeMemo", darkModeMemo);
-        setDarkMode(darkModeMemo);
-        if (darkModeMemo) {
+        let darkModeMemo = localStorage.getItem("darkMode");
+        if (darkModeMemo === null) {
+            localStorage.setItem("darkMode", "true");
             document.documentElement.classList.add("dark");
-        } else {
+            darkModeMemo = "true";
+        } else if (darkModeMemo === "true") {
+            document.documentElement.classList.add("dark");
+        } else if (darkModeMemo === "false") {
             document.documentElement.classList.remove("dark");
         }
+        setDarkMode(darkModeMemo === "true");
     },
 
     toggleDarkMode() {
@@ -143,7 +146,7 @@ export const lyricsStore = {
         if (document.documentElement.classList.contains("dark")) {
             localStorage.setItem("darkMode", "true");
         } else {
-            localStorage.removeItem("darkMode");
+            localStorage.setItem("darkMode", "false");
         }
     },
 };

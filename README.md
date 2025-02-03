@@ -3,7 +3,7 @@
 
 ## 介绍
 
-本项目通过 [tosu](https://github.com/tosuapp/tosu) 获取 osu 当前播放的歌曲信息，并借助一个简单的 [代理工具](tosu-proxy) 
+本项目通过 [tosu](https://github.com/tosuapp/tosu) 获取 osu 当前播放的歌曲信息，并借助一个简单的 [代理工具](tosu-proxy)
 从网易云音乐等多个平台获取歌词信息，解析后在网页中显示出来，作为 OBS 的浏览器源使用。
 
 > **安全声明**:
