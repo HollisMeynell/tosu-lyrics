@@ -25,10 +25,6 @@ body,
     height: 100%;
 }
 
-body {
-    background-color: black;
-}
-
 .scrollbar-hide {
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE and Edge */

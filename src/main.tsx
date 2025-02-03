@@ -30,6 +30,7 @@ if (import.meta.env.DEV && (root === null || !(root instanceof HTMLElement))) {
 
 // 错误回退组件
 const Fallback = (err: Error) => {
+    console.error(err);
     return (
         <div class="bg-gradient-to-br from-[#ff9a9e] to-[#fad0c4] text-white p-10 rounded-lg shadow-md text-center max-w-[500px] mx-auto my-12 font-sans">
             <h2 class="text-2xl mb-5">⚠️ Oops! Something went wrong</h2>
@@ -53,6 +54,13 @@ const Fallback = (err: Error) => {
 
 // 根组件
 const Root = () => {
+    onMount(() => {
+        // dev 模式时增加背景色
+        if ("development" === import.meta.env.MODE) {
+            document.body.style.backgroundColor = "#3d2932";
+        }
+    })
+
     onMount(() => {
         const params = parseUrlParams(window.location.href);
         paramParse(params);

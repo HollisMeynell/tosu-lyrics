@@ -5,12 +5,14 @@ import { configService } from "@/services/ConfigService";
 import { AlignType, Settings } from "@/types/config-global";
 
 const [currentLyrics, setCurrentLyrics] = createSignal<LyricLine[] | undefined>(
-    undefined
+    undefined,
 );
-const [textColor, setTextColor] = createSignal({
+
+const DEFAULT_TEXT_COLOR = {
     first: "#ffffff",
-    second: "#a0a0a0",
-});
+    second: "#e0e0e0",
+};
+const [textColor, setTextColor] = createSignal(DEFAULT_TEXT_COLOR);
 const [useTranslationAsMain, setUseTranslationAsMain] = createSignal(false);
 const [showSecond, setShowSecond] = createSignal(true);
 const [alignment, setAlignment] = createSignal<AlignType>("center");
@@ -37,12 +39,24 @@ export const lyricsStore = {
     },
 
     parseSettings: (config: Settings) => {
+        const setValue = (val: unknown | undefined, setter: (val: unknown) => void)=> {
+            if (val != null) {
+                setter(val);
+            }
+        }
         if (config) {
-            setCurrentLyrics(config.currentLyrics);
-            setTextColor(config.textColor);
-            setUseTranslationAsMain(config.useTranslationAsMain);
-            setShowSecond(config.showSecond);
-            setAlignment(config.alignment);
+            // 兼容不同版本导致的部分配置缺失
+            setValue(config.currentLyrics, setCurrentLyrics);
+            setValue(config.useTranslationAsMain, setUseTranslationAsMain);
+            setValue(config.showSecond, setShowSecond);
+            setValue(config.alignment, setAlignment);
+
+            if (config.textColor) {
+                setTextColor({
+                    ...DEFAULT_TEXT_COLOR,
+                    ...config.textColor,
+                });
+            }
         }
     },
 
@@ -54,8 +68,9 @@ export const lyricsStore = {
     setTextColor(order: "first" | "second", color: string) {
         const newTextColor = { ...textColor(), [order]: color };
         setTextColor(newTextColor);
+        // 应该当 color 被应用时再触发保存
         wsService.pushSetting("textColor", newTextColor);
-        configService.saveConfig(this.getState); // 触发防抖保存
+        configService.saveConfig(this.getState);
     },
 
     setShowSecond(show: boolean) {

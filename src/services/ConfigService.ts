@@ -1,17 +1,10 @@
 import { Settings } from "@/types/config-global";
 import { BACKEND_CONFIG_URL } from "@/config/constants";
-import debounce from "lodash/debounce";
 
 class ConfigService {
-    private debouncedSave: (config: Settings) => void;
-
-    constructor() {
-        // 500ms 后执行保存，如果期间有新的调用则重置计时
-        this.debouncedSave = debounce(
-            this.saveConfigImmediately.bind(this),
-            1000
-        );
-    }
+    // 这里不适合使用防抖来处理全部的保存
+    // 如果用户在极短时间内多次修改多个属性, 此时只有最后一个属性被修改
+    // private debouncedSave: (config: Settings) => void ;
 
     async fetchConfig(): Promise<Settings> {
         const response = await fetch(BACKEND_CONFIG_URL);
@@ -21,7 +14,7 @@ class ConfigService {
         return response.json();
     }
 
-    private async saveConfigImmediately(config: Settings): Promise<void> {
+    async saveConfig(config: Settings): Promise<void> {
         try {
             const response = await fetch(BACKEND_CONFIG_URL, {
                 method: "PUT",
@@ -36,10 +29,6 @@ class ConfigService {
             console.error("Failed to save config:", error);
             throw error;
         }
-    }
-
-    saveConfig(config: Settings): void {
-        this.debouncedSave(config);
     }
 }
 
