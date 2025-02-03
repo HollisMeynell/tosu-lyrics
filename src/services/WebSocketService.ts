@@ -2,16 +2,21 @@ import ReconnectingWebSocket from "reconnecting-websocket";
 import {
     WebSocketMessage,
     SettingMessage,
-    OnlineMessage,
+    OnlineMessage, QueryResponseMessage, QueryRequestMessage,
 } from "@/types/ws-types";
-import { BACKEND_WEBSOCKET_URL } from "@/config/constants";
+import { BACKEND_WEBSOCKET_URL, WS_QUERY_TIMEOUT } from "@/config/constants";
+import { generateRandomString } from "@/utils/string-utils.ts";
 
 export type MessageHandler = (value: unknown) => void;
 
 export class WebSocketService {
     private ws: ReconnectingWebSocket;
-    private handlers = new Map<string, MessageHandler>();
+    private settingHandlers = new Map<string, MessageHandler>();
+    // 接受查询 并响应查询结果
+    private queryHandlers = new Map<string, (params?: unknown) => unknown>();
     private onlineClients: string[] = [];
+    // 发起查询方 请求回调队列 (应该是队列, 但是用 key 做索引所以用 map 了)
+    private queryQueue: Map<string, MessageHandler> = new Map();
     private selfId: string = "";
 
     constructor() {
@@ -34,12 +39,12 @@ export class WebSocketService {
     }
 
     private handleMessage(message: WebSocketMessage) {
-        const { command } = message;
+        const { echo, command } = message;
 
         switch (command.type) {
             case "setting": { // 样式设定
                 const { key, value } = command as SettingMessage;
-                const handler = this.handlers.get(key);
+                const handler = this.settingHandlers.get(key);
                 if (handler) {
                     handler(value);
                 }
@@ -49,7 +54,23 @@ export class WebSocketService {
                 this.handleOnlineStatus(command as OnlineMessage);
                 break;
             }
-            // 后续打算加上 查询搜索歌曲的结果, 收到后 echo 以 id 为前缀, 则返回查询数据
+            case "query-request": { // 收到查询请求
+                if (!echo?.startsWith(this.selfId)) return;
+                const { key, query, params } = command as QueryRequestMessage;
+                const handler = this.queryHandlers.get(query);
+                if (!handler) return;
+                const data = handler(params);
+                this.queryResponse(key, data);
+                break;
+            }
+            case "query-response": { // 受到查询响应
+                const { key, value } = command as QueryResponseMessage;
+                const handler = this.queryQueue.get(key);
+                if (handler) {
+                    handler(value);
+                }
+                break;
+            }
             // ...
             default:
                 console.warn("Unknown message type:", command.type);
@@ -67,14 +88,23 @@ export class WebSocketService {
         if (data.status === "online") {
             this.onlineClients.push(data.id);
         } else if (data.status === "offline") {
-            this.onlineClients = this.onlineClients.filter(
-                (id) => id !== data.id
-            );
+            this.onlineClients = this.onlineClients
+                .filter((id) => id !== data.id);
         }
     }
 
+    /**
+     * 注册处理设置类的回调
+     */
     registerHandler(key: string, handler: MessageHandler) {
-        this.handlers.set(key, handler);
+        this.settingHandlers.set(key, handler);
+    }
+
+    /**
+     * 注册处理查询类的回调
+     */
+    registerQueryHandler(key: string, handler: (params?: unknown) => unknown) {
+        this.queryHandlers.set(key, handler);
     }
 
     pushSetting(key: string, value: unknown) {
@@ -83,14 +113,64 @@ export class WebSocketService {
                 type: "setting",
                 key,
                 value,
-            },
+            } as SettingMessage,
             echo: null,
         };
         this.ws.send(JSON.stringify(message));
     }
 
-    getOnlineClients() {
-        return [...this.onlineClients];
+    /**
+     * 获取在线客户端列表
+     */
+    getOnlineClients(): string[] {
+        return this.onlineClients.filter((id) => this.selfId != id);
+    }
+
+    // 例如查询搜索歌曲的结果, 查询对应的歌词列表
+    /**
+     * 发起查询
+     * @param clientId 对方客户端的 id
+     * @param query 需要的查询, 与注册回调 key 保持一致
+     * @param params 参数, 可为空
+     */
+    async postQuery<T>(clientId: string, query: string, params?: unknown): Promise<T> {
+        const key = generateRandomString(8);
+        const message: WebSocketMessage = {
+            command: {
+                type: "query-request",
+                key,
+                params,
+                query: query,
+            } as QueryRequestMessage,
+            echo: `${clientId}-${Date.now()}`,
+        };
+        this.ws.send(JSON.stringify(message));
+        return new Promise((resolve, reject) => {
+            const outTime = setTimeout(() => {
+                this.queryQueue.delete(key);
+                reject({ error: "time out" });
+            }, WS_QUERY_TIMEOUT);
+            const handler = (data: unknown) => {
+                clearTimeout(outTime);
+                resolve(data as T);
+            };
+            this.queryQueue.set(key, handler);
+        });
+    }
+
+    /**
+     * 发送响应
+     */
+    private queryResponse(key: string, value: unknown) {
+        const message: WebSocketMessage = {
+            command: {
+                type: "query-response",
+                key,
+                value,
+            } as QueryResponseMessage,
+            echo: null,
+        };
+        this.ws.send(JSON.stringify(message));
     }
 }
 

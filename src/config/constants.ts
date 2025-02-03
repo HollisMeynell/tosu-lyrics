@@ -4,6 +4,8 @@ export let PROXY_URL = "http://127.0.0.1:41280/api/proxy"
 export const AUDIO_URL = "http://127.0.0.1:24050/files/beatmap/audio";
 export const WS_URL = "ws://127.0.0.1:24050/websocket/v2";
 
+export const WS_QUERY_TIMEOUT = 5000;
+
 export const SEARCH_MUSIC_URL = (adaptor: string,title: string) =>{
     if(adaptor === "QQ"){
         return `https://c.y.qq.com/soso/fcgi-bin/client_search_cp?p=1&n=10&format=json&w=${title}`;

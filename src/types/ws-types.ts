@@ -3,7 +3,7 @@ export interface CommandMessage {
 }
 
 export interface WebSocketMessage {
-    command: CommandMessage | SettingMessage | OnlineMessage;
+    command: CommandMessage
     echo: string | null;
 }
 
@@ -24,4 +24,17 @@ export interface OnlineMessage extends CommandMessage {
     id: string;
     status: "online" | "offline" | "conflict";
     others: string[] | null;
+}
+
+export interface QueryRequestMessage extends CommandMessage {
+    type: "query-request";
+    key: string;
+    params?: unknown;
+    query: string;
+}
+
+export interface QueryResponseMessage extends CommandMessage {
+    type: "query-response";
+    key: string;
+    value: unknown;
 }
