@@ -54,12 +54,10 @@ const Fallback = (err: Error) => {
 
 // 根组件
 const Root = () => {
-    onMount(() => {
-        // dev 模式时增加背景色
-        if ("development" === import.meta.env.MODE) {
-            document.body.style.backgroundColor = "#3d2932";
-        }
-    })
+    // dev 模式时增加背景色
+    if (import.meta.env.MODE === "development") {
+        document.body.style.backgroundColor = "#3d2932";
+    }
 
     onMount(() => {
         const params = parseUrlParams(window.location.href);

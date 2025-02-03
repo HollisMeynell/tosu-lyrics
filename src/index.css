@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @font-face {
     font-family: "LRC";
     src: url("/LRC.otf");
@@ -23,6 +25,14 @@ html,
 body,
 #root {
     height: 100%;
+}
+
+body {
+    background-color: #f5f5f5;
+}
+
+.dark body {
+    background-color: black;
 }
 
 .scrollbar-hide {

@@ -18,7 +18,6 @@ export default function Controller() {
                         class="mx-4 w-12 h-8 rounded-full cursor-pointer"
                         value={lyricsStore.getState.textColor.first}
                         onInput={(e) => changeTextColor("first", e.currentTarget.value)}
-                        onChange={lyricsStore.sendColorConfig}
                     />
                     <p>副歌词:</p>
                     <input
@@ -26,7 +25,6 @@ export default function Controller() {
                         class="ml-4 w-12 h-8 rounded-full cursor-pointer"
                         value={lyricsStore.getState.textColor.second}
                         onInput={(e) => changeTextColor("second", e.currentTarget.value)}
-                        onChange={lyricsStore.sendColorConfig}
                     />
                 </div>
             </div>

@@ -1,14 +1,19 @@
 // 功能: 功能操作面板
 import CurrentLyrics from "./ControlTools/CurrentLyrics";
 import TextStyle from "./ControlTools/TextStyle";
+import DarkModeToggle from "./ControlTools/DarkModeToggle";
 
 export default function Controller() {
     return (
-        <div class="h-[calc(100%-300px)] bg-[#3d2932] m-6 p-6 overflow-auto rounded-lg shadow-md scrollbar-hide flex md:flex-row flex-col gap-6 text-[#dcdcdc]">
-            <CurrentLyrics />
-            <div>
-                <TextStyle />
-                ...
+        <div class="h-[calc(100%-300px)] bg-[#ffffff] dark:bg-[#141414] m-6  rounded-lg shadow-md overflow-auto scrollbar-hide dark:text-[#dcdcdc] relative transform-3d">
+            {/* 通过 relative 和 transform-3d 实现 DarkModeToggle 组件的 fixed 定位相对父元素而非视窗 666 */}
+            <DarkModeToggle />
+            <div class="h-[calc(100%-24px)] max-w-[calc(100%-40px)] p-6 overflow-auto scrollbar-hide md:flex-row flex flex-col gap-6">
+                <CurrentLyrics />
+                <div>
+                    <TextStyle />
+                    ...
+                </div>
             </div>
         </div>
     );

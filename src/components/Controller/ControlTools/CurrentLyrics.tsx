@@ -3,7 +3,7 @@ import Cache from "@/utils/cache.ts";
 import { For } from "solid-js";
 import { createEffect } from "solid-js";
 import lyricsStore from "@/stores/lyricsStore.ts";
-import CopySvg from "@/assets/svg/copy.svg";
+import CopySvg from "@/assets/svg/copySvg.tsx";
 
 export default function Controller() {
 
@@ -30,7 +30,7 @@ export default function Controller() {
                     刷新
                 </button>
             </div>
-            <div class="h-[calc(100%-45px)] border border-[#313131] rounded-lg px-4 py-2 mt-4 max-w-[650px] overflow-auto scrollbar-hide">
+            <div class="h-[calc(100%-45px)] border-2 border-[#f0f0f0] dark:border-[#313131] rounded-lg px-4 mt-4 max-w-[650px] overflow-auto scrollbar-hide">
                 <For each={lyricsStore.getState.currentLyrics || []}>
                     {(item) => (
                         <div class="flex flex-row items-center my-3 gap-3 max-w-[700px]">
@@ -42,14 +42,14 @@ export default function Controller() {
                             </div>
                             <div class="flex justify-end">
                                 <button
-                                    class="h-7 w-18 flex items-center gap-1 bg-[#1d1d1d] text-gray-500 border-none px-3 py-1 rounded cursor-pointer text-sm font-bold shadow-sm hover:bg-[#313131] transition-colors duration-300"
+                                    class="h-7 w-18 flex items-center gap-1 bg-white dark:bg-[#21314d] text-gray-500 border-none px-3 py-1 rounded cursor-pointer text-sm font-bold shadow-md hover:bg-[#f0f0f0] dark:hover:bg-[#3b4a63] transition-colors duration-300"
                                     onClick={() => {
                                         navigator.clipboard.writeText(
                                             `${item.first}\n${item.second}`
                                         );
                                     }}
                                 >
-                                    <img src={CopySvg} class="w-3 h-3" />
+                                    <CopySvg stroke={lyricsStore.getState.darkMode ? "#dcdcdc" : "#313131"} class="w-4 h-4" />
                                     复制
                                 </button>
                             </div>
