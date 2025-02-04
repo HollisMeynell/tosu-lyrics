@@ -3,6 +3,7 @@ import Cache from "@/utils/cache.ts";
 import { For } from "solid-js";
 import { createEffect } from "solid-js";
 import lyricsStore from "@/stores/lyricsStore.ts";
+import ToggleList from "@/components/ui/ToggleList";
 import CopySvg from "@/assets/svg/copySvg.tsx";
 
 export default function Controller() {
@@ -19,18 +20,25 @@ export default function Controller() {
         searchCacheCurrent();
     });
 
-    return (
-        <div>
-            <div class="flex flex-row items-center">
-                <h2 class="text-2xl font-bold">歌词</h2>
-                <button
-                    class="bg-[#ec4899] text-white border-none px-5 py-1 ml-4 rounded-md cursor-pointer text-base font-bold shadow-sm hover:bg-[#db2777] transition-colors duration-300"
-                    onClick={searchCacheCurrent}
-                >
-                    刷新
-                </button>
-            </div>
-            <div class="h-[calc(100%-45px)] border-2 border-[#f0f0f0] dark:border-[#313131] rounded-lg px-4 mt-4 max-w-[650px] overflow-auto scrollbar-hide">
+    const handleRefresh = (e: MouseEvent) => {
+        e.stopPropagation(); // 阻止事件冒泡
+        searchCacheCurrent();
+    };
+
+    const HeaderContent = (
+        <div class="flex flex-row items-center">
+            <h2 class="text-2xl font-bold">歌词</h2>
+            <button
+                class="bg-[#ec4899] text-white border-none px-5 py-1 ml-4 rounded-md cursor-pointer text-base font-bold shadow-sm hover:bg-[#db2777] transition-colors duration-300"
+                onClick={handleRefresh}
+            >
+                刷新
+            </button>
+        </div>
+    );
+
+    const LyricsContent = (
+        <div class="h-[calc(100%-45px)] border-2 border-[#f0f0f0] dark:border-[#313131] rounded-lg px-4 max-w-[650px] overflow-auto scrollbar-hide">
                 <For each={lyricsStore.getState.currentLyrics || []}>
                     {(item) => (
                         <div class="flex flex-row items-center my-3 gap-3 max-w-[700px]">
@@ -57,6 +65,15 @@ export default function Controller() {
                     )}
                 </For>
             </div>
+    );
+
+    return (
+        <div>
+            <ToggleList
+                header={HeaderContent}
+            >
+                {LyricsContent}
+            </ToggleList>
         </div>
     );
 }
