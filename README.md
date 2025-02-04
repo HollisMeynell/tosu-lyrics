@@ -35,12 +35,20 @@
 
 ## 使用
 
+### 下载、启动
+
 1. 下载 [tosu](https://github.com/tosuapp/tosu/releases) 并解压到任意目录（例如 `/AppData/Roaming` 或 `Program Files`等）。**注意：无需运行 `tosu.exe`。**
 2. 下载 [release](https://github.com/HollisMeynell/tosu-lyrics/releases/) 中的压缩包并将文件解压到 tosu 的根目录。
 3. 运行 `tosu-proxy.exe`。
 4. 41280 端口用于显示本项目，24050 端口用于 tosu。(可以通过环境变量 `TOSU_PROXY_PORT` 来指定本项目的端口, tosu 端口也可以被修改, 请参阅对应设置)
-5. 你也可以手动访问[http://127.0.0.1:24050/lyrics/index.html](http://127.0.0.1:24050/lyrics/index.html)。
-6. 将该地址添加到 OBS 的浏览器源中，建议设置宽为 1200，高为 300。
+
+### 显示
+
+将该地址添加到 OBS 的浏览器源中。建议设置宽为 1200，高为 300, 在自定义CSS中添加 `.dark body {background-color: rgba(0, 0, 0, 0);}` 用于在夜间模式将背景透明化。
+
+### 控制
+
+在外部浏览器访问[http://127.0.0.1:24050/lyrics/index.html](http://127.0.0.1:24050/lyrics/index.html)。在 OBS 的浏览器的`交互`中、外部浏览器中，均可以通过 ctrl + alt + t 来切换控制面板的打开状态。默认关闭以提升观众体验。
 
 > [!IMPORTANT]
 > **跨域请求说明**：
@@ -56,8 +64,6 @@
 > - 隔离说明: `tosu-proxy` 不影响 `tosu` 或其他插件的正常使用。可访问 [`http://127.0.0.1:24050`](http://127.0.0.1:24050) 使用他们。
 > - 字体修改: 您可以通过修改 `LRC.otf` 更改全部字体, 或者添加 `tLRC.otf` (对应主歌词) 和 `oLRC.otf` (对应副歌词) 来更改字体。
 > - 自定义字体支持 `ttf`、`woff` 等字体格式，但需将文件名严格填写为 `LRC.otf`, `tLRC.otf` 或 `oLRC.otf` (即 'xxx.ttf' => 'LRC.otf')。
-> 附带参数 /?controller=true 可以开启控制面板，面板默认关闭以在直播时不影响观众体验。
-> OBS 设置: 自定义CSS中默认添加的 `body { background-color: rgba(0, 0, 0, 0)` 用于将背景透明化，这实际上是覆盖了原效果中 body 的纯黑色样式（为了您更好的调试清晰度）。轻易调整自定义css会影响显示效果。
 
 ## 如何更新
 

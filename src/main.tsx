@@ -8,7 +8,6 @@ import { onMount, Show } from "solid-js";
 import { lyricsStore } from "@/stores/lyricsStore";
 import { configService } from "@/services/ConfigService";
 import {
-    showController,
     consoleEnabled,
     paramParse,
     parseUrlParams,
@@ -54,10 +53,10 @@ const Fallback = (err: Error) => {
 
 // 根组件
 const Root = () => {
-    // // dev 模式时增加背景色
-    // if (import.meta.env.MODE === "development") {
-    //     document.body.style.backgroundColor = "#3d2932";
-    // }
+    // dev 模式时增加背景色
+    if (import.meta.env.MODE === "development") {
+        document.body.style.backgroundColor = "#3d2932";
+    }
 
     onMount(() => {
         const params = parseUrlParams(window.location.href);
@@ -76,7 +75,7 @@ const Root = () => {
     return (
         <div class="h-full flex flex-col justify-center bg-transparent">
             <LyricsBox />
-            <Show when={showController()}>
+            <Show when={lyricsStore.getState.showController}>
                 <Controller />
             </Show>
             <Show when={consoleEnabled()}>

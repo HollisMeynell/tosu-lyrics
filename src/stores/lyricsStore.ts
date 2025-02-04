@@ -19,6 +19,17 @@ const [alignment, setAlignment] = createSignal<AlignType>("center");
 export const [darkMode, setDarkMode] = createSignal(
     localStorage.getItem("darkMode") === "true"
 );
+const [showController, setShowController] = createSignal(
+    localStorage.getItem("showController") === "true"
+);
+
+// 监听 ctrl + alt + t 点击次数
+window.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.altKey && e.key === "t") {
+        setShowController(!showController());
+        localStorage.setItem("showController", showController() ? "true" : "false");
+    }
+});
 
 // Initialize WebSocket handlers
 (() => {
@@ -48,6 +59,7 @@ function debounce<T extends (...args: unknown[]) => void>(
 export const lyricsStore = {
     get getState() {
         return {
+            showController: showController(),
             currentLyrics: currentLyrics(),
             textColor: textColor(),
             useTranslationAsMain: useTranslationAsMain(),
@@ -80,7 +92,7 @@ export const lyricsStore = {
                 });
             }
         }
-        lyricsStore.initializeDarkMode();
+        lyricsStore.initializeState();
     },
 
     updateCurrentLyrics(lyrics: LyricLine[] | undefined) {
@@ -117,7 +129,7 @@ export const lyricsStore = {
         configService.saveConfig(this.getState);
     },
 
-    initializeDarkMode() {
+    initializeState() {
         let darkModeMemo = localStorage.getItem("darkMode");
         if (darkModeMemo === null) {
             localStorage.setItem("darkMode", "true");
@@ -129,6 +141,12 @@ export const lyricsStore = {
             document.documentElement.classList.remove("dark");
         }
         setDarkMode(darkModeMemo === "true");
+
+        let showControllerMemo = localStorage.getItem("showController");
+        if (showControllerMemo === null) {
+            localStorage.setItem("showController", "false");
+            setShowController(false);
+        }
     },
 
     toggleDarkMode() {

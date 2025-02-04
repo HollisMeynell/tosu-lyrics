@@ -4,7 +4,7 @@ import { For } from "solid-js";
 import { createEffect } from "solid-js";
 import lyricsStore from "@/stores/lyricsStore.ts";
 import ToggleList from "@/components/ui/ToggleList";
-import CopySvg from "@/assets/svg/copySvg.tsx";
+import Copy from "@/assets/Icons/Copy";
 
 export default function Controller() {
 
@@ -57,7 +57,7 @@ export default function Controller() {
                                         );
                                     }}
                                 >
-                                    <CopySvg stroke={lyricsStore.getState.darkMode ? "#dcdcdc" : "#313131"} class="w-4 h-4" />
+                                    <Copy stroke={lyricsStore.getState.darkMode ? "#dcdcdc" : "#313131"} class="w-4 h-4" />
                                     复制
                                 </button>
                             </div>

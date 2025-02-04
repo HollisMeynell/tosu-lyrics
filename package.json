@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --open /?controller=true",
+    "dev": "vite --open",
     "build": "vite build",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "preview": "vite preview"
@@ -24,6 +24,7 @@
     "vite-plugin-solid": "^2.11.0"
   },
   "dependencies": {
+    "@solidjs/router": "^0.15.3",
     "reconnecting-websocket": "^4.4.0",
     "solid-js": "^1.9.4",
     "tailwindcss": "^4.0.3"

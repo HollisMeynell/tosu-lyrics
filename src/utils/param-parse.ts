@@ -5,7 +5,6 @@ import Cache from "@/utils/cache.ts";
 import { PROXY_URL, setProxyUrl } from "@/config/constants";
 
 export const [consoleEnabled, setConsoleEnabled] = createSignal(false);
-export const [showController, setShowController] = createSignal(true);
 
 // 解析 URL 参数
 export function parseUrlParams(url: string): URLSearchParams {
@@ -34,7 +33,5 @@ export function paramParse(params: URLSearchParams): void {
         const url = params.get("proxy-backend") || PROXY_URL;
         setProxyUrl(url);
     }
-    const controllerParam = params.get("controller");
-    setShowController(controllerParam === "true");
     setConsoleEnabled(!!params.get("console"));
 }

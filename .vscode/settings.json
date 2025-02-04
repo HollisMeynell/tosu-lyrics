@@ -5,6 +5,8 @@
         "msvc",
         "netease",
         "singlefile",
+        "solidjs",
+        "textstyle",
         "tlyric",
         "tosu",
         "webbrowser"
