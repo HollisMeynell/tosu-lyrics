@@ -58,7 +58,10 @@ export class Lyric {
                 this.lyrics.push({ time: time, first: text });
             } else {
                 // 否则，向后查找合适的位置
-                while (n < this.lyrics.length && this.lyrics[n + 1].time < time - 1e-2) {
+                while (
+                    n < this.lyrics.length &&
+                    this.lyrics[n + 1].time < time - 1e-2
+                ) {
                     n++;
                 }
                 if (Math.abs(this.lyrics[n + 1].time - time) < 1e-2) {
@@ -94,7 +97,9 @@ export class Lyric {
                 for (const { time, text } of transLines) {
                     cursor = this.insert(time, text, cursor);
                     if (cursor === -1) {
-                        console.warn(`Failed to insert translation at ${time}: ${text}`);
+                        console.warn(
+                            `Failed to insert translation at ${time}: ${text}`
+                        );
                         break;
                     }
                 }
@@ -108,7 +113,9 @@ export class Lyric {
     // 获取当前歌词
     nextTime(): number {
         if (this.cursor >= this.lyrics.length - 1) return 0;
-        return this.lyrics[this.cursor + 1].time - this.lyrics[this.cursor].time;
+        return (
+            this.lyrics[this.cursor + 1].time - this.lyrics[this.cursor].time
+        );
     }
 
     // 跳转到指定时间

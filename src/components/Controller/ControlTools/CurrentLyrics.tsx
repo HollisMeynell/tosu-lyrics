@@ -7,7 +7,6 @@ import ToggleList from "@/components/ui/ToggleList";
 import Copy from "@/assets/Icons/Copy";
 
 export default function Controller() {
-
     const searchCacheCurrent = async () => {
         const nowPlayingBid = Number(localStorage.getItem("nowPlaying"));
         if (nowPlayingBid) {
@@ -39,41 +38,44 @@ export default function Controller() {
 
     const LyricsContent = (
         <div class="h-[calc(100%-45px)] border-2 border-[#f0f0f0] dark:border-[#313131] rounded-lg px-4 max-w-[650px] overflow-auto scrollbar-hide">
-                <For each={lyricsStore.getState.currentLyrics || []}>
-                    {(item) => (
-                        <div class="flex flex-row items-center my-3 gap-3 max-w-[700px]">
-                            <div class="grow flex flex-row justify-between items-center select-none">
-                                <p class="text-xl">{item.first}</p>
-                                <p class="text-sm text-right text-gray-500">
-                                    {item.second}
-                                </p>
-                            </div>
-                            <div class="flex justify-end">
-                                <button
-                                    class="h-7 w-18 flex items-center gap-1 bg-white dark:bg-[#21314d] text-gray-500 dark:text-gray-200 border-none px-3 py-1 rounded cursor-pointer text-sm font-bold shadow-md hover:bg-[#f0f0f0] dark:hover:bg-[#3b4a63] transition-colors duration-300"
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(
-                                            `${item.first}\n${item.second}`
-                                        );
-                                    }}
-                                >
-                                    <Copy stroke={lyricsStore.getState.darkMode ? "#dcdcdc" : "#313131"} class="w-4 h-4" />
-                                    复制
-                                </button>
-                            </div>
+            <For each={lyricsStore.getState.currentLyrics || []}>
+                {(item) => (
+                    <div class="flex flex-row items-center my-3 gap-3 max-w-[700px]">
+                        <div class="grow flex flex-row justify-between items-center select-none">
+                            <p class="text-xl">{item.first}</p>
+                            <p class="text-sm text-right text-gray-500">
+                                {item.second}
+                            </p>
                         </div>
-                    )}
-                </For>
-            </div>
+                        <div class="flex justify-end">
+                            <button
+                                class="h-7 w-18 flex items-center gap-1 bg-white dark:bg-[#21314d] text-gray-500 dark:text-gray-200 border-none px-3 py-1 rounded cursor-pointer text-sm font-bold shadow-md hover:bg-[#f0f0f0] dark:hover:bg-[#3b4a63] transition-colors duration-300"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(
+                                        `${item.first}\n${item.second}`
+                                    );
+                                }}
+                            >
+                                <Copy
+                                    stroke={
+                                        lyricsStore.getState.darkMode
+                                            ? "#dcdcdc"
+                                            : "#313131"
+                                    }
+                                    class="w-4 h-4"
+                                />
+                                复制
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </For>
+        </div>
     );
 
     return (
         <div>
-            <ToggleList
-                header={HeaderContent}
-            >
-                {LyricsContent}
-            </ToggleList>
+            <ToggleList header={HeaderContent}>{LyricsContent}</ToggleList>
         </div>
     );
 }

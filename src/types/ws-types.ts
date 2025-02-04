@@ -3,7 +3,7 @@ export interface CommandMessage {
 }
 
 export interface WebSocketMessage {
-    command: CommandMessage
+    command: CommandMessage;
     echo: string | null;
 }
 

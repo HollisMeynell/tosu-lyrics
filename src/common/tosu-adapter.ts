@@ -18,7 +18,6 @@ type Temp = {
     lyric?: Lyric;
 };
 
-
 const WS_DELAY_TIME = 100;
 const WAIT_AUDIO_METADATA = 1000;
 
@@ -86,7 +85,9 @@ export default class TosuAdapter {
     private showLyric(lyric: Lyric) {
         this.temp.lyric = lyric;
         const list = lyric.lyrics.map((x) => {
-            return x.second ? { main: x.first, origin: x.second } : { main: x.first };
+            return x.second
+                ? { main: x.first, origin: x.second }
+                : { main: x.first };
         });
         this.setLyrics(list);
         if (this.temp.songTime) {

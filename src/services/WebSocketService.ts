@@ -2,7 +2,9 @@ import ReconnectingWebSocket from "reconnecting-websocket";
 import {
     WebSocketMessage,
     SettingMessage,
-    OnlineMessage, QueryResponseMessage, QueryRequestMessage,
+    OnlineMessage,
+    QueryResponseMessage,
+    QueryRequestMessage,
 } from "@/types/ws-types";
 import { BACKEND_WEBSOCKET_URL, WS_QUERY_TIMEOUT } from "@/config/constants";
 import { generateRandomString } from "@/utils/string-utils.ts";
@@ -42,7 +44,8 @@ export class WebSocketService {
         const { echo, command } = message;
 
         switch (command.type) {
-            case "setting": { // 样式设定
+            case "setting": {
+                // 样式设定
                 const { key, value } = command as SettingMessage;
                 const handler = this.settingHandlers.get(key);
                 if (handler) {
@@ -50,11 +53,13 @@ export class WebSocketService {
                 }
                 break;
             }
-            case "online": { // 其他端上线
+            case "online": {
+                // 其他端上线
                 this.handleOnlineStatus(command as OnlineMessage);
                 break;
             }
-            case "query-request": { // 收到查询请求
+            case "query-request": {
+                // 收到查询请求
                 if (!echo?.startsWith(this.selfId)) return;
                 const { key, query, params } = command as QueryRequestMessage;
                 const handler = this.queryHandlers.get(query);
@@ -63,7 +68,8 @@ export class WebSocketService {
                 this.queryResponse(key, data);
                 break;
             }
-            case "query-response": { // 受到查询响应
+            case "query-response": {
+                // 受到查询响应
                 const { key, value } = command as QueryResponseMessage;
                 const handler = this.queryQueue.get(key);
                 if (handler) {
@@ -88,8 +94,9 @@ export class WebSocketService {
         if (data.status === "online") {
             this.onlineClients.push(data.id);
         } else if (data.status === "offline") {
-            this.onlineClients = this.onlineClients
-                .filter((id) => id !== data.id);
+            this.onlineClients = this.onlineClients.filter(
+                (id) => id !== data.id
+            );
         }
     }
 
@@ -133,7 +140,11 @@ export class WebSocketService {
      * @param query 需要的查询, 与注册回调 key 保持一致
      * @param params 参数, 可为空
      */
-    async postQuery<T>(clientId: string, query: string, params?: unknown): Promise<T> {
+    async postQuery<T>(
+        clientId: string,
+        query: string,
+        params?: unknown
+    ): Promise<T> {
         const key = generateRandomString(8);
         const message: WebSocketMessage = {
             command: {

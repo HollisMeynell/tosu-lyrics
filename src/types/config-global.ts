@@ -15,7 +15,7 @@ export type Settings = {
     currentLyrics: LyricLine[] | undefined;
     alignment: AlignType;
     // 歌词黑名单
-    blackListBid?: Set<number>,
+    blackListBid?: Set<number>;
     // 标题黑名单
-    blackListTitle?: Set<string>,
-}
+    blackListTitle?: Set<string>;
+};

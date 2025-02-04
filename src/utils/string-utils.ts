@@ -8,7 +8,10 @@ const RANDOM_STRING_MAP_LENGTH = RANDOM_STRING_MAP.length;
 export function generateRandomString(length: number): string {
     let result = new Array(length);
     for (let i = 0; i < length; i++) {
-        result[i] = RANDOM_STRING_MAP[(Math.floor(Math.random() * RANDOM_STRING_MAP_LENGTH))];
+        result[i] =
+            RANDOM_STRING_MAP[
+                Math.floor(Math.random() * RANDOM_STRING_MAP_LENGTH)
+            ];
     }
     return result.join("");
 }

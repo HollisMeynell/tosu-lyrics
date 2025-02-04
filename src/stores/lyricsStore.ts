@@ -27,7 +27,10 @@ const [showController, setShowController] = createSignal(
 window.addEventListener("keydown", (e) => {
     if (e.ctrlKey && e.altKey && e.key === "t") {
         setShowController(!showController());
-        localStorage.setItem("showController", showController() ? "true" : "false");
+        localStorage.setItem(
+            "showController",
+            showController() ? "true" : "false"
+        );
     }
 });
 
@@ -39,21 +42,6 @@ window.addEventListener("keydown", (e) => {
     wsService.registerHandler("showSecond", setShowSecond);
     wsService.registerHandler("alignment", setAlignment);
 })();
-
-// 防抖函数
-function debounce<T extends (...args: unknown[]) => void>(
-    func: T,
-    wait: number
-): (...args: Parameters<T>) => void {
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-
-    return function (this: unknown, ...args: Parameters<T>): void {
-        if (timeout !== null) {
-            clearTimeout(timeout);
-        }
-        timeout = setTimeout(() => func.apply(this, args), wait);
-    };
-}
 
 // Store
 export const lyricsStore = {
@@ -100,15 +88,15 @@ export const lyricsStore = {
         wsService.pushSetting("currentLyrics", lyrics);
     },
 
-    saveConfigDebounced: debounce(() => {
-        wsService.pushSetting("textColor", textColor());
-        configService.saveConfig(lyricsStore.getState);
-    }, 500),
-
     setTextColor(order: "first" | "second", color: string) {
         const newTextColor = { ...textColor(), [order]: color };
         setTextColor(newTextColor);
-        this.saveConfigDebounced();
+    },
+
+    sendColorConfig() {
+        const nowColor = textColor();
+        wsService.pushSetting("textColor", nowColor);
+        configService.saveConfig(this.getState);
     },
 
     setShowSecond(show: boolean) {

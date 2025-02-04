@@ -33,7 +33,8 @@ export default function LyricsBox() {
         let maxWidth: number;
         if (p.children.length === 2) {
             maxWidth =
-                Math.max(p.children[0].scrollWidth, p.children[1].scrollWidth) * 1.2;
+                Math.max(p.children[0].scrollWidth, p.children[1].scrollWidth) *
+                1.2;
         } else {
             maxWidth = p.children[0].scrollWidth * 1.2;
         }
@@ -77,18 +78,26 @@ export default function LyricsBox() {
                                     true,
                                 "scale-[1.2]": cursor() === index,
                                 "text-white": cursor() === index,
-                                "animate-scroll": cursor() === index && scroll(),
+                                "animate-scroll":
+                                    cursor() === index && scroll(),
                             }}
                         >
                             <p
                                 class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff]"
-                                style={{ color: lyricsStore.getState.textColor.first }}
+                                style={{
+                                    color: lyricsStore.getState.textColor.first,
+                                }}
                             >
                                 {lyricsStore.getState.useTranslationAsMain
                                     ? lyric().main || lyric().origin
                                     : lyric().origin}
                             </p>
-                            <Show when={lyric().origin && lyricsStore.getState.showSecond}>
+                            <Show
+                                when={
+                                    lyric().origin &&
+                                    lyricsStore.getState.showSecond
+                                }
+                            >
                                 <p
                                     classList={{
                                         "font-oLRC whitespace-nowrap text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4":
@@ -96,7 +105,10 @@ export default function LyricsBox() {
                                         block: cursor() === index,
                                         hidden: cursor() !== index,
                                     }}
-                                    style={{ color: lyricsStore.getState.textColor.second }}
+                                    style={{
+                                        color: lyricsStore.getState.textColor
+                                            .second,
+                                    }}
                                 >
                                     {lyricsStore.getState.useTranslationAsMain
                                         ? lyric().origin

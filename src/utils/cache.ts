@@ -21,7 +21,9 @@ function initIndexedDB(): Promise<IDBDatabase> {
         };
 
         dbRequest.onerror = () => {
-            console.error("Failed to open lyrics database, use local storage instead.");
+            console.error(
+                "Failed to open lyrics database, use local storage instead."
+            );
             reject(new Error("Failed to open lyrics database"));
         };
 
