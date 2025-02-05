@@ -45,8 +45,12 @@ export class WebSocketService {
 
         switch (command.type) {
             case "setting": {
-                // 样式设定
-                const { key, value } = command as SettingMessage;
+                // 设定
+                const { key, value, target } = command as SettingMessage;
+                // 忽略有指向 target 且并非自身的消息
+                if (target && !this.isSelf(target)) {
+                    break;
+                }
                 const handler = this.settingHandlers.get(key);
                 if (handler) {
                     handler(value);
@@ -60,7 +64,7 @@ export class WebSocketService {
             }
             case "query-request": {
                 // 收到查询请求
-                if (!echo?.startsWith(this.selfId)) return;
+                if (!this.isSelf(echo)) return;
                 const { key, query, params } = command as QueryRequestMessage;
                 const handler = this.queryHandlers.get(query);
                 if (!handler) return;
@@ -114,11 +118,12 @@ export class WebSocketService {
         this.queryHandlers.set(key, handler);
     }
 
-    pushSetting(key: string, value: unknown) {
+    pushSetting(key: string, value?: unknown, target?: string) {
         const message: WebSocketMessage = {
             command: {
                 type: "setting",
                 key,
+                target,
                 value,
             } as SettingMessage,
             echo: null,
@@ -126,12 +131,12 @@ export class WebSocketService {
         this.ws.send(JSON.stringify(message));
     }
 
-    isSelf(key: string) {
-        return key === this.selfId;
+    private isSelf(key: string | undefined | null) {
+        return key?.startsWith(this.selfId);
     }
 
     blinkOtherClient(id: string) {
-        this.pushSetting("blink-lyric", { id });
+        this.pushSetting("blink-lyric", void 0, id);
     }
 
     /**
@@ -141,9 +146,8 @@ export class WebSocketService {
         return this.onlineClients.filter((id) => this.selfId != id);
     }
 
-    // 例如查询搜索歌曲的结果, 查询对应的歌词列表
     /**
-     * 发起查询
+     * 通过 ws 发起查询
      * @param clientId 对方客户端的 id
      * @param query 需要的查询, 与注册回调 key 保持一致
      * @param params 参数, 可为空
@@ -194,3 +198,26 @@ export class WebSocketService {
 }
 
 export const wsService = new WebSocketService();
+
+/**
+ * 封装对其他客户端的操作
+ */
+export class OtherClient {
+    id: string;
+
+    constructor(id: string) {
+        this.id = id;
+    }
+
+    async queryCacheList() {
+        return wsService.postQuery<{ bid: number, title: string }[]>(this.id, "query-cache-list");
+    }
+
+    async removeCacheItem(bid: number) {
+        return wsService.pushSetting("remove-cache-item", { bid }, this.id);
+    }
+
+    async removeAllCache() {
+        return wsService.pushSetting("remove-all-cache", void 0, this.id);
+    }
+}

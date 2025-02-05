@@ -16,7 +16,8 @@ export interface SettingHandle {
 export interface SettingMessage extends CommandMessage {
     type: "setting";
     key: string;
-    value: unknown;
+    target?: string;
+    value?: unknown;
 }
 
 export interface OnlineMessage extends CommandMessage {

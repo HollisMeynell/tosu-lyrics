@@ -44,11 +44,8 @@ export default function LyricsBox({ debug }: { debug: Accessor<boolean> }) {
     });
 
     // 触发歌词闪烁三次
-    const lyricBlink = (param: unknown) => {
-        console.log(param);
-        const { id } = param as { id: string };
-        if (!wsService.isSelf(id) || !lyricUL) return;
-        console.log("blink !!!!!!!!!!!");
+    const lyricBlink = () => {
+        if (!lyricUL) return;
         let count = 0;
         let isVisible = true;
         const interval = setInterval(() => {
