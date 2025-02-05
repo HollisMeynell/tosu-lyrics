@@ -12,9 +12,8 @@ export type Shadow = {
     enable: boolean;
     inset: boolean;
     color: string;
-    // 类似 "1px 1px" 就是 x 轴偏移 1px，y 轴偏移 1px
-    type: string | undefined;
-}
+    type: string | undefined; // e.g. "1px 1px": x 轴偏移 1px y 轴偏移 1px
+};
 
 export type Settings = {
     textColor: TextColorValue;

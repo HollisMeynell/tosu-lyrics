@@ -1,5 +1,7 @@
+export type CommandType = 'setting' | 'online' | 'query-request' | 'query-response';
+
 export interface CommandMessage {
-    type: string;
+    type: CommandType;
 }
 
 export interface WebSocketMessage {

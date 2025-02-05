@@ -4,45 +4,54 @@ import { wsService } from "@/services/WebSocketService";
 import { configService } from "@/services/ConfigService";
 import { AlignType, Settings } from "@/types/config-global";
 
-const [currentLyrics, setCurrentLyrics] = createSignal<LyricLine[] | undefined>(
-    undefined
-);
-
 const DEFAULT_TEXT_COLOR = {
     first: "#ffffff",
     second: "#e0e0e0",
 };
 
-const DEFAULT_SHADOW :Shadow= {
+const DEFAULT_SHADOW: Shadow = {
     enable: false,
     inset: false,
     color: "#000000",
     type: undefined,
-}
+};
 
+// 同步信息
+const [currentLyrics, setCurrentLyrics] = createSignal<LyricLine[] | undefined>(
+    undefined
+);
 const [textColor, setTextColor] = createSignal(DEFAULT_TEXT_COLOR);
-// todo: 阴影控制
 const [shadow, setShadow] = createSignal<Shadow>(DEFAULT_SHADOW);
 const [useTranslationAsMain, setUseTranslationAsMain] = createSignal(false);
 const [showSecond, setShowSecond] = createSignal(true);
 const [alignment, setAlignment] = createSignal<AlignType>("center");
 
-// 这两个只在当前端用, 不要同步
+// 非同步信息
 export const [darkMode, setDarkMode] = createSignal(
     localStorage.getItem("darkMode") === "true"
 );
-const [showController, setShowController] = createSignal(
+export const [showController, setShowController] = createSignal(
     localStorage.getItem("showController") === "true"
 );
 
-// 监听 ctrl + alt + t 点击次数 这个有什么用?
+function toggleController() {
+    const show = !showController();
+    setShowController(show);
+    localStorage.setItem("showController", String(show));
+}
+
+// 触发 Controller
 window.addEventListener("keydown", (e) => {
     if (e.ctrlKey && e.altKey && e.key === "t") {
-        setShowController(!showController());
-        localStorage.setItem(
-            "showController",
-            showController() ? "true" : "false"
-        );
+        toggleController();
+    }
+});
+
+// 触发 Controller (Mobile)
+window.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 3) {
+        toggleController();
+        e.preventDefault();
     }
 });
 
@@ -57,8 +66,7 @@ window.addEventListener("keydown", (e) => {
 
 // Store
 export const lyricsStore = {
-    get getState():Settings {
-        // showController 跟 darkMode 不同步
+    get getState(): Settings {
         return {
             shadow: shadow(),
             currentLyrics: currentLyrics(),
@@ -97,8 +105,8 @@ export const lyricsStore = {
 
     updateCurrentLyrics(lyrics: LyricLine[] | undefined) {
         setCurrentLyrics(lyrics);
-        // wsService.pushSetting("currentLyrics", lyrics);
     },
+
     setShadow(shadow: Shadow) {
         setShadow(shadow);
     },
@@ -164,12 +172,7 @@ export const lyricsStore = {
         const mode = !darkMode();
         setDarkMode(mode);
         document.documentElement.classList.toggle("dark");
-
-        if (document.documentElement.classList.contains("dark")) {
-            localStorage.setItem("darkMode", "" + mode);
-        } else {
-            localStorage.setItem("darkMode", "" + mode);
-        }
+        localStorage.setItem("darkMode", String(mode));
     },
 };
 
