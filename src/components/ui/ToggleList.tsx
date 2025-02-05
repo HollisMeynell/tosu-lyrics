@@ -42,7 +42,7 @@ const ToggleList = (props: ToggleListProps) => {
                 class="panel-content overflow-hidden transition-all duration-500 ease-in-out pb-2 -translate-y-2"
                 style={{ "max-height": maxHeight() }}
             >
-                <div class="p-4 mx-auto w-[95%] bg-white dark:bg-gray-800 rounded-b-lg shadow-md">
+                <div class="p-4 mx-auto w-[94%] bg-white dark:bg-gray-800 rounded-b-lg shadow-md">
                     {props.children}
                 </div>
             </div>

@@ -2,7 +2,7 @@
 import Cache from "@/utils/cache.ts";
 import { For } from "solid-js";
 import { createEffect } from "solid-js";
-import lyricsStore from "@/stores/lyricsStore.ts";
+import { lyricsStore, darkMode } from "@/stores/lyricsStore.ts";
 import ToggleList from "@/components/ui/ToggleList";
 import Copy from "@/assets/Icons/Copy";
 
@@ -57,11 +57,7 @@ export default function Controller() {
                                 }}
                             >
                                 <Copy
-                                    stroke={
-                                        lyricsStore.getState.darkMode
-                                            ? "#dcdcdc"
-                                            : "#313131"
-                                    }
+                                    stroke={darkMode() ? "#dcdcdc" : "#313131"}
                                     class="w-4 h-4"
                                 />
                                 复制

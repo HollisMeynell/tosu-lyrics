@@ -1,4 +1,4 @@
-import { lyricsStore } from "@/stores/lyricsStore";
+import { lyricsStore, darkMode } from "@/stores/lyricsStore";
 import { Match, Switch } from "solid-js";
 
 /**
@@ -19,7 +19,7 @@ export default function Controller() {
                 stroke-width={2}
             >
                 <Switch>
-                    <Match when={lyricsStore.getState.darkMode}>
+                    <Match when={darkMode()}>
                         <circle cx="12" cy="12" r="4" />
                         <path d="M12 2v2" />
                         <path d="M12 20v2" />
@@ -30,7 +30,7 @@ export default function Controller() {
                         <path d="m6.34 17.66-1.41 1.41" />
                         <path d="m19.07 4.93-1.41 1.41" />
                     </Match>
-                    <Match when={!lyricsStore.getState.darkMode}>
+                    <Match when={!darkMode()}>
                         <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
                     </Match>
                 </Switch>
