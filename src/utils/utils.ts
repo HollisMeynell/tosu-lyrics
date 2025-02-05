@@ -15,3 +15,22 @@ export function generateRandomString(length: number): string {
     }
     return result.join("");
 }
+
+/**
+ * 防抖函数
+ * @param func 需要防抖的函数
+ * @param wait 防抖时间
+ */
+export function debounce<T extends (...args: unknown[]) => void>(
+    func: T,
+    wait: number
+): (...args: Parameters<T>) => void {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    return function (this: unknown, ...args: Parameters<T>): void {
+        if (timeout !== null) {
+            clearTimeout(timeout);
+        }
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}

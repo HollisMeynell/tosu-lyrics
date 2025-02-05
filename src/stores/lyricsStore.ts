@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { LyricLine } from "@/types/config-global";
+import { LyricLine, Shadow } from "@/types/config-global";
 import { wsService } from "@/services/WebSocketService";
 import { configService } from "@/services/ConfigService";
 import { AlignType, Settings } from "@/types/config-global";
@@ -12,10 +12,22 @@ const DEFAULT_TEXT_COLOR = {
     first: "#ffffff",
     second: "#e0e0e0",
 };
+
+const DEFAULT_SHADOW :Shadow= {
+    enable: false,
+    inset: false,
+    color: "#000000",
+    type: undefined,
+}
+
 const [textColor, setTextColor] = createSignal(DEFAULT_TEXT_COLOR);
+// todo: 阴影控制
+const [shadow, setShadow] = createSignal<Shadow>(DEFAULT_SHADOW);
 const [useTranslationAsMain, setUseTranslationAsMain] = createSignal(false);
 const [showSecond, setShowSecond] = createSignal(true);
 const [alignment, setAlignment] = createSignal<AlignType>("center");
+
+// 这两个只在当前端用, 不要同步
 export const [darkMode, setDarkMode] = createSignal(
     localStorage.getItem("darkMode") === "true"
 );
@@ -23,7 +35,7 @@ const [showController, setShowController] = createSignal(
     localStorage.getItem("showController") === "true"
 );
 
-// 监听 ctrl + alt + t 点击次数
+// 监听 ctrl + alt + t 点击次数 这个有什么用?
 window.addEventListener("keydown", (e) => {
     if (e.ctrlKey && e.altKey && e.key === "t") {
         setShowController(!showController());
@@ -45,15 +57,15 @@ window.addEventListener("keydown", (e) => {
 
 // Store
 export const lyricsStore = {
-    get getState() {
+    get getState():Settings {
+        // showController 跟 darkMode 不同步
         return {
-            showController: showController(),
+            shadow: shadow(),
             currentLyrics: currentLyrics(),
             textColor: textColor(),
             useTranslationAsMain: useTranslationAsMain(),
             showSecond: showSecond(),
             alignment: alignment(),
-            darkMode: darkMode(),
         };
     },
 
@@ -85,7 +97,10 @@ export const lyricsStore = {
 
     updateCurrentLyrics(lyrics: LyricLine[] | undefined) {
         setCurrentLyrics(lyrics);
-        wsService.pushSetting("currentLyrics", lyrics);
+        // wsService.pushSetting("currentLyrics", lyrics);
+    },
+    setShadow(shadow: Shadow) {
+        setShadow(shadow);
     },
 
     setTextColor(order: "first" | "second", color: string) {
@@ -146,13 +161,14 @@ export const lyricsStore = {
     },
 
     executeDarkModeToggle() {
-        setDarkMode(!darkMode());
+        const mode = !darkMode();
+        setDarkMode(mode);
         document.documentElement.classList.toggle("dark");
 
         if (document.documentElement.classList.contains("dark")) {
-            localStorage.setItem("darkMode", "true");
+            localStorage.setItem("darkMode", "" + mode);
         } else {
-            localStorage.setItem("darkMode", "false");
+            localStorage.setItem("darkMode", "" + mode);
         }
     },
 };

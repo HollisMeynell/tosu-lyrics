@@ -7,7 +7,7 @@ import {
     QueryRequestMessage,
 } from "@/types/ws-types";
 import { BACKEND_WEBSOCKET_URL, WS_QUERY_TIMEOUT } from "@/config/constants";
-import { generateRandomString } from "@/utils/string-utils.ts";
+import { generateRandomString } from "@/utils/utils.ts";
 
 export type MessageHandler = (value: unknown) => void;
 

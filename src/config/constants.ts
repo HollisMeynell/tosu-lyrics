@@ -6,6 +6,11 @@ export const WS_URL = "ws://127.0.0.1:24050/websocket/v2";
 
 export const WS_QUERY_TIMEOUT = 5000;
 
+export const TIME_DIFF_FILTER = (songLength: number, audioLength: number) => {
+    const diff = Math.abs(songLength - audioLength);
+    return diff < 8000;
+};
+
 export const SEARCH_MUSIC_URL = (adaptor: string, title: string) => {
     switch (adaptor) {
         case "QQ": {

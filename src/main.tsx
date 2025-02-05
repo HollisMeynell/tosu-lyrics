@@ -8,9 +8,9 @@ import { onMount, Show } from "solid-js";
 import { lyricsStore } from "@/stores/lyricsStore";
 import { configService } from "@/services/ConfigService";
 import {
-    consoleEnabled,
+    consoleEnabled, lyricDebugEnabled,
     paramParse,
-    parseUrlParams,
+    parseUrlParams, setConsoleEnabled, setLyricDebugEnabled,
 } from "@/utils/param-parse";
 
 declare global {
@@ -23,7 +23,7 @@ const root = document.getElementById("root");
 
 if (import.meta.env.DEV && (root === null || !(root instanceof HTMLElement))) {
     throw new Error(
-        "Root element not found. Did you forget to add it to your index.html? Or maybe the id attribute got misspelled?"
+        "Root element not found. Did you forget to add it to your index.html? Or maybe the id attribute got misspelled?",
     );
 }
 
@@ -31,7 +31,8 @@ if (import.meta.env.DEV && (root === null || !(root instanceof HTMLElement))) {
 const Fallback = (err: Error) => {
     console.error(err);
     return (
-        <div class="bg-gradient-to-br from-[#ff9a9e] to-[#fad0c4] text-white p-10 rounded-lg shadow-md text-center max-w-[500px] mx-auto my-12 font-sans">
+        <div
+            class="bg-gradient-to-br from-[#ff9a9e] to-[#fad0c4] text-white p-10 rounded-lg shadow-md text-center max-w-[500px] mx-auto my-12 font-sans">
             <h2 class="text-2xl mb-5">⚠️ Oops! Something went wrong</h2>
             <div class="bg-white/20 p-4 rounded mb-5">
                 <p class="m-0 break-words">{err.toString()}</p>
@@ -53,18 +54,22 @@ const Fallback = (err: Error) => {
 
 // 根组件
 const Root = () => {
-    // dev 模式时增加背景色
-    if (import.meta.env.MODE === "development") {
-        document.body.style.backgroundColor = "#3d2932";
-    }
-
     onMount(() => {
         const params = parseUrlParams(window.location.href);
         paramParse(params);
+
+        // dev 模式时增加背景色
+        if (import.meta.env.MODE === "development") {
+            document.body.style.backgroundColor = "#3d2932";
+            setConsoleEnabled(true);
+            setLyricDebugEnabled(false);
+        }
     });
 
     onMount(async () => {
         try {
+            // 初始化, 优先加载本地配置
+            lyricsStore.executeDarkModeToggle();
             const config = await configService.fetchConfig();
             lyricsStore.parseSettings(config);
         } catch (error) {
@@ -74,14 +79,9 @@ const Root = () => {
 
     return (
         <div class="h-full flex flex-col justify-center bg-transparent">
-            <LyricsBox />
-            <Show when={lyricsStore.getState.showController}>
-                <Controller />
-            </Show>
+            <LyricsBox debug={lyricDebugEnabled()} />
             <Show when={consoleEnabled()}>
-                <div class="bg-gray-800 text-white p-2 rounded text-sm">
-                    Debug console is enabled.
-                </div>
+                <Controller />
             </Show>
         </div>
     );
@@ -94,5 +94,5 @@ render(
             <Root />
         </ErrorBoundary>
     ),
-    root!
+    root!,
 );

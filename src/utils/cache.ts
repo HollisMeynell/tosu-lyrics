@@ -61,6 +61,9 @@ class IndexedDBAdapter implements StorageAdapter {
         this.db = db;
     }
 
+    /**
+     * 设置歌词缓存
+     */
     setLyrics(bid: number, name: string, lyrics: Lyric): Promise<void> {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], "readwrite");
@@ -72,6 +75,9 @@ class IndexedDBAdapter implements StorageAdapter {
         });
     }
 
+    /**
+     * 获取歌词缓存
+     */
     getLyrics(bid: number): Promise<LyricLine[] | undefined> {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], "readonly");
@@ -125,9 +131,6 @@ class LocalStorageAdapter implements StorageAdapter {
         const dataString = localStorage.getItem(key);
         if (!dataString) return Promise.resolve(undefined);
         const data = JSON.parse(dataString);
-        // const lyric = new Lyric();
-        // lyric.lyrics = data;
-        // return Promise.resolve(lyric);
         return Promise.resolve(data);
     }
 

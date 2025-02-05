@@ -105,7 +105,7 @@ export default class TosuAdapter {
                 return;
             }
             lyricsStore.updateCurrentLyrics(lyric.lyrics);
-            Cache.setLyricsCache(bid, title, lyric);
+            await Cache.setLyricsCache(bid, title, lyric);
             this.assertBid(bid);
             this.showLyric(lyric);
         } catch (e) {

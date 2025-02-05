@@ -1,7 +1,9 @@
-// 功能: 功能操作面板
 import { lyricsStore } from "@/stores/lyricsStore";
 import { Match, Switch } from "solid-js";
 
+/**
+ * 功能: 功能操作面板
+ */
 export default function Controller() {
     return (
         <button

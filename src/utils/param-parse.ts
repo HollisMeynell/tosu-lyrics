@@ -5,6 +5,7 @@ import Cache from "@/utils/cache.ts";
 import { PROXY_URL, setProxyUrl } from "@/config/constants";
 
 export const [consoleEnabled, setConsoleEnabled] = createSignal(false);
+export const [lyricDebugEnabled, setLyricDebugEnabled] = createSignal(false);
 
 // 解析 URL 参数
 export function parseUrlParams(url: string): URLSearchParams {
@@ -33,5 +34,10 @@ export function paramParse(params: URLSearchParams): void {
         const url = params.get("proxy-backend") || PROXY_URL;
         setProxyUrl(url);
     }
-    setConsoleEnabled(!!params.get("console"));
+    if (params.get("console")) {
+        setConsoleEnabled(true);
+        if (!params.get("lyric")) {
+            setLyricDebugEnabled(true);
+        }
+    }
 }
