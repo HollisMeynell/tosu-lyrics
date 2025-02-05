@@ -3,7 +3,7 @@ import { AUDIO_URL, WS_URL } from "@/config/constants";
 import { Lyric } from "@/common/music-api.ts";
 import Cache from "@/utils/cache.ts";
 import { TosuAPi } from "@/types/tosu-types.ts";
-import { QQLyricAdaptor, NeteaseLyricAdaptor } from "@/adapters";
+import { QQLyricAdaptor, NeteaseLyricAdaptor, LyricAdaptor } from "@/adapters";
 import lyricsStore from "@/stores/lyricsStore.ts";
 
 export type LyricLine = {
@@ -175,37 +175,27 @@ export default class TosuAdapter {
 
         console.log(`title: ${title}, length: ${length}`);
 
-        // 并行检查是否有歌词
-        const [neteaseHasLyrics, qqHasLyrics] = await Promise.all([
-            NeteaseLyricAdaptor.hasLyrics(title, length),
-            QQLyricAdaptor.hasLyrics(title, length),
-        ]);
+        const adapters: LyricAdaptor[] = [NeteaseLyricAdaptor, QQLyricAdaptor];
 
         const newLyric = new Lyric();
 
-        // 如果网易云适配器有歌词
-        if (neteaseHasLyrics) {
-            try {
-                const lyric = await NeteaseLyricAdaptor.getLyricsFromResult();
-                newLyric.insertAll(lyric.lyric, lyric.trans);
-                return newLyric;
-            } catch (err) {
-                console.info(NeteaseLyricAdaptor.name, err);
+        for (const adapter of adapters) {
+            const hasLyrics = await adapter.hasLyrics(title, length);
+            if (hasLyrics) {
+                try {
+                    const lyric = await adapter.getLyricsFromResult();
+                    newLyric.insertAll(lyric.lyric, lyric.trans);
+                    return newLyric;
+                } catch (err) {
+                    console.info(adapter.constructor.name, err);
+                }
             }
         }
 
-        // 如果 QQ 音乐适配器有歌词
-        if (qqHasLyrics) {
-            try {
-                const lyric = await QQLyricAdaptor.getLyricsFromResult();
-                newLyric.insertAll(lyric.lyric, lyric.trans);
-                return newLyric;
-            } catch (err) {
-                console.info(QQLyricAdaptor.name, err);
-            }
+        if (newLyric.lyrics.length == 0) {
+            throw new Error("No lyrics found");
         }
 
-        // 如果都没有歌词，抛出错误
-        throw new Error("No lyrics found");
+        return newLyric;
     }
 }
