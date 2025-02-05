@@ -95,7 +95,7 @@ export class WebSocketService {
             this.onlineClients.push(data.id);
         } else if (data.status === "offline") {
             this.onlineClients = this.onlineClients.filter(
-                (id) => id !== data.id
+                (id) => id !== data.id,
             );
         }
     }
@@ -126,6 +126,14 @@ export class WebSocketService {
         this.ws.send(JSON.stringify(message));
     }
 
+    isSelf(key: string) {
+        return key === this.selfId;
+    }
+
+    blinkOtherClient(id: string) {
+        this.pushSetting("blink-lyric", { id });
+    }
+
     /**
      * 获取在线客户端列表
      */
@@ -143,7 +151,7 @@ export class WebSocketService {
     async postQuery<T>(
         clientId: string,
         query: string,
-        params?: unknown
+        params?: unknown,
     ): Promise<T> {
         const key = generateRandomString(8);
         const message: WebSocketMessage = {

@@ -79,7 +79,7 @@ const Root = () => {
 
     return (
         <div class="h-full flex flex-col justify-center bg-transparent">
-            <LyricsBox debug={lyricDebugEnabled()} />
+            <LyricsBox debug={lyricDebugEnabled} />
             <Show when={consoleEnabled()}>
                 <Controller />
             </Show>

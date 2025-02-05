@@ -12,8 +12,9 @@ import {
     onMount,
     Show,
 } from "solid-js";
+import { wsService } from "@/services/WebSocketService.ts";
 
-export default function LyricsBox({ debug }: { debug: boolean }) {
+export default function LyricsBox({ debug }: { debug: Accessor<boolean> }) {
     const [scroll, setScroll] = createSignal(false);
     const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
     const [cursor, setCursor] = createSignal(0);
@@ -22,7 +23,10 @@ export default function LyricsBox({ debug }: { debug: boolean }) {
     let tosu: TosuAdapter | undefined;
 
     onMount(() => {
-        if (debug) {
+        // 注册歌词闪烁处理器
+        wsService.registerHandler("blink-lyric", lyricBlink);
+
+        if (debug()) {
             console.log("Debug mode enabled");
             setLyrics([
                 { main: "测试歌词1", origin: "Test lyrics 1" },
@@ -38,6 +42,25 @@ export default function LyricsBox({ debug }: { debug: boolean }) {
     onCleanup(() => {
         tosu?.stop();
     });
+
+    // 触发歌词闪烁三次
+    const lyricBlink = (param: unknown) => {
+        console.log(param);
+        const { id } = param as { id: string };
+        if (!wsService.isSelf(id) || !lyricUL) return;
+        console.log("blink !!!!!!!!!!!");
+        let count = 0;
+        let isVisible = true;
+        const interval = setInterval(() => {
+            if (count >= 10) {
+                clearInterval(interval);
+                return;
+            }
+            isVisible = !isVisible;
+            lyricUL.style.visibility = isVisible ? "visible" : "hidden";
+            count++;
+        }, 500);
+    };
 
     // 更新滚动
     const updateScroll = (p: HTMLLIElement) => {
@@ -62,7 +85,7 @@ export default function LyricsBox({ debug }: { debug: boolean }) {
     };
 
     // 正常模式下的
-    if (!debug) {
+    if (!debug()) {
         createEffect(
             on(
                 [lyrics, cursor],
