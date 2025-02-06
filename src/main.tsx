@@ -2,8 +2,8 @@
 
 import { render, ErrorBoundary } from "solid-js/web";
 import "./index.css";
-import ErrorPage from "@/pages/ErrorPage.tsx";
 import App from "@/pages/App.tsx";
+import ErrorFallback from "@/components/error/ErrorFallback.tsx";
 
 declare global {
     interface Window {
@@ -21,7 +21,7 @@ if (root === null || !(root instanceof HTMLElement)) {
 
 render(
     () => (
-        <ErrorBoundary fallback={ErrorPage}>
+        <ErrorBoundary fallback={ErrorFallback}>
             <App />
         </ErrorBoundary>
     ),

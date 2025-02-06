@@ -2,7 +2,7 @@
  * 错误回退组件
  * @param err 错误信息
  */
-export default function ErrorPage(err: Error) {
+export default function ErrorFallback(err:Error) {
     console.error(err);
     return (
         <div
