@@ -6,7 +6,6 @@ import Controller from "@/pages/Controller";
 import { lyricsStore, showController } from "@/stores/lyricsStore.ts";
 
 export default function App() {
-    // @ts-ignore
     if (import.meta.env.MODE === "development") {
         document.body.style.backgroundColor = "#3d2932";
     }
