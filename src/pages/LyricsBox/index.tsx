@@ -19,6 +19,7 @@ interface LyricsBoxProps {
 }
 
 const LyricsBox: Component<LyricsBoxProps> = (props) => {
+    const isDebug = props.debug && !(import.meta.env.MODE === "development");
     const [scroll, setScroll] = createSignal(false);
     const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
     const [cursor, setCursor] = createSignal(0);
@@ -83,7 +84,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         on(
             [lyrics, cursor],
             () => {
-                if (!lyricUL || props.debug) return;
+                if (!lyricUL || isDebug) return;
                 const currentLine = lyricUL.children[cursor()] as HTMLLIElement;
                 if (currentLine) updateScroll(currentLine);
             },
@@ -91,24 +92,17 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         )
     );
 
-    createEffect(
-        on(
-            () => props.debug,
-            () => {
-                if (!props.debug) {
-                    tosu = new TosuAdapter(setLyrics, setCursor);
-                } else {
-                    tosu?.stop();
-                    setLyrics([
-                        { main: "测试歌词1", origin: "Test Lyrics 1" },
-                        { main: "测试歌词2", origin: "Test Lyrics 2" },
-                        { main: "测试歌词3", origin: "Test Lyrics 3" },
-                    ]);
-                    setCursor(1);
-                }
-            }
-        )
-    );
+    if (isDebug) {
+        tosu?.stop();
+        setLyrics([
+            { main: "测试歌词1", origin: "Test Lyrics 1" },
+            { main: "测试歌词2", origin: "Test Lyrics 2" },
+            { main: "测试歌词3", origin: "Test Lyrics 3" },
+        ]);
+        setCursor(1);
+    } else {
+        tosu = new TosuAdapter(setLyrics, setCursor);
+    }
 
     // 子组件
     const MainLyric: Component<{ text: string | undefined }> = (props) => (
