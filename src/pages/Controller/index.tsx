@@ -1,6 +1,6 @@
 // 功能: 功能操作面板
-import DarkModeToggle from "./ControlTools/DarkModeToggle";
-import AppRoutes from "@/components/Controller/router";
+import DarkModeToggle from "./ControlTools/DarkModeToggle.tsx";
+import AppRoutes from "@/pages/Controller/router";
 
 export default function Controller() {
     return (

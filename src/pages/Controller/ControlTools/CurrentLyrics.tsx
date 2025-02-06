@@ -3,8 +3,8 @@ import Cache from "@/utils/cache.ts";
 import { For } from "solid-js";
 import { createEffect } from "solid-js";
 import { lyricsStore, darkMode } from "@/stores/lyricsStore.ts";
-import ToggleList from "@/components/ui/ToggleList";
-import Copy from "@/assets/Icons/Copy";
+import ToggleList from "@/components/ui/ToggleList.tsx";
+import Copy from "@/assets/Icons/Copy.tsx";
 
 export default function Controller() {
     const searchCacheCurrent = async () => {

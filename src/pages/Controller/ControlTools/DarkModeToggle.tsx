@@ -1,4 +1,4 @@
-import { lyricsStore, darkMode } from "@/stores/lyricsStore";
+import { lyricsStore, darkMode } from "@/stores/lyricsStore.ts";
 import { Match, Switch } from "solid-js";
 
 /**

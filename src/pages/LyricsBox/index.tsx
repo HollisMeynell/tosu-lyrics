@@ -1,4 +1,3 @@
-// 功能: 歌词展示组件
 
 import TosuAdapter, { LyricLine } from "@/common/tosu-adapter.ts";
 import lyricsStore from "@/stores/lyricsStore.ts";

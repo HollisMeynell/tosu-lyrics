@@ -1,13 +1,13 @@
 import { lazy } from "solid-js";
 import { Router, Route, A, RouteSectionProps } from "@solidjs/router";
-import Palette from "@/assets/Icons/Palette";
-import Content from "@/assets/Icons/Content";
+import Palette from "@/assets/Icons/Palette.tsx";
+import Content from "@/assets/Icons/Content.tsx";
 
 const CurrentLyrics = lazy(
-    () => import("@/components/Controller/ControlTools/CurrentLyrics")
+    () => import("@/pages/Controller/ControlTools/CurrentLyrics.tsx")
 );
 const TextStyle = lazy(
-    () => import("@/components/Controller/ControlTools/TextStyle")
+    () => import("@/pages/Controller/ControlTools/TextStyle.tsx")
 );
 
 const App = (props: RouteSectionProps<unknown>) => (
