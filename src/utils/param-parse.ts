@@ -1,4 +1,4 @@
-// 功能: 解析 URL 参数，包括 CORS 参数和清除缓存参数
+// 功能: 解析 URL 中清除缓存参数
 
 import Cache from "@/utils/cache.ts";
 

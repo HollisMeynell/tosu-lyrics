@@ -6,6 +6,12 @@ import { Route, Router, RouteSectionProps } from "@solidjs/router";
 
 const LyricsBox = lazy(() => import("@/pages/LyricsBox"));
 const Controller = lazy(() => import("@/pages/Controller"));
+const CurrentLyrics = lazy(
+    () => import("@/pages/Controller/ControlTools/CurrentLyrics.tsx")
+);
+const TextStyle = lazy(
+    () => import("@/pages/Controller/ControlTools/TextStyle.tsx")
+);
 
 const AppRoot: Component<RouteSectionProps> = (props) => {
     if (import.meta.env.MODE === "development") {
@@ -26,18 +32,36 @@ const AppRoot: Component<RouteSectionProps> = (props) => {
         }
     });
 
-    return <div class="h-full flex flex-col justify-center bg-transparent">
-        {props.children}
-    </div>;
+    return (
+        <div class="h-full flex flex-col justify-center bg-transparent">
+            {props.children}
+        </div>
+    );
 };
 
 export default function App() {
-    return <Router root={AppRoot}>
-        <Route path={"/"} component={() => <LyricsBox debug={false} />} />
-        <Route path={"/controller"} component={() => <>
-            <LyricsBox debug={true} />
-            <Controller />
-        </>}
-        />
-    </Router>;
+    return (
+        <Router root={AppRoot}>
+            <Route path="/lyrics" component={(props) => <>{props.children}</>}>
+                <Route path="/" component={() => <LyricsBox debug={false} />} />
+                <Route
+                    path="/lyric"
+                    component={() => <LyricsBox debug={false} />}
+                />
+                <Route
+                    path="/controller"
+                    component={(props) => (
+                        <>
+                            <LyricsBox debug={true} />
+                            <Controller children={props.children} />
+                        </>
+                    )}
+                >
+                    <Route path="/" component={CurrentLyrics} />
+                    <Route path="/content" component={CurrentLyrics} />
+                    <Route path="/textstyle" component={TextStyle} />
+                </Route>
+            </Route>
+        </Router>
+    );
 }
