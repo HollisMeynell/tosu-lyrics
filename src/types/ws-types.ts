@@ -40,4 +40,5 @@ export interface QueryResponseMessage extends CommandMessage {
     type: "query-response";
     key: string;
     value: unknown;
+    error?: string;
 }

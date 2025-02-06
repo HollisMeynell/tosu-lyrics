@@ -2,15 +2,23 @@
 
 import { Lyric } from "@/common/music-api.ts";
 import { LyricLine } from "@/types/config-global";
+import { wsService } from "@/services/WebSocketService.ts";
 
-const LYRICS_PREFIX = "lyrics_";
-const CONFIG_KEY = "l_config";
 const STORE_NAME = "lyrics";
-const DB_VERSION = 1;
+const DB_INDEX_NAME = "nameIndex";
+const DB_VERSION = 1.1;
 
 let lyricsDB: IDBDatabase | undefined;
 
+interface CacheData {
+    bid: number;
+    name: string;
+    length: number;
+    lyrics: LyricLine[];
+}
+
 function initIndexedDB(): Promise<IDBDatabase> {
+
     return new Promise((resolve, reject) => {
         const dbRequest = indexedDB.open(STORE_NAME, DB_VERSION);
 
@@ -22,7 +30,7 @@ function initIndexedDB(): Promise<IDBDatabase> {
 
         dbRequest.onerror = () => {
             console.error(
-                "Failed to open lyrics database, use local storage instead."
+                "Failed to open lyrics database, use local storage instead.",
             );
             reject(new Error("Failed to open lyrics database"));
         };
@@ -31,27 +39,27 @@ function initIndexedDB(): Promise<IDBDatabase> {
             const target = event.target as IDBOpenDBRequest;
             const db = target.result;
             if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: "name" });
+                const store = db.createObjectStore(STORE_NAME, { keyPath: ["bid"] });
+                store.createIndex(DB_INDEX_NAME, "name", { unique: false });
             }
         };
     });
 }
 
-function setConfig<T>(obj: T) {
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(obj));
-}
-
-function getConfig<T>(): T | undefined {
-    const dataString = localStorage.getItem(CONFIG_KEY);
-    if (!dataString) return undefined;
-    return JSON.parse(dataString);
-}
-
 interface StorageAdapter {
-    setLyrics(bid: number, name: string, lyrics: Lyric): Promise<void>;
+
+    setLyrics(bid: number, name: string, length: number, lyrics: Lyric): Promise<void>;
+
     getLyrics(bid: number): Promise<LyricLine[] | undefined>;
+
+    getLyricsByTitle(title: string): Promise<undefined | { lyrics: LyricLine[], length: number }[]>;
+
+    /**
+     * 获取歌词缓存列表
+     */
     getLyricsList(): Promise<string[]>;
-    clearLyrics(): Promise<void>;
+
+    clearLyrics(bid?: number): Promise<void>;
 }
 
 class IndexedDBAdapter implements StorageAdapter {
@@ -64,11 +72,17 @@ class IndexedDBAdapter implements StorageAdapter {
     /**
      * 设置歌词缓存
      */
-    setLyrics(bid: number, name: string, lyrics: Lyric): Promise<void> {
+    setLyrics(bid: number, name: string, length: number, lyrics: Lyric): Promise<void> {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], "readwrite");
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.put({ bid, name, lyrics: lyrics.lyrics });
+            const data: CacheData = {
+                bid,
+                name,
+                length,
+                lyrics: lyrics.lyrics,
+            };
+            const request = store.put(data);
 
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
@@ -95,6 +109,21 @@ class IndexedDBAdapter implements StorageAdapter {
         });
     }
 
+    async getLyricsByTitle(title: string): Promise<CacheData[] | undefined> {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], "readonly");
+            const store = transaction.objectStore(STORE_NAME);
+            const index = store.index(DB_INDEX_NAME);
+            const result = index.getAll(title);
+            result.onsuccess = () => {
+                resolve(result.result);
+            };
+            result.onerror = () => {
+                reject(result.error);
+            };
+        });
+    }
+
     getLyricsList(): Promise<string[]> {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], "readonly");
@@ -106,85 +135,81 @@ class IndexedDBAdapter implements StorageAdapter {
         });
     }
 
-    clearLyrics(): Promise<void> {
+    clearLyrics(bid?: number): Promise<void> {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], "readwrite");
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.clear();
-
+            let request;
+            if (bid) {
+                request = store.delete(bid);
+            } else {
+                request = store.clear();
+            }
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
         });
     }
 }
 
-class LocalStorageAdapter implements StorageAdapter {
-    setLyrics(bid: number, _: string, lyrics: Lyric): Promise<void> {
-        const key = `${LYRICS_PREFIX}${bid}`;
-        const dataString = JSON.stringify(lyrics.lyrics);
-        localStorage.setItem(key, dataString);
-        return Promise.resolve();
-    }
-
-    getLyrics(bid: number): Promise<LyricLine[] | undefined> {
-        const key = `${LYRICS_PREFIX}${bid}`;
-        const dataString = localStorage.getItem(key);
-        if (!dataString) return Promise.resolve(undefined);
-        const data = JSON.parse(dataString);
-        return Promise.resolve(data);
-    }
-
-    getLyricsList(): Promise<string[]> {
-        const lyricsList = Object.keys(localStorage)
-            .filter((key) => key.startsWith(LYRICS_PREFIX))
-            .map((key) => key.substring(LYRICS_PREFIX.length));
-        return Promise.resolve(lyricsList);
-    }
-
-    clearLyrics(): Promise<void> {
-        Object.keys(localStorage)
-            .filter((key) => key.startsWith(LYRICS_PREFIX))
-            .forEach((key) => localStorage.removeItem(key));
-        return Promise.resolve();
-    }
-}
+/**
+ * 放弃使用 localStorage 缓存歌词, 主要原因是 localStorage 容量太小,
+ * 大量歌词导致溢出以及性能问题, 而且没有搜索功能, 处理曲名搜索非常慢
+ * 同时 chromium 在 23 版本(2012年) 以及 IE 10 就支持, 几乎不用考虑 obs 不支持的情况
+ * url: https://caniuse.com/indexeddb
+ */
 
 let storageAdapter: StorageAdapter | undefined;
+let initialized = false;
 
 // 初始化存储适配器
-const getStorageAdapter = async (): Promise<StorageAdapter> => {
-    if (!storageAdapter) {
+const getStorageAdapter = async (): Promise<StorageAdapter | undefined> => {
+    if (!initialized) {
+
         try {
             const db = await initIndexedDB();
             storageAdapter = new IndexedDBAdapter(db);
         } catch {
             console.warn(
-                "IndexedDB initialization failed, falling back to localStorage."
+                "IndexedDB initialization failed, disable cache.",
             );
-            storageAdapter = new LocalStorageAdapter();
         }
+        initialized = true;
+        wsService.registerQueryHandler(
+            "query-cache-list", async () => {
+                const allKeys = await storageAdapter?.getLyricsList();
+                return allKeys || [];
+            },
+        );
+        wsService.registerHandler(
+            "remove-cache-item",
+            (params) => {
+                const { bid } = params as { bid: number };
+                storageAdapter?.clearLyrics(bid);
+            },
+        );
+        wsService.registerHandler(
+            "remove-all-cache",
+            () => storageAdapter?.clearLyrics()
+        )
     }
     return storageAdapter;
 };
 
 export default {
-    setLyricsCache: async (bid: number, name: string, lyrics: Lyric) => {
+    setLyricsCache: async (bid: number, name: string, length: number, lyrics: Lyric) => {
         const adapter = await getStorageAdapter();
-        return adapter.setLyrics(bid, name, lyrics);
+        return adapter?.setLyrics(bid, name, length, lyrics);
     },
     getLyricsCache: async (bid: number) => {
         const adapter = await getStorageAdapter();
-        return adapter.getLyrics(bid);
+        return adapter?.getLyrics(bid);
     },
     getLyricsCacheList: async () => {
         const adapter = await getStorageAdapter();
-        return adapter.getLyricsList();
+        return adapter?.getLyricsList();
     },
     clearLyricsCache: async () => {
         const adapter = await getStorageAdapter();
-        return adapter.clearLyrics();
+        return adapter?.clearLyrics();
     },
-
-    setConfig,
-    getConfig,
 };

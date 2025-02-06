@@ -60,7 +60,7 @@ export default class TosuAdapter {
 
     constructor(
         setLyrics: (value: LyricLine[]) => void,
-        setCursor: (value: number) => void
+        setCursor: (value: number) => void,
     ) {
         this.setLyrics = setLyrics;
         this.setCursor = setCursor;
@@ -99,13 +99,14 @@ export default class TosuAdapter {
 
     private async updateLyric(title: string, bid: number) {
         try {
-            const lyric = await this.getLyrics(title, bid);
+            const length = await getAudioLength();
+            const lyric = await this.getLyrics(title, length, bid);
             if (lyric.lyrics.length == 0) {
                 this.print();
                 return;
             }
-            // lyricsStore.updateCurrentLyrics(lyric.lyrics);
-            await Cache.setLyricsCache(bid, title, lyric);
+
+            await Cache.setLyricsCache(bid, title, length, lyric);
             this.assertBid(bid);
             this.showLyric(lyric);
         } catch (e) {
@@ -169,8 +170,7 @@ export default class TosuAdapter {
         }
     }
 
-    private async getLyrics(title: string, bid: number): Promise<Lyric> {
-        const length = await getAudioLength();
+    private async getLyrics(title: string, length: number, bid: number): Promise<Lyric> {
         this.assertBid(bid);
 
         console.log(`title: ${title}, length: ${length}`);

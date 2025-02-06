@@ -10,7 +10,8 @@ import { BACKEND_WEBSOCKET_URL, WS_QUERY_TIMEOUT } from "@/config/constants";
 import { generateRandomString } from "@/utils/utils.ts";
 
 export type MessageHandler = (value: unknown) => void;
-type QueryHandler = (params?: unknown) => unknown;
+export type QueryHandler = (params?: unknown) => Promise<unknown>;
+export type QueryResultHandler = (value: unknown, error?: string) => void;
 
 export class WebSocketService {
     private ws: ReconnectingWebSocket;
@@ -18,7 +19,7 @@ export class WebSocketService {
     // 接受查询 并响应查询结果
     private queryHandlers = new Map<string, QueryHandler>();
     // 发起查询方 请求回调队列 (应该是队列, 但是用 key 做索引所以用 map 了)
-    private queryQueue = new Map<string, MessageHandler>();
+    private queryQueue = new Map<string, QueryResultHandler>();
     private onlineClients: string[] = [];
     private selfId: string = "";
 
@@ -45,16 +46,17 @@ export class WebSocketService {
         const { echo, command } = message;
 
         switch (command.type) {
-            case 'setting':
+            case "setting":
                 this.handleSettingMessage({ ...command, echo } as SettingMessage & { echo: string | null });
                 break;
-            case 'online':
+            case "online":
                 this.handleOnlineStatus(command as OnlineMessage);
                 break;
-            case 'query-request':
-                this.handleQueryRequest({ ...command, echo } as QueryRequestMessage & { echo: string | null });
+            case "query-request":
+                this.handleQueryRequest({ ...command, echo } as QueryRequestMessage & { echo: string | null })
+                    .then();
                 break;
-            case 'query-response':
+            case "query-response":
                 this.handleQueryResponse(command as QueryResponseMessage);
                 break;
             default:
@@ -63,7 +65,7 @@ export class WebSocketService {
     }
 
     private handleSettingMessage = (
-        message: SettingMessage & { echo: string | null }
+        message: SettingMessage & { echo: string | null },
     ) => {
         const { key, value, target } = message;
         if (target && !this.isSelf(target)) return;
@@ -84,38 +86,59 @@ export class WebSocketService {
             this.onlineClients.push(message.id);
         } else if (message.status === "offline") {
             this.onlineClients = this.onlineClients.filter(
-                (id) => id !== message.id
+                (id) => id !== message.id,
             );
         }
     }
 
-    private handleQueryRequest = (
-        message: QueryRequestMessage & { echo: string | null }
+    private handleQueryRequest = async (
+        message: QueryRequestMessage & { echo: string | null },
     ) => {
+        console.log("Query request:", message);
         if (!this.isSelf(message.echo)) return;
 
         const handler = this.queryHandlers.get(message.query);
-        if (!handler) return;
+        if (!handler) {
+            this.sendQueryResponse(message.key, void 0, "No handler found");
+            return;
+        }
 
-        const response = handler(message.params);
-        this.sendQueryResponse(message.key, response);
+        try {
+            const response = await handler(message.params);
+            this.sendQueryResponse(message.key, response);
+        } catch (e) {
+            this.sendQueryResponse(message.key, void 0, (e as Error).message);
+        }
     };
 
+    /**
+     * 收到响应, 并将结果返回到调用处
+     * @param message
+     */
     private handleQueryResponse = (message: QueryResponseMessage) => {
+        if (!this.isSelf(message.key)) return;
         const handler = this.queryQueue.get(message.key);
-        handler?.(message.value);
+        if (typeof handler != "function") {
+            return;
+        }
         this.queryQueue.delete(message.key);
+        if (message.error != null) {
+            handler(void 0, message.error);
+        } else {
+            handler(message.value);
+        }
     };
 
     /**
      * 发送响应
      */
-    private sendQueryResponse(key: string, value: unknown): void {
+    private sendQueryResponse(key: string, value: unknown, error?: string): void {
         this.sendMessage({
             command: {
                 type: "query-response",
                 key,
                 value,
+                error,
             } as QueryResponseMessage,
             echo: null,
         });
@@ -137,6 +160,7 @@ export class WebSocketService {
 
     /**
      * 注册处理设置类的回调
+     * 即响应单向消息
      */
     public registerHandler(key: string, handler: MessageHandler) {
         this.settingHandlers.set(key, handler);
@@ -144,14 +168,21 @@ export class WebSocketService {
 
     /**
      * 注册处理查询类的回调
+     * 即响应双向消息
      */
     public registerQueryHandler(
         key: string,
-        handler: (params?: unknown) => unknown
+        handler: QueryHandler,
     ) {
         this.queryHandlers.set(key, handler);
     }
 
+    /**
+     * 推送设置 (单向消息)
+     * @param key 设置 key,
+     * @param value 值, 可为空
+     * @param target 目标客户端 id, 为空时应用于自己以外的所有客户端
+     */
     public pushSetting(key: string, value?: unknown, target?: string) {
         this.sendMessage({
             command: {
@@ -164,6 +195,10 @@ export class WebSocketService {
         });
     }
 
+    /**
+     * 闪烁其他客户端
+     * @param id 客户端 id
+     */
     public blinkOtherClient(id: string) {
         this.pushSetting("blink-lyric", void 0, id);
     }
@@ -176,7 +211,7 @@ export class WebSocketService {
     }
 
     /**
-     * 通过 ws 发起查询
+     * 通过 ws 发起查询 (双向消息)
      * @param clientId 对方客户端的 id
      * @param query 需要的查询, 与注册回调 key 保持一致
      * @param params 参数, 可为空
@@ -184,7 +219,7 @@ export class WebSocketService {
     public async postQuery<T>(
         clientId: string,
         query: string,
-        params?: unknown
+        params?: unknown,
     ): Promise<T> {
         const key = generateRandomString(8);
 
@@ -204,8 +239,11 @@ export class WebSocketService {
                 reject(new Error("Query timeout"));
             }, WS_QUERY_TIMEOUT);
 
-            this.queryQueue.set(key, (data) => {
+            this.queryQueue.set(key, (data, err?: string) => {
                 clearTimeout(outTime);
+                if (err) {
+                    reject(new Error(err));
+                }
                 resolve(data as T);
             });
         });
@@ -223,7 +261,7 @@ export class OtherClient {
 
     constructor(
         private id: string,
-        wsService: WebSocketService
+        wsService: WebSocketService,
     ) {
         this.wsService = wsService;
     }
