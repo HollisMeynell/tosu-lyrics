@@ -1,4 +1,3 @@
-
 import TosuAdapter, { LyricLine } from "@/common/tosu-adapter.ts";
 import lyricsStore from "@/stores/lyricsStore.ts";
 import {
@@ -92,17 +91,20 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         )
     );
 
-    if (isDebug) {
-        tosu?.stop();
-        setLyrics([
-            { main: "测试歌词1", origin: "Test Lyrics 1" },
-            { main: "测试歌词2", origin: "Test Lyrics 2" },
-            { main: "测试歌词3", origin: "Test Lyrics 3" },
-        ]);
-        setCursor(1);
-    } else {
-        tosu = new TosuAdapter(setLyrics, setCursor);
-    }
+    // 初始化歌词
+    onMount(() => {
+        if (isDebug) {
+            tosu?.stop();
+            setLyrics([
+                { main: "测试歌词1", origin: "Test Lyrics 1" },
+                { main: "测试歌词2", origin: "Test Lyrics 2" },
+                { main: "测试歌词3", origin: "Test Lyrics 3" },
+            ]);
+            setCursor(1);
+        } else {
+            tosu = new TosuAdapter(setLyrics, setCursor);
+        }
+    });
 
     // 子组件
     const MainLyric: Component<{ text: string | undefined }> = (props) => (
