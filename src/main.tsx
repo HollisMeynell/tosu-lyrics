@@ -2,14 +2,14 @@
 
 import { render, ErrorBoundary } from "solid-js/web";
 import "./index.css";
-import ErrorPage from "@/components/error/ErrorFallback";
-import App from "@/pages/App.tsx";
+import ErrorFallback from "@/components/error/ErrorFallback";
+import App from "@/App";
 
 const root = document.getElementById("root");
 
 render(
     () => (
-        <ErrorBoundary fallback={ErrorPage}>
+        <ErrorBoundary fallback={ErrorFallback}>
             <App />
         </ErrorBoundary>
     ),

@@ -7,7 +7,7 @@ import {
     QueryRequestMessage,
 } from "@/types/ws-types";
 import { BACKEND_WEBSOCKET_URL, WS_QUERY_TIMEOUT } from "@/config/constants";
-import { generateRandomString } from "@/utils/utils.ts";
+import { generateRandomString } from "@/utils/helpers";
 
 export type MessageHandler = (value: unknown) => void;
 export type QueryHandler = (params?: unknown) => Promise<unknown>;
@@ -47,14 +47,19 @@ export class WebSocketService {
 
         switch (command.type) {
             case "setting":
-                this.handleSettingMessage({ ...command, echo } as SettingMessage & { echo: string | null });
+                this.handleSettingMessage({
+                    ...command,
+                    echo,
+                } as SettingMessage & { echo: string | null });
                 break;
             case "online":
                 this.handleOnlineStatus(command as OnlineMessage);
                 break;
             case "query-request":
-                this.handleQueryRequest({ ...command, echo } as QueryRequestMessage & { echo: string | null })
-                    .then();
+                this.handleQueryRequest({
+                    ...command,
+                    echo,
+                } as QueryRequestMessage & { echo: string | null }).then();
                 break;
             case "query-response":
                 this.handleQueryResponse(command as QueryResponseMessage);
@@ -65,7 +70,7 @@ export class WebSocketService {
     }
 
     private handleSettingMessage = (
-        message: SettingMessage & { echo: string | null },
+        message: SettingMessage & { echo: string | null }
     ) => {
         const { key, value, target } = message;
         if (target && !this.isSelf(target)) return;
@@ -86,13 +91,13 @@ export class WebSocketService {
             this.onlineClients.push(message.id);
         } else if (message.status === "offline") {
             this.onlineClients = this.onlineClients.filter(
-                (id) => id !== message.id,
+                (id) => id !== message.id
             );
         }
     }
 
     private handleQueryRequest = async (
-        message: QueryRequestMessage & { echo: string | null },
+        message: QueryRequestMessage & { echo: string | null }
     ) => {
         console.log("Query request:", message);
         if (!this.isSelf(message.echo)) return;
@@ -132,7 +137,11 @@ export class WebSocketService {
     /**
      * 发送响应
      */
-    private sendQueryResponse(key: string, value: unknown, error?: string): void {
+    private sendQueryResponse(
+        key: string,
+        value: unknown,
+        error?: string
+    ): void {
         this.sendMessage({
             command: {
                 type: "query-response",
@@ -170,10 +179,7 @@ export class WebSocketService {
      * 注册处理查询类的回调
      * 即响应双向消息
      */
-    public registerQueryHandler(
-        key: string,
-        handler: QueryHandler,
-    ) {
+    public registerQueryHandler(key: string, handler: QueryHandler) {
         this.queryHandlers.set(key, handler);
     }
 
@@ -219,7 +225,7 @@ export class WebSocketService {
     public async postQuery<T>(
         clientId: string,
         query: string,
-        params?: unknown,
+        params?: unknown
     ): Promise<T> {
         const key = generateRandomString(8);
 
@@ -261,7 +267,7 @@ export class OtherClient {
 
     constructor(
         private id: string,
-        wsService: WebSocketService,
+        wsService: WebSocketService
     ) {
         this.wsService = wsService;
     }

@@ -1,5 +1,5 @@
-import QQLyricAdaptor from "@/adapters/qq";
-import NeteaseLyricAdaptor from "@/adapters/netease";
-import { LyricAdaptor } from "@/adapters/lyric-adaptor";
+import QQLyricAdapter from "@/adapters/qq";
+import NeteaseLyricAdapter from "@/adapters/netease";
+import { LyricAdapter } from "@/adapters/lyric-adapter";
 
-export { QQLyricAdaptor, NeteaseLyricAdaptor, LyricAdaptor };
+export { QQLyricAdapter, NeteaseLyricAdapter, LyricAdapter };

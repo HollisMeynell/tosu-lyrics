@@ -14,7 +14,7 @@ export type RequestProp = {
     body?: object;
 };
 
-export async function doRequest(prop: RequestProp): Promise<RequestResult> {
+export async function customFetch(prop: RequestProp): Promise<RequestResult> {
     const result = await fetch(PROXY_URL, {
         method: "POST",
         headers: {

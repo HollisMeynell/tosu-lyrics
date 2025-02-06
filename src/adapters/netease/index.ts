@@ -1,6 +1,6 @@
 import { SEARCH_MUSIC_URL, GET_LYRIC_URL } from "@/config/constants";
-import { doRequest } from "@/utils/request.ts";
-import { LyricAdaptor } from "@/adapters/lyric-adaptor.ts";
+import { customFetch } from "@/utils/request.ts";
+import { LyricAdapter } from "@/adapters/lyric-adapter";
 
 type ArtistDetail = {
     id: number;
@@ -35,7 +35,7 @@ type LyricItem = {
 };
 
 // 网易云音乐适配器
-export class NeteaseLyricAdaptor extends LyricAdaptor {
+export class NeteaseLyricAdapter extends LyricAdapter {
     constructor() {
         super("Netease");
     }
@@ -45,7 +45,7 @@ export class NeteaseLyricAdaptor extends LyricAdaptor {
     async searchMusic(title: string) {
         try {
             const url = SEARCH_MUSIC_URL(this.name, title);
-            const response = await doRequest({ url });
+            const response = await customFetch({ url });
             const data: SongSearchResult = JSON.parse(response.body);
             if (data.code !== 200 || !data.result?.songCount) {
                 return [];
@@ -68,7 +68,7 @@ export class NeteaseLyricAdaptor extends LyricAdaptor {
 
     async fetchLyrics(songID: number | string) {
         const url = GET_LYRIC_URL(this.name, songID);
-        const response = await doRequest({ url });
+        const response = await customFetch({ url });
         const lyric: GETLyricResult = JSON.parse(response.body);
 
         // 转换为 UnifiedLyricResult
@@ -79,4 +79,4 @@ export class NeteaseLyricAdaptor extends LyricAdaptor {
     }
 }
 
-export default new NeteaseLyricAdaptor();
+export default new NeteaseLyricAdapter();

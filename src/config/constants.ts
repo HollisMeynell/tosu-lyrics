@@ -11,8 +11,8 @@ export const TIME_DIFF_FILTER = (songLength: number, audioLength: number) => {
     return diff < 8000;
 };
 
-export const SEARCH_MUSIC_URL = (adaptor: string, title: string) => {
-    switch (adaptor) {
+export const SEARCH_MUSIC_URL = (adapter: string, title: string) => {
+    switch (adapter) {
         case "QQ": {
             return `https://c.y.qq.com/soso/fcgi-bin/client_search_cp?p=1&n=10&format=json&w=${title}`;
         }
@@ -25,8 +25,8 @@ export const SEARCH_MUSIC_URL = (adaptor: string, title: string) => {
     }
 };
 
-export const GET_LYRIC_URL = (adaptor: string, songID: number | string) => {
-    switch (adaptor) {
+export const GET_LYRIC_URL = (adapter: string, songID: number | string) => {
+    switch (adapter) {
         case "QQ": {
             return `https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid=${songID}&format=json&nobase64=1`;
         }

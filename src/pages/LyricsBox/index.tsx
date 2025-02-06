@@ -1,5 +1,5 @@
-import TosuAdapter, { LyricLine } from "@/common/tosu-adapter.ts";
-import lyricsStore from "@/stores/lyricsStore.ts";
+import TosuAdapter, { LyricLine } from "@/common/tosu-adapter";
+import lyricsStore from "@/stores/lyricsStore";
 import {
     Component,
     Accessor,
@@ -11,7 +11,25 @@ import {
     onMount,
     Show,
 } from "solid-js";
-import { wsService } from "@/services/WebSocketService.ts";
+
+export let lyricUL: HTMLUListElement | undefined;
+
+// 触发歌词闪烁三次
+export const lyricBlink = (lyricUL: HTMLUListElement | undefined) => {
+    if (!lyricUL) return;
+
+    let count = 0;
+    let isVisible = true;
+    const interval = setInterval(() => {
+        if (count >= 10) {
+            clearInterval(interval);
+            return;
+        }
+        isVisible = !isVisible;
+        lyricUL.style.visibility = isVisible ? "visible" : "hidden";
+        count++;
+    }, 500);
+};
 
 interface LyricsBoxProps {
     debug: boolean;
@@ -23,34 +41,11 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
     const [cursor, setCursor] = createSignal(0);
 
-    let lyricUL: HTMLUListElement | undefined;
     let tosu: TosuAdapter | undefined;
-
-    onMount(() => {
-        // 注册歌词闪烁处理器
-        wsService.registerHandler("blink-lyric", lyricBlink);
-    });
 
     onCleanup(() => {
         tosu?.stop();
     });
-
-    // 触发歌词闪烁三次
-    const lyricBlink = () => {
-        if (!lyricUL) return;
-
-        let count = 0;
-        let isVisible = true;
-        const interval = setInterval(() => {
-            if (count >= 10) {
-                clearInterval(interval);
-                return;
-            }
-            isVisible = !isVisible;
-            lyricUL.style.visibility = isVisible ? "visible" : "hidden";
-            count++;
-        }, 500);
-    };
 
     // 更新滚动
     const updateScroll = (p: HTMLLIElement) => {

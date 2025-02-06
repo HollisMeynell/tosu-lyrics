@@ -1,6 +1,6 @@
 import { SEARCH_MUSIC_URL, GET_LYRIC_URL } from "@/config/constants";
-import { LyricAdaptor } from "@/adapters/lyric-adaptor.ts";
-import { doRequest } from "@/utils/request.ts";
+import { LyricAdapter } from "@/adapters/lyric-adapter";
+import { customFetch } from "@/utils/request";
 
 type ArtistDetail = {
     id: number;
@@ -42,7 +42,7 @@ type LyricResult = {
     trans: string;
 };
 
-export class QQLyricAdaptor extends LyricAdaptor {
+export class QQLyricAdapter extends LyricAdapter {
     constructor() {
         super("QQ");
     }
@@ -50,7 +50,7 @@ export class QQLyricAdaptor extends LyricAdaptor {
     async searchMusic(title: string) {
         try {
             const url = SEARCH_MUSIC_URL("QQ", title);
-            const result = await doRequest({ url });
+            const result = await customFetch({ url });
             const data: SongSearchResult = JSON.parse(result.body);
             if (data.code !== 0) {
                 return [];
@@ -79,7 +79,7 @@ export class QQLyricAdaptor extends LyricAdaptor {
             url,
             header: LyricUrlHeader,
         };
-        const response = await doRequest(requestProp);
+        const response = await customFetch(requestProp);
 
         const lyrics: LyricResult = JSON.parse(response.body);
 
@@ -91,4 +91,4 @@ export class QQLyricAdaptor extends LyricAdaptor {
     }
 }
 
-export default new QQLyricAdaptor();
+export default new QQLyricAdapter();

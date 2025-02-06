@@ -1,5 +1,5 @@
 // 功能: 功能操作面板
-import DarkModeToggle from "./ControlTools/DarkModeToggle.tsx";
+import DarkModeToggle from "@/components/ui/DarkModeToggle.tsx";
 import { Component, JSX } from "solid-js";
 import { A } from "@solidjs/router";
 import Palette from "@/assets/Icons/Palette.tsx";

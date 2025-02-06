@@ -17,14 +17,14 @@ const DEFAULT_SHADOW: Shadow = {
 };
 
 // 同步信息
-const [currentLyrics, setCurrentLyrics] = createSignal<LyricLine[] | undefined>(
+export const [currentLyrics, setCurrentLyrics] = createSignal<LyricLine[] | undefined>(
     undefined
 );
-const [textColor, setTextColor] = createSignal(DEFAULT_TEXT_COLOR);
-const [shadow, setShadow] = createSignal<Shadow>(DEFAULT_SHADOW);
-const [useTranslationAsMain, setUseTranslationAsMain] = createSignal(false);
-const [showSecond, setShowSecond] = createSignal(true);
-const [alignment, setAlignment] = createSignal<AlignType>("center");
+export const [textColor, setTextColor] = createSignal(DEFAULT_TEXT_COLOR);
+export const [shadow, setShadow] = createSignal<Shadow>(DEFAULT_SHADOW);
+export const [useTranslationAsMain, setUseTranslationAsMain] = createSignal(false);
+export const [showSecond, setShowSecond] = createSignal(true);
+export const [alignment, setAlignment] = createSignal<AlignType>("center");
 
 // 非同步信息
 export const [darkMode, setDarkMode] = createSignal(
@@ -54,15 +54,6 @@ window.addEventListener("touchstart", (e) => {
         e.preventDefault();
     }
 });
-
-// Initialize WebSocket handlers
-(() => {
-    wsService.registerHandler("currentLyrics", setCurrentLyrics);
-    wsService.registerHandler("textColor", setTextColor);
-    wsService.registerHandler("useTranslationAsMain", setUseTranslationAsMain);
-    wsService.registerHandler("showSecond", setShowSecond);
-    wsService.registerHandler("alignment", setAlignment);
-})();
 
 // Store
 export const lyricsStore = {

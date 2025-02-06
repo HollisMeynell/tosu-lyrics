@@ -7,16 +7,16 @@ export type MusicInfo = {
     key: number | string;
 };
 
-export type AdaptorStatus = "Pending" | "NotFound" | "NoAccept" | "Loading";
+export type AdapterStatus = "Pending" | "NotFound" | "NoAccept" | "Loading";
 
 export type UnifiedLyricResult = {
     lyric: string; // 原版歌词
     trans?: string; // 翻译歌词
 };
 
-export abstract class LyricAdaptor {
+export abstract class LyricAdapter {
     name: string;
-    status: AdaptorStatus;
+    status: AdapterStatus;
     result: MusicInfo[] = [];
 
     protected constructor(name: string) {
