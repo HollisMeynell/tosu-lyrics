@@ -76,7 +76,7 @@ export class Lyric {
         return n + 1;
     }
 
-    insertAll(lyric: string, trans?: string) {
+    insertAll(lyric: string, trans?: string, title?: string) {
         if (!lyric?.trim()?.length) {
             throw Error("Empty lyric");
         }
@@ -84,6 +84,11 @@ export class Lyric {
         try {
             // 解析原版歌词
             const lyricLines = parseLyricText(lyric);
+
+            if (title && lyricLines.length > 0 && lyricLines[0].time !== 0) {
+                this.insert(0, title); // 插入标题，时间戳为 0
+            }
+
             for (const { time, text } of lyricLines) {
                 if (!this.insert(time, text)) {
                     console.warn(`Failed to insert lyric at ${time}: ${text}`);

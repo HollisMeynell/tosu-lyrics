@@ -197,7 +197,7 @@ export default class TosuAdapter {
             if (hasLyrics) {
                 try {
                     const lyric = await adapter.getLyricsFromResult();
-                    newLyric.insertAll(lyric.lyric, lyric.trans);
+                    newLyric.insertAll(lyric.lyric, lyric.trans, title);
                     return newLyric;
                 } catch (err) {
                     console.info(adapter.constructor.name, err);
