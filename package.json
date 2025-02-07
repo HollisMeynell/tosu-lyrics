@@ -1,32 +1,32 @@
 {
-  "name": "lyrics-solid",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite --open",
-    "build": "vite build",
-    "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
-    "preview": "vite preview"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.19.0",
-    "@tailwindcss/vite": "^4.0.3",
-    "@types/node": "^22.13.0",
-    "@typescript-eslint/eslint-plugin": "^8.22.0",
-    "@typescript-eslint/parser": "^8.22.0",
-    "eslint": "^9.19.0",
-    "globals": "^15.14.0",
-    "prettier": "^3.4.2",
-    "rollup-plugin-visualizer": "^5.14.0",
-    "typescript": "5.7.3",
-    "vite": "^6.0.11",
-    "vite-plugin-solid": "^2.11.0"
-  },
-  "dependencies": {
-    "@solidjs/router": "^0.15.3",
-    "reconnecting-websocket": "^4.4.0",
-    "solid-js": "^1.9.4",
-    "tailwindcss": "^4.0.3"
-  }
+    "name": "lyrics-solid",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite --open /lyrics/controller",
+        "build": "vite build",
+        "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
+        "preview": "vite preview"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.19.0",
+        "@tailwindcss/vite": "^4.0.4",
+        "@types/node": "^22.13.1",
+        "@typescript-eslint/eslint-plugin": "^8.23.0",
+        "@typescript-eslint/parser": "^8.23.0",
+        "eslint": "^9.19.0",
+        "globals": "^15.14.0",
+        "prettier": "^3.4.2",
+        "rollup-plugin-visualizer": "^5.14.0",
+        "typescript": "5.7.3",
+        "vite": "^6.1.0",
+        "vite-plugin-solid": "^2.11.1"
+    },
+    "dependencies": {
+        "@solidjs/router": "^0.15.3",
+        "reconnecting-websocket": "^4.4.0",
+        "solid-js": "^1.9.4",
+        "tailwindcss": "^4.0.4"
+    }
 }

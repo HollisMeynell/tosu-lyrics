@@ -136,8 +136,12 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     const lines = (lyric: Accessor<LyricLine>, index: number) => {
         const getMainLyric = () =>
             lyricsStore.getState.useTranslationAsMain
-                ? lyric().main || lyric().origin
-                : lyric().origin;
+                ? lyric().main
+                    ? lyric().main
+                    : lyric().origin
+                : lyric().origin
+                  ? lyric().origin
+                  : lyric().main;
 
         const getSecondLyric = () =>
             lyricsStore.getState.useTranslationAsMain
