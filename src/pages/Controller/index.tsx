@@ -14,7 +14,7 @@ const Controller: Component<ControllerProps> = (props) => {
     return (
         <div
             class="h-[calc(100%-300px)] bg-[#ffffff] dark:bg-[#141414]
-            m-6 px-6 py-8 rounded-lg shadow-md overflow-auto scrollbar-hide
+            m-6 pl-6 pr-8 py-8 rounded-lg shadow-md overflow-auto scrollbar-hide
             dark:text-[#dcdcdc] relative transform-3d"
         >
             <div class="fixed top-0 left-0 w-16 h-full border-r-2 border-[#f0f0f0] dark:border-[#313131] py-6">
