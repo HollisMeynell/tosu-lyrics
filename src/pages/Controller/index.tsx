@@ -22,6 +22,9 @@ const Controller: Component<ControllerProps> = (props) => {
                     <A href="/lyrics/controller/client">
                         O
                     </A>
+                    <A href="/lyrics/controller/blackList">
+                        B
+                    </A>
                     <A href="/lyrics/controller/textstyle">
                         <Palette class="w-6 h-6" />
                     </A>

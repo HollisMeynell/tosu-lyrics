@@ -122,7 +122,6 @@ export class WebSocketService {
      * @param message
      */
     private handleQueryResponse = (message: QueryResponseMessage) => {
-        if (!this.isSelf(message.key)) return;
         const handler = this.queryQueue.get(message.key);
         if (typeof handler != "function") {
             return;
@@ -276,6 +275,10 @@ export class OtherClient {
         wsService: WebSocketService,
     ) {
         this.serveice = wsService;
+    }
+
+    public async getNowTitle():Promise<string> {
+        return this.serveice.postQuery(this.id, "get-now-title");
     }
 
     public async queryCacheList(): Promise<

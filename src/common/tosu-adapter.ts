@@ -4,7 +4,7 @@ import { Lyric } from "@/common/music-api.ts";
 import Cache from "@/utils/cache.ts";
 import { TosuAPi } from "@/types/tosu-types.ts";
 import { QQLyricAdapter, NeteaseLyricAdapter, LyricAdapter } from "@/adapters";
-import lyricsStore from "@/stores/lyricsStore.ts";
+import lyricsStore, { inTitleBlackList } from "@/stores/lyricsStore.ts";
 import { debounce } from "@/utils/helpers.ts";
 
 export type LyricLine = {
@@ -20,6 +20,12 @@ type Temp = {
 
 const WS_DELAY_TIME = 100;
 const WAIT_AUDIO_METADATA = 1000;
+
+
+let nowTitle = "";
+export const getNowTitle = () => {
+    return nowTitle;
+};
 
 /**
  * 获取音频长度(毫秒), 超时机制为 3 秒
@@ -62,7 +68,7 @@ export default class TosuAdapter {
 
     constructor(
         private setLyrics: (value: LyricLine[]) => void,
-        private setCursor: (value: number) => void
+        private setCursor: (value: number) => void,
     ) {
         this.ws = new ReconnectingWebSocket(WS_URL);
         this.ws.onmessage = this.handleWebSocketMessage.bind(this);
@@ -159,6 +165,14 @@ export default class TosuAdapter {
         // 如果是新歌, 则更新当前播放 bid 并重新获取歌词
         this.currentState.latestId = bid;
         this.resetLyrics();
+
+        // 更新当前播放歌曲标题
+        nowTitle = title;
+
+        // 如果在黑名单中, 则跳过
+        if (inTitleBlackList(title)) {
+            return;
+        }
 
         // 尝试从缓存中获取歌词
         const cachedLyrics = await Cache.getLyricsCache(bid);

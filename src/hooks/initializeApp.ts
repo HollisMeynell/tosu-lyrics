@@ -1,5 +1,6 @@
 import cache from "@/utils/cache";
 import {
+    addTitleBlackListItem, deleteTitleBlackListItem,
     lyricsStore,
     setAlignment,
     setCurrentLyrics,
@@ -9,8 +10,9 @@ import {
 } from "@/stores/lyricsStore";
 import { lyricBlink } from "@/pages/LyricsBox";
 import { paramParse } from "@/utils/param-parse";
-import { wsService } from "@/services/WebSocketService";
+import { MessageHandler, wsService } from "@/services/WebSocketService";
 import { configService } from "@/services/ConfigService";
+import { getNowTitle } from "@/common/tosu-adapter.ts";
 
 export const initializeApp = async () => {
     if (import.meta.env.MODE === "development") {
@@ -31,7 +33,10 @@ export const initializeApp = async () => {
             cache.storageAdapter?.clearLyrics(bid);
         });
         wsService.registerHandler("remove-all-cache", () =>
-            cache.storageAdapter?.clearLyrics()
+            cache.storageAdapter?.clearLyrics(),
+        );
+        wsService.registerQueryHandler("get-now-title", async () =>
+            getNowTitle(),
         );
 
         // 解析 URL 参数
@@ -54,7 +59,15 @@ export const initializeApp = async () => {
         wsService.registerHandler("textColor", setTextColor);
         wsService.registerHandler(
             "useTranslationAsMain",
-            setUseTranslationAsMain
+            setUseTranslationAsMain,
+        );
+        wsService.registerHandler(
+            "addBlackList",
+            addTitleBlackListItem as MessageHandler,
+        );
+        wsService.registerHandler(
+            "deleteBlackList",
+            deleteTitleBlackListItem as MessageHandler,
         );
         wsService.registerHandler("showSecond", setShowSecond);
         wsService.registerHandler("alignment", setAlignment);

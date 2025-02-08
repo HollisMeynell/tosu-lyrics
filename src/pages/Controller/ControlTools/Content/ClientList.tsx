@@ -15,6 +15,7 @@ export default function ClientList() {
     const blinkOtherClient = () => {
         setButtonCollDown(true);
         wsService.blinkOtherClient(selectedClient());
+        wsService.setDefaultClient(selectedClient());
         setTimeout(() => setButtonCollDown(false), 3000);
     };
 

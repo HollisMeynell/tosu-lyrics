@@ -12,7 +12,7 @@ import {
     Show,
 } from "solid-js";
 
-let blink = () => {};
+let blink = () => void 0;
 
 // 触发歌词闪烁三次
 export const lyricBlink = () => {
@@ -44,8 +44,10 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     );
     let lyricUL: HTMLUListElement | undefined;
 
+    let tosu: TosuAdapter | undefined;
+
     const linkTosu = () => {
-        tosu = new TosuAdapter(setLyrics, setCursor);
+        if (!isDebug) tosu = new TosuAdapter(setLyrics, setCursor);
     };
 
     let blinkKey = 0;
@@ -87,8 +89,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         }, 500);
     };
 
-    let tosu: TosuAdapter | undefined;
-
     onCleanup(() => {
         tosu?.stop();
     });
@@ -101,7 +101,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 return (
                     Math.max(
                         p.children[0].scrollWidth,
-                        p.children[1].scrollWidth
+                        p.children[1].scrollWidth,
                     ) * 1.2
                 );
             }
@@ -129,8 +129,8 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 const currentLine = lyricUL.children[cursor()] as HTMLLIElement;
                 if (currentLine) updateScroll(currentLine);
             },
-            { defer: true }
-        )
+            { defer: true },
+        ),
     );
 
     // 初始化歌词
@@ -186,8 +186,8 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                     ? lyric().main
                     : lyric().origin
                 : lyric().origin
-                  ? lyric().origin
-                  : lyric().main;
+                    ? lyric().origin
+                    : lyric().main;
 
         const getSecondLyric = () =>
             lyricsStore.getState.useTranslationAsMain
