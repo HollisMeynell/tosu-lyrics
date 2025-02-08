@@ -4,6 +4,9 @@ import { lazy } from "solid-js";
 
 const LyricsBox = lazy(() => import("@/pages/LyricsBox"));
 const Controller = lazy(() => import("@/pages/Controller"));
+const ClientList = lazy(
+    () => import("@/pages/Controller/ControlTools/Content/ClientList")
+);
 const CurrentLyrics = lazy(
     () => import("@/pages/Controller/ControlTools/Content/CurrentLyrics")
 );
@@ -28,7 +31,7 @@ export default function AppRoutes() {
                     </>
                 )}
             >
-                <Route path="/" component={CurrentLyrics} />
+                <Route path="/" component={ClientList} />
                 <Route path="/content" component={CurrentLyrics} />
                 <Route path="/textstyle" component={TextStyle} />
             </Route>

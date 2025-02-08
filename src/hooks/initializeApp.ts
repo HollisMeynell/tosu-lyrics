@@ -7,7 +7,7 @@ import {
     setTextColor,
     setUseTranslationAsMain,
 } from "@/stores/lyricsStore";
-import { lyricBlink, lyricUL } from "@/pages/LyricsBox";
+import { lyricBlink } from "@/pages/LyricsBox";
 import { paramParse } from "@/utils/param-parse";
 import { wsService } from "@/services/WebSocketService";
 import { configService } from "@/services/ConfigService";
@@ -60,7 +60,7 @@ export const initializeApp = async () => {
         wsService.registerHandler("alignment", setAlignment);
 
         // 注册歌词闪烁处理器
-        wsService.registerHandler("blink-lyric", () => lyricBlink(lyricUL));
+        wsService.registerHandler("blink-lyric", lyricBlink);
     } catch (error) {
         console.error("Failed to initialize:", error);
     }

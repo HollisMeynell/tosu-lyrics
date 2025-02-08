@@ -12,23 +12,11 @@ import {
     Show,
 } from "solid-js";
 
-export let lyricUL: HTMLUListElement | undefined;
+let blink = () => {};
 
 // 触发歌词闪烁三次
-export const lyricBlink = (lyricUL: HTMLUListElement | undefined) => {
-    if (!lyricUL) return;
-
-    let count = 0;
-    let isVisible = true;
-    const interval = setInterval(() => {
-        if (count >= 10) {
-            clearInterval(interval);
-            return;
-        }
-        isVisible = !isVisible;
-        lyricUL.style.visibility = isVisible ? "visible" : "hidden";
-        count++;
-    }, 500);
+export const lyricBlink = () => {
+    blink();
 };
 
 interface LyricsBoxProps {
@@ -40,6 +28,51 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     const [scroll, setScroll] = createSignal(false);
     const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
     const [cursor, setCursor] = createSignal(0);
+    const [lyricLIRef, setLyricLIRef] = createSignal<HTMLLIElement | undefined>(undefined);
+    let lyricUL: HTMLUListElement | undefined;
+
+    const linkTosu = () => {
+        if (!isDebug) tosu = new TosuAdapter(setLyrics, setCursor);
+    }
+
+    let blinkKey = 0;
+    blink = () => {
+        if (blinkKey > 0) {
+            blinkKey += 6;
+            return
+        } else {
+            blinkKey = 10;
+        }
+        tosu?.stop();
+        const lyricsBack = lyrics();
+        const cursorBack = cursor();
+
+        setLyrics([
+            { main: "调试中", origin: "Testing" },
+            { main: "正在调试中", origin: "Testing..." },
+            { main: "调试中", origin: "Testing" },
+        ])
+        setCursor(1);
+
+        let isVisible = true;
+
+        const interval = setInterval(() => {
+            if (blinkKey <= 0) {
+                clearInterval(interval);
+
+                setLyrics(lyricsBack);
+                setCursor(cursorBack);
+                linkTosu();
+                return;
+            }
+            isVisible = !isVisible;
+            let lyricLI = lyricLIRef();
+            if (lyricLI) {
+                lyricLI.style.visibility = isVisible ? "visible" : "hidden";
+            }
+            blinkKey--;
+        }, 500);
+    }
 
     let tosu: TosuAdapter | undefined;
 
@@ -49,6 +82,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
 
     // 更新滚动
     const updateScroll = (p: HTMLLIElement) => {
+        setLyricLIRef(p)
         const getMaxWidth = () => {
             if (p.children.length === 2) {
                 return (
@@ -78,7 +112,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         on(
             [lyrics, cursor],
             () => {
-                if (!lyricUL || isDebug) return;
+                if (!lyricUL) return;
                 const currentLine = lyricUL.children[cursor()] as HTMLLIElement;
                 if (currentLine) updateScroll(currentLine);
             },
@@ -96,9 +130,8 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 { main: "测试歌词3", origin: "Test Lyrics 3" },
             ]);
             setCursor(1);
-        } else {
-            tosu = new TosuAdapter(setLyrics, setCursor);
         }
+        linkTosu();
     });
 
     // 子组件
