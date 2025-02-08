@@ -269,34 +269,34 @@ export const wsService = new WebSocketService();
  * 封装对其他客户端的操作
  */
 export class OtherClient {
-    private serveice: WebSocketService;
+    private service: WebSocketService;
 
     constructor(
         private id: string,
         wsService: WebSocketService,
     ) {
-        this.serveice = wsService;
+        this.service = wsService;
     }
 
     public async getNowTitle():Promise<string> {
-        return this.serveice.postQuery(this.id, "get-now-title");
+        return this.service.postQuery(this.id, "get-now-title");
     }
 
     public async queryNowLyrics():Promise<LyricRawLine[]> {
-        return this.serveice.postQuery(this.id, "query-now-lyrics");
+        return this.service.postQuery(this.id, "query-now-lyrics");
     }
 
     public async queryCacheList(): Promise<
         Array<{ bid: number; title: string }>
     > {
-        return this.serveice.postQuery(this.id, "query-cache-list");
+        return this.service.postQuery(this.id, "query-cache-list");
     }
 
     public async removeCacheItem(bid: number): Promise<void> {
-        this.serveice.pushSetting("remove-cache-item", { bid }, this.id);
+        this.service.pushSetting("remove-cache-item", { bid }, this.id);
     }
 
     public async removeAllCache(): Promise<void> {
-        this.serveice.pushSetting("remove-all-cache", undefined, this.id);
+        this.service.pushSetting("remove-all-cache", undefined, this.id);
     }
 }
