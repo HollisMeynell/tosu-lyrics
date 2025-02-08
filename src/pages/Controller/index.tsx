@@ -19,6 +19,9 @@ const Controller: Component<ControllerProps> = (props) => {
         >
             <div class="fixed top-0 left-0 w-16 h-full border-r-2 border-[#f0f0f0] dark:border-[#313131] py-6">
                 <nav class="w-6 mx-auto flex flex-col gap-6">
+                    <A href="/lyrics/controller/client">
+                        O
+                    </A>
                     <A href="/lyrics/controller/textstyle">
                         <Palette class="w-6 h-6" />
                     </A>

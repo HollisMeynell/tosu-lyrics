@@ -32,6 +32,7 @@ export default function AppRoutes() {
                 )}
             >
                 <Route path="/" component={ClientList} />
+                <Route path="/client" component={ClientList} />
                 <Route path="/content" component={CurrentLyrics} />
                 <Route path="/textstyle" component={TextStyle} />
             </Route>

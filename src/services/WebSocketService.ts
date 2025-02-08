@@ -22,6 +22,7 @@ export class WebSocketService {
     private queryQueue = new Map<string, QueryResultHandler>();
     private onlineClients: string[] = [];
     private selfId: string = "";
+    defaultClient: OtherClient | undefined;
 
     constructor() {
         this.ws = new ReconnectingWebSocket(BACKEND_WEBSOCKET_URL);
@@ -70,7 +71,7 @@ export class WebSocketService {
     }
 
     private handleSettingMessage = (
-        message: SettingMessage & { echo: string | null }
+        message: SettingMessage & { echo: string | null },
     ) => {
         const { key, value, target } = message;
         if (target && !this.isSelf(target)) return;
@@ -91,13 +92,13 @@ export class WebSocketService {
             this.onlineClients.push(message.id);
         } else if (message.status === "offline") {
             this.onlineClients = this.onlineClients.filter(
-                (id) => id !== message.id
+                (id) => id !== message.id,
             );
         }
     }
 
     private handleQueryRequest = async (
-        message: QueryRequestMessage & { echo: string | null }
+        message: QueryRequestMessage & { echo: string | null },
     ) => {
         console.log("Query request:", message);
         if (!this.isSelf(message.echo)) return;
@@ -140,7 +141,7 @@ export class WebSocketService {
     private sendQueryResponse(
         key: string,
         value: unknown,
-        error?: string
+        error?: string,
     ): void {
         this.sendMessage({
             command: {
@@ -225,7 +226,7 @@ export class WebSocketService {
     public async postQuery<T>(
         clientId: string,
         query: string,
-        params?: unknown
+        params?: unknown,
     ): Promise<T> {
         const key = generateRandomString(8);
 
@@ -254,6 +255,11 @@ export class WebSocketService {
             });
         });
     }
+
+    setDefaultClient(key: string) {
+        if (!key) return;
+        this.defaultClient = new OtherClient(key, this);
+    }
 }
 
 // Singleton instance 暴露
@@ -263,26 +269,26 @@ export const wsService = new WebSocketService();
  * 封装对其他客户端的操作
  */
 export class OtherClient {
-    private wsService: WebSocketService;
+    private serveice: WebSocketService;
 
     constructor(
         private id: string,
-        wsService: WebSocketService
+        wsService: WebSocketService,
     ) {
-        this.wsService = wsService;
+        this.serveice = wsService;
     }
 
     public async queryCacheList(): Promise<
         Array<{ bid: number; title: string }>
     > {
-        return this.wsService.postQuery(this.id, "query-cache-list");
+        return this.serveice.postQuery(this.id, "query-cache-list");
     }
 
     public async removeCacheItem(bid: number): Promise<void> {
-        this.wsService.pushSetting("remove-cache-item", { bid }, this.id);
+        this.serveice.pushSetting("remove-cache-item", { bid }, this.id);
     }
 
     public async removeAllCache(): Promise<void> {
-        this.wsService.pushSetting("remove-all-cache", undefined, this.id);
+        this.serveice.pushSetting("remove-all-cache", undefined, this.id);
     }
 }
