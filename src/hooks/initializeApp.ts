@@ -8,10 +8,10 @@ import {
     setUseTranslationAsMain,
 } from "@/stores/lyricsStore";
 import { lyricBlink } from "@/pages/LyricsBox";
-import { paramParse } from "@/utils/param-parse";
-import { MessageHandler, wsService } from "@/services/WebSocketService";
-import { configService } from "@/services/ConfigService";
-import { getNowLyrics, getNowTitle } from "@/common/tosu-adapter.ts";
+import { paramParse } from "@/utils/parseParams";
+import { MessageHandler, wsService } from "@/services/webSocketService";
+import { configService } from "@/services/configService";
+import { getNowLyrics, getNowTitle } from "@/services/managers/tosuManager";
 
 export const initializeApp = async () => {
     if (import.meta.env.MODE === "development") {

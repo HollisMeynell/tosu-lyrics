@@ -2,7 +2,7 @@
 import lyricsStore from "@/stores/lyricsStore.ts";
 import ToggleSwitch from "@/components/ui/ToggleSwitch.tsx";
 import ToggleNSwitch from "@/components/ui/ToggleNSwitch.tsx";
-import { alignmentOptions } from "@/types/config-global.ts";
+import { alignmentOptions } from "@/types/globalTypes";
 
 export default function Controller() {
 

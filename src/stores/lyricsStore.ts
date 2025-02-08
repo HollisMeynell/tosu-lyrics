@@ -1,8 +1,8 @@
 import { createSignal } from "solid-js";
-import { Shadow } from "@/types/config-global";
-import { wsService } from "@/services/WebSocketService";
-import { configService } from "@/services/ConfigService";
-import { AlignType, Settings, alignmentOptions } from "@/types/config-global";
+import { Shadow } from "@/types/globalTypes";
+import { wsService } from "@/services/webSocketService";
+import { configService } from "@/services/configService";
+import { AlignType, Settings, alignmentOptions } from "@/types/globalTypes";
 import { createStore, produce } from "solid-js/store";
 
 const DEFAULT_TEXT_COLOR = {

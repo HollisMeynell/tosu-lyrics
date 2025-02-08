@@ -1,4 +1,4 @@
-import { Settings } from "@/types/config-global";
+import { Settings } from "@/types/globalTypes";
 import { BACKEND_CONFIG_URL } from "@/config/constants";
 
 class ConfigService {

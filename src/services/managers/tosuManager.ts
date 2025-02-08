@@ -1,12 +1,12 @@
 import ReconnectingWebSocket from "reconnecting-websocket";
 import { AUDIO_URL, WS_URL } from "@/config/constants";
-import { Lyric } from "@/common/music-api.ts";
+import { Lyric } from "@/services/managers/lyricManager";
 import Cache from "@/utils/cache.ts";
-import { TosuAPi } from "@/types/tosu-types.ts";
+import { TosuAPi } from "@/types/tosuTypes";
 import { QQLyricAdapter, NeteaseLyricAdapter, LyricAdapter } from "@/adapters";
 import { inTitleBlackList } from "@/stores/lyricsStore.ts";
 import { debounce } from "@/utils/helpers.ts";
-import { LyricRawLine } from "@/types/config-global.ts";
+import { LyricRawLine } from "@/types/globalTypes";
 
 export type LyricLine = {
     main: string;

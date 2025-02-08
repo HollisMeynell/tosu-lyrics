@@ -1,7 +1,6 @@
 import { getTitleBlackList, lyricsStore } from "@/stores/lyricsStore.ts";
 import { Component, For } from "solid-js";
-import { wsService } from "@/services/WebSocketService.ts";
-
+import { wsService } from "@/services/webSocketService";
 
 const BlackListItem: Component<{ title: string }> = (props) => {
     const {title} = props;

@@ -1,4 +1,4 @@
-import { wsService } from "@/services/WebSocketService.ts";
+import { wsService } from "@/services/webSocketService";
 import { Component, createSignal, For } from "solid-js";
 
 export default function ClientList() {

@@ -5,10 +5,10 @@ import {
     OnlineMessage,
     QueryResponseMessage,
     QueryRequestMessage,
-} from "@/types/ws-types";
+} from "@/types/wsTypes";
 import { BACKEND_WEBSOCKET_URL, WS_QUERY_TIMEOUT } from "@/config/constants";
 import { generateRandomString } from "@/utils/helpers";
-import { LyricRawLine } from "@/types/config-global.ts";
+import { LyricRawLine } from "@/types/globalTypes";
 
 export type MessageHandler = (value: unknown) => void;
 export type QueryHandler = (params?: unknown) => Promise<unknown>;

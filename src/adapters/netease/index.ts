@@ -1,6 +1,6 @@
 import { SEARCH_MUSIC_URL, GET_LYRIC_URL } from "@/config/constants";
 import { customFetch } from "@/utils/request.ts";
-import { LyricAdapter } from "@/adapters/lyric-adapter";
+import { LyricAdapter } from "@/adapters/lyricAdapter";
 
 type ArtistDetail = {
     id: number;

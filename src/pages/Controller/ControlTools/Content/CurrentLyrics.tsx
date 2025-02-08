@@ -4,8 +4,8 @@ import { createEffect } from "solid-js";
 import { darkMode } from "@/stores/lyricsStore.ts";
 import ToggleList from "@/components/ui/ToggleList.tsx";
 import Copy from "@/assets/Icons/Copy.tsx";
-import { wsService } from "@/services/WebSocketService.ts";
-import { LyricRawLine } from "@/types/config-global.ts";
+import { wsService } from "@/services/webSocketService";
+import { LyricRawLine } from "@/types/globalTypes";
 
 export default function Controller() {
     const [lyrics, setLyrics] = createSignal<LyricRawLine[]>([]);

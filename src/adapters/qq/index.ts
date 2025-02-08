@@ -1,5 +1,5 @@
 import { GET_LYRIC_URL, SEARCH_MUSIC_URL } from "@/config/constants";
-import { LyricAdapter } from "@/adapters/lyric-adapter";
+import { LyricAdapter } from "@/adapters/lyricAdapter";
 import { customFetch } from "@/utils/request";
 
 type ArtistDetail = {

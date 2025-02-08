@@ -1,4 +1,4 @@
-import TosuAdapter, { LyricLine } from "@/common/tosu-adapter";
+import TosuAdapter, { LyricLine } from "@/services/managers/tosuManager";
 import lyricsStore from "@/stores/lyricsStore";
 import {
     Component,
