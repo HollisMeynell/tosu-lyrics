@@ -8,6 +8,7 @@ import {
 } from "@/types/ws-types";
 import { BACKEND_WEBSOCKET_URL, WS_QUERY_TIMEOUT } from "@/config/constants";
 import { generateRandomString } from "@/utils/helpers";
+import { LyricRawLine } from "@/types/config-global.ts";
 
 export type MessageHandler = (value: unknown) => void;
 export type QueryHandler = (params?: unknown) => Promise<unknown>;
@@ -279,6 +280,10 @@ export class OtherClient {
 
     public async getNowTitle():Promise<string> {
         return this.serveice.postQuery(this.id, "get-now-title");
+    }
+
+    public async queryNowLyrics():Promise<LyricRawLine[]> {
+        return this.serveice.postQuery(this.id, "query-now-lyrics");
     }
 
     public async queryCacheList(): Promise<

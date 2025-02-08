@@ -3,7 +3,6 @@ import {
     addTitleBlackListItem, deleteTitleBlackListItem,
     lyricsStore,
     setAlignment,
-    setCurrentLyrics,
     setShowSecond,
     setTextColor,
     setUseTranslationAsMain,
@@ -12,7 +11,7 @@ import { lyricBlink } from "@/pages/LyricsBox";
 import { paramParse } from "@/utils/param-parse";
 import { MessageHandler, wsService } from "@/services/WebSocketService";
 import { configService } from "@/services/ConfigService";
-import { getNowTitle } from "@/common/tosu-adapter.ts";
+import { getNowLyrics, getNowTitle } from "@/common/tosu-adapter.ts";
 
 export const initializeApp = async () => {
     if (import.meta.env.MODE === "development") {
@@ -38,6 +37,9 @@ export const initializeApp = async () => {
         wsService.registerQueryHandler("get-now-title", async () =>
             getNowTitle(),
         );
+        wsService.registerQueryHandler("query-now-lyrics", async () =>
+            getNowLyrics(),
+        );
 
         // 解析 URL 参数
         const params = paramParse();
@@ -55,7 +57,6 @@ export const initializeApp = async () => {
         lyricsStore.parseSettings(config);
 
         // 注册设置处理器
-        wsService.registerHandler("currentLyrics", setCurrentLyrics);
         wsService.registerHandler("textColor", setTextColor);
         wsService.registerHandler(
             "useTranslationAsMain",

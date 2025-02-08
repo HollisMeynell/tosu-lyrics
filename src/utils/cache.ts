@@ -1,7 +1,7 @@
 // 对各缓存类型的CURD操作进行封装，提供统一的接口
 
 import { Lyric } from "@/common/music-api.ts";
-import { LyricLine } from "@/types/config-global";
+import { LyricRawLine } from "@/types/config-global";
 
 const STORE_NAME = "lyrics";
 const DB_INDEX_NAME = "nameIndex";
@@ -13,7 +13,7 @@ interface CacheData {
     bid: number;
     name: string;
     length: number;
-    lyrics: LyricLine[];
+    lyrics: LyricRawLine[];
 }
 
 function initIndexedDB(): Promise<IDBDatabase> {
@@ -52,11 +52,11 @@ interface StorageAdapter {
         lyrics: Lyric
     ): Promise<void>;
 
-    getLyrics(bid: number): Promise<LyricLine[] | undefined>;
+    getLyrics(bid: number): Promise<LyricRawLine[] | undefined>;
 
     getLyricsByTitle(
         title: string
-    ): Promise<undefined | { lyrics: LyricLine[]; length: number }[]>;
+    ): Promise<undefined | { lyrics: LyricRawLine[]; length: number }[]>;
 
     /**
      * 获取歌词缓存列表
@@ -101,7 +101,7 @@ class IndexedDBAdapter implements StorageAdapter {
     /**
      * 获取歌词缓存
      */
-    getLyrics(bid: number): Promise<LyricLine[] | undefined> {
+    getLyrics(bid: number): Promise<LyricRawLine[] | undefined> {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], "readonly");
             const store = transaction.objectStore(STORE_NAME);

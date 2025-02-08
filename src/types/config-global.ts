@@ -1,4 +1,4 @@
-export type LyricLine = {
+export type LyricRawLine = {
     time: number;
     first: string;
     second?: string;
@@ -28,7 +28,6 @@ export type Settings = {
     shadow: Shadow;
     useTranslationAsMain: boolean;
     showSecond: boolean;
-    currentLyrics: LyricLine[] | undefined;
     alignment: AlignType;
     // 歌词标题黑名单
     titleBlackList?: string[];

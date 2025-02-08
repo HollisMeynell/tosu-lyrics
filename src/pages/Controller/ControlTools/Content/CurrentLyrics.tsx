@@ -1,13 +1,21 @@
 // 功能: 面板-显示当前播放歌曲的歌词
-import { For } from "solid-js";
+import { createSignal, For } from "solid-js";
 import { createEffect } from "solid-js";
-import { lyricsStore, darkMode } from "@/stores/lyricsStore.ts";
+import { darkMode } from "@/stores/lyricsStore.ts";
 import ToggleList from "@/components/ui/ToggleList.tsx";
 import Copy from "@/assets/Icons/Copy.tsx";
+import { wsService } from "@/services/WebSocketService.ts";
+import { LyricRawLine } from "@/types/config-global.ts";
 
 export default function Controller() {
+    const [lyrics, setLyrics] = createSignal<LyricRawLine[]>([]);
     const searchCacheCurrent = async () => {
-        // todo 通过ws查询获取歌词播放页的当前歌词
+        const data = await wsService.defaultClient?.queryNowLyrics();
+        if (data) {
+            setLyrics(data);
+        } else {
+            setLyrics([]);
+        }
     };
 
     createEffect(() => {
@@ -34,7 +42,7 @@ export default function Controller() {
 
     const LyricsContent = (
         <div class="h-[calc(100%-45px)] border-2 border-[#f0f0f0] dark:border-[#313131] rounded-lg px-4 max-w-[650px] overflow-auto scrollbar-hide">
-            <For each={lyricsStore.getState.currentLyrics || []}>
+            <For each={lyrics()}>
                 {(item) => (
                     <div class="flex flex-row items-center my-3 gap-3 max-w-[700px]">
                         <div class="grow flex flex-row justify-between items-center select-none">

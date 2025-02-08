@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { LyricLine, Shadow } from "@/types/config-global";
+import { Shadow } from "@/types/config-global";
 import { wsService } from "@/services/WebSocketService";
 import { configService } from "@/services/ConfigService";
 import { AlignType, Settings, alignmentOptions } from "@/types/config-global";
@@ -18,9 +18,6 @@ const DEFAULT_SHADOW: Shadow = {
 };
 
 // 同步信息
-export const [currentLyrics, setCurrentLyrics] = createSignal<LyricLine[] | undefined>(
-    undefined,
-);
 export const [textColor, setTextColor] = createSignal(DEFAULT_TEXT_COLOR);
 export const [shadow, setShadow] = createSignal<Shadow>(DEFAULT_SHADOW);
 export const [useTranslationAsMain, setUseTranslationAsMain] = createSignal(false);
@@ -105,7 +102,6 @@ export const lyricsStore = {
     get getState(): Settings {
         return {
             shadow: shadow(),
-            currentLyrics: currentLyrics(),
             textColor: textColor(),
             useTranslationAsMain: useTranslationAsMain(),
             showSecond: showSecond(),
@@ -125,7 +121,6 @@ export const lyricsStore = {
         };
         if (config) {
             // 兼容不同版本导致的部分配置缺失
-            setValue(config.currentLyrics, setCurrentLyrics);
             setValue(config.useTranslationAsMain, setUseTranslationAsMain);
             setValue(config.showSecond, setShowSecond);
             setValue(config.alignment, setAlignment);
@@ -141,10 +136,6 @@ export const lyricsStore = {
             }
         }
         lyricsStore.initializeState();
-    },
-
-    updateCurrentLyrics(lyrics: LyricLine[] | undefined) {
-        setCurrentLyrics(lyrics);
     },
 
     setShadow(shadow: Shadow) {

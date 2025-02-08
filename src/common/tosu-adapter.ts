@@ -4,8 +4,9 @@ import { Lyric } from "@/common/music-api.ts";
 import Cache from "@/utils/cache.ts";
 import { TosuAPi } from "@/types/tosu-types.ts";
 import { QQLyricAdapter, NeteaseLyricAdapter, LyricAdapter } from "@/adapters";
-import lyricsStore, { inTitleBlackList } from "@/stores/lyricsStore.ts";
+import { inTitleBlackList } from "@/stores/lyricsStore.ts";
 import { debounce } from "@/utils/helpers.ts";
+import { LyricRawLine } from "@/types/config-global.ts";
 
 export type LyricLine = {
     main: string;
@@ -26,6 +27,11 @@ let nowTitle = "";
 export const getNowTitle = () => {
     return nowTitle;
 };
+
+let nowLyrics: LyricRawLine[] = [];
+export const getNowLyrics = () => {
+    return nowLyrics;
+}
 
 /**
  * 获取音频长度(毫秒), 超时机制为 3 秒
@@ -103,6 +109,8 @@ export default class TosuAdapter {
     private displayLyric(bid: number, lyric: Lyric) {
         if (this.currentState.latestId !== bid) return; // 防止请求过期
         this.currentState.lyric = lyric;
+        // 保存当前歌词以供查询
+        nowLyrics = lyric.lyrics;
         const list = lyric.lyrics.map((x) => {
             return x.second
                 ? { main: x.first, origin: x.second }
@@ -184,7 +192,6 @@ export default class TosuAdapter {
         if (lyric && lyric.lyrics.length > 0) {
             this.currentState.songTime = liveTime;
             this.displayLyric(bid, lyric);
-            lyricsStore.updateCurrentLyrics(lyric.lyrics);
             return;
         }
 

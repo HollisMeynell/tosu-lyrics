@@ -1,8 +1,8 @@
 import { parseLyricText } from "@/utils/lrc-parse";
-import { LyricLine } from "@/types/config-global";
+import { LyricRawLine } from "@/types/config-global";
 
 export class Lyric {
-    lyrics: LyricLine[];
+    lyrics: LyricRawLine[];
     endTime: number;
     cursor: number;
 
