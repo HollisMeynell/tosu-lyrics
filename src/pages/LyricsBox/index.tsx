@@ -23,23 +23,36 @@ interface LyricsBoxProps {
     debug: boolean;
 }
 
+interface MainLyricProps {
+    text: string | undefined;
+    align?: "left" | "center" | "right";
+}
+
+interface SecondLyricProps {
+    block: boolean;
+    text: string | undefined;
+    align?: "left" | "center" | "right";
+}
+
 const LyricsBox: Component<LyricsBoxProps> = (props) => {
     const isDebug = props.debug && !(import.meta.env.MODE === "development");
     const [scroll, setScroll] = createSignal(false);
     const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
     const [cursor, setCursor] = createSignal(0);
-    const [lyricLIRef, setLyricLIRef] = createSignal<HTMLLIElement | undefined>(undefined);
+    const [lyricLIRef, setLyricLIRef] = createSignal<HTMLLIElement | undefined>(
+        undefined
+    );
     let lyricUL: HTMLUListElement | undefined;
 
     const linkTosu = () => {
-        if (!isDebug) tosu = new TosuAdapter(setLyrics, setCursor);
-    }
+        tosu = new TosuAdapter(setLyrics, setCursor);
+    };
 
     let blinkKey = 0;
     blink = () => {
         if (blinkKey > 0) {
             blinkKey += 6;
-            return
+            return;
         } else {
             blinkKey = 10;
         }
@@ -51,7 +64,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
             { main: "调试中", origin: "Testing" },
             { main: "正在调试中", origin: "Testing..." },
             { main: "调试中", origin: "Testing" },
-        ])
+        ]);
         setCursor(1);
 
         let isVisible = true;
@@ -72,7 +85,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
             }
             blinkKey--;
         }, 500);
-    }
+    };
 
     let tosu: TosuAdapter | undefined;
 
@@ -82,7 +95,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
 
     // 更新滚动
     const updateScroll = (p: HTMLLIElement) => {
-        setLyricLIRef(p)
+        setLyricLIRef(p);
         const getMaxWidth = () => {
             if (p.children.length === 2) {
                 return (
@@ -130,26 +143,25 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 { main: "测试歌词3", origin: "Test Lyrics 3" },
             ]);
             setCursor(1);
+        } else {
+            linkTosu();
         }
-        linkTosu();
     });
 
     // 子组件
-    const MainLyric: Component<{ text: string | undefined }> = (props) => (
+    const MainLyric: Component<MainLyricProps> = (props) => (
         <p
             class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff]"
             style={{
                 color: lyricsStore.getState.textColor.first,
+                "text-align": props.align || "center",
             }}
         >
             {props.text}
         </p>
     );
 
-    const SecondLyric: Component<{
-        block: boolean;
-        text: string | undefined;
-    }> = (props) => (
+    const SecondLyric: Component<SecondLyricProps> = (props) => (
         <p
             classList={{
                 "font-oLRC whitespace-nowrap text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4":
@@ -159,6 +171,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
             }}
             style={{
                 color: lyricsStore.getState.textColor.second,
+                "text-align": props.align || "center",
             }}
         >
             {props.text}
@@ -184,11 +197,19 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         return (
             <li
                 classList={{
-                    "h-[100px] mx-auto flex flex-col justify-center items-center select-none scale-[0.6] transition-all duration-200":
+                    "w-fit h-[100px] flex flex-col justify-center items-center select-none scale-[0.6] transition-all duration-200":
                         true,
                     "scale-[1.2]": cursor() === index,
                     "text-white": cursor() === index,
                     "animate-scroll": cursor() === index && scroll(),
+                }}
+                style={{
+                    "transform-origin":
+                        lyricsStore.getState.alignment === "center"
+                            ? "center"
+                            : lyricsStore.getState.alignment === "left"
+                              ? "left center"
+                              : "right center",
                 }}
             >
                 <MainLyric text={getMainLyric()} />
@@ -206,8 +227,16 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         <div class="w-full h-[300px] overflow-hidden">
             <ul
                 ref={lyricUL}
-                class="list-none transition-transform duration-300"
-                style={{ transform: `translateY(${-(cursor() - 1) * 100}px)` }}
+                class="w-full px-4 flex flex-col list-none transition-transform duration-300"
+                style={{
+                    transform: `translateY(${-(cursor() - 1) * 100}px)`,
+                    "align-items":
+                        lyricsStore.getState.alignment === "center"
+                            ? "center"
+                            : lyricsStore.getState.alignment === "left"
+                              ? "flex-start"
+                              : "flex-end",
+                }}
             >
                 <Index each={lyrics()}>{lines}</Index>
             </ul>

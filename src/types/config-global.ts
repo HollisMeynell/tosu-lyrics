@@ -6,6 +6,14 @@ export type LyricLine = {
 
 export type AlignType = "left" | "center" | "right";
 
+export type AlignOptions = { key: string; value: AlignType };
+
+export const alignmentOptions: AlignOptions[] = [
+    { key: "左对齐", value: "left" },
+    { key: "居中对齐", value: "center" },
+    { key: "右对齐", value: "right" },
+];
+
 export type TextColorValue = { first: string; second: string };
 
 export type Shadow = {

@@ -178,7 +178,7 @@ export default class TosuAdapter {
         debounce(() => {
             this.currentState.songTime = liveTime;
             this.processBeatmap(title, bid);
-        }, WS_DELAY_TIME);
+        }, WS_DELAY_TIME)();
     }
 
     /**

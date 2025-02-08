@@ -2,7 +2,7 @@ import { createSignal } from "solid-js";
 import { LyricLine, Shadow } from "@/types/config-global";
 import { wsService } from "@/services/WebSocketService";
 import { configService } from "@/services/ConfigService";
-import { AlignType, Settings } from "@/types/config-global";
+import { AlignType, Settings, alignmentOptions } from "@/types/config-global";
 
 const DEFAULT_TEXT_COLOR = {
     first: "#ffffff",
@@ -24,7 +24,7 @@ export const [textColor, setTextColor] = createSignal(DEFAULT_TEXT_COLOR);
 export const [shadow, setShadow] = createSignal<Shadow>(DEFAULT_SHADOW);
 export const [useTranslationAsMain, setUseTranslationAsMain] = createSignal(false);
 export const [showSecond, setShowSecond] = createSignal(true);
-export const [alignment, setAlignment] = createSignal<AlignType>("center");
+export const [alignment, setAlignment] = createSignal<AlignType>(alignmentOptions[1].value);
 
 // 非同步信息
 export const [darkMode, setDarkMode] = createSignal(
@@ -125,8 +125,8 @@ export const lyricsStore = {
         void configService.saveConfig(this.getState);
     },
 
-    setAlignment(align: AlignType) {
-        setAlignment(align);
+    setAlignment(align: string) {
+        setAlignment(align as AlignType);
         wsService.pushSetting("alignment", align);
         void configService.saveConfig(this.getState);
     },
