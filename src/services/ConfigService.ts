@@ -19,11 +19,10 @@ class ConfigService {
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to save config: ${response.status}`);
+                console.error(`Failed to save config: ${response.status}`);
             }
         } catch (error) {
             console.error("Failed to save config:", error);
-            throw error;
         }
     }
 }

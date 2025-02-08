@@ -4,8 +4,8 @@ import AppRoutes from "@/routes";
 import { initializeApp } from "./hooks/initializeApp";
 
 const AppRoot: Component<RouteSectionProps> = (props) => {
-    onMount(() => {
-        initializeApp();
+    onMount(async () => {
+        await initializeApp();
     });
 
     return (

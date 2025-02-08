@@ -9,6 +9,5 @@ export function parseUrlParams(url: string): URLSearchParams {
 // 解析这些参数
 export function paramParse() {
     const searchParams = parseUrlParams(window.location.href);
-    const params = Object.fromEntries(searchParams.entries());
-    return params;
+    return Object.fromEntries(searchParams.entries());
 }

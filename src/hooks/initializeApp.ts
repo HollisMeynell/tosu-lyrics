@@ -1,13 +1,13 @@
 import cache from "@/utils/cache";
 import {
     lyricsStore,
+    setAlignment,
     setCurrentLyrics,
+    setShowSecond,
     setTextColor,
     setUseTranslationAsMain,
-    setShowSecond,
-    setAlignment,
 } from "@/stores/lyricsStore";
-import { lyricUL, lyricBlink } from "@/pages/LyricsBox";
+import { lyricBlink, lyricUL } from "@/pages/LyricsBox";
 import { paramParse } from "@/utils/param-parse";
 import { wsService } from "@/services/WebSocketService";
 import { configService } from "@/services/ConfigService";
@@ -19,8 +19,7 @@ export const initializeApp = async () => {
 
     try {
         // 初始化存储适配器
-        const adapter = await cache.getStorageAdapter();
-        cache.storageAdapter = adapter;
+        cache.storageAdapter = await cache.getStorageAdapter();
 
         // 注册缓存处理器
         wsService.registerQueryHandler("query-cache-list", async () => {
@@ -40,7 +39,7 @@ export const initializeApp = async () => {
         if (params["clear-cache"]) {
             // 清除缓存
             try {
-                cache.clearLyricsCache();
+                await cache.clearLyricsCache();
             } catch (e) {
                 console.error("Failed to clear IndexedDB cache:", e);
             }

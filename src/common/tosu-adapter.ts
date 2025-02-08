@@ -5,6 +5,7 @@ import Cache from "@/utils/cache.ts";
 import { TosuAPi } from "@/types/tosu-types.ts";
 import { QQLyricAdapter, NeteaseLyricAdapter, LyricAdapter } from "@/adapters";
 import lyricsStore from "@/stores/lyricsStore.ts";
+import { debounce } from "@/utils/helpers.ts";
 
 export type LyricLine = {
     main: string;
@@ -14,7 +15,6 @@ export type LyricLine = {
 type Temp = {
     latestId: number;
     songTime?: number;
-    currentTimeId?: ReturnType<typeof setTimeout>;
     lyric?: Lyric;
 };
 
@@ -42,6 +42,7 @@ export async function getAudioLength(): Promise<number> {
             if (isNaN(audio.duration) || audio.duration == Infinity) return;
 
             clearTimeout(backupTimeout);
+            // 获取的是秒数, 转换为毫秒
             resolve(audio.duration * 1000);
         };
 
@@ -55,7 +56,6 @@ export default class TosuAdapter {
     private currentState: Temp = {
         latestId: 0,
         songTime: 0,
-        currentTimeId: undefined as ReturnType<typeof setTimeout> | undefined,
         lyric: undefined as Lyric | undefined,
     };
     private readonly ws: ReconnectingWebSocket;
@@ -91,6 +91,7 @@ export default class TosuAdapter {
 
     /**
      * 将传入的歌词挂载到 currentState.lyric 上，并跳转到当前播放位置
+     * @param bid 歌曲 id
      * @param lyric 歌词
      */
     private displayLyric(bid: number, lyric: Lyric) {
@@ -173,11 +174,8 @@ export default class TosuAdapter {
             return;
         }
 
-        if (this.currentState.currentTimeId) {
-            clearTimeout(this.currentState.currentTimeId);
-        }
-
-        this.currentState.currentTimeId = setTimeout(() => {
+        // 延迟获取歌词
+        debounce(() => {
             this.currentState.songTime = liveTime;
             this.processBeatmap(title, bid);
         }, WS_DELAY_TIME);

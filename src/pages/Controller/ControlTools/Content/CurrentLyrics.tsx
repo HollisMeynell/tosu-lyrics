@@ -1,5 +1,4 @@
 // 功能: 面板-显示当前播放歌曲的歌词
-import Cache from "@/utils/cache.ts";
 import { For } from "solid-js";
 import { createEffect } from "solid-js";
 import { lyricsStore, darkMode } from "@/stores/lyricsStore.ts";
@@ -8,20 +7,17 @@ import Copy from "@/assets/Icons/Copy.tsx";
 
 export default function Controller() {
     const searchCacheCurrent = async () => {
-        const nowPlayingBid = Number(localStorage.getItem("nowPlaying"));
-        if (nowPlayingBid) {
-            const lyrics = await Cache.getLyricsCache(nowPlayingBid);
-            lyricsStore.updateCurrentLyrics(lyrics); // 更新 currentLyrics
-        }
+        // todo 通过ws查询获取歌词播放页的当前歌词
     };
 
     createEffect(() => {
-        searchCacheCurrent();
+        // 等待渲染完成后加载
+        void searchCacheCurrent();
     });
 
     const handleRefresh = (e: MouseEvent) => {
         e.stopPropagation(); // 阻止事件冒泡
-        searchCacheCurrent();
+        void searchCacheCurrent();
     };
 
     const HeaderContent = (
@@ -51,7 +47,7 @@ export default function Controller() {
                             <button
                                 class="h-7 w-18 flex items-center gap-1 bg-white dark:bg-[#21314d] text-gray-500 dark:text-gray-200 border-none px-3 py-1 rounded cursor-pointer text-sm font-bold shadow-md hover:bg-[#f0f0f0] dark:hover:bg-[#3b4a63] transition-colors duration-300"
                                 onClick={() => {
-                                    navigator.clipboard.writeText(
+                                    void navigator.clipboard.writeText(
                                         `${item.first}\n${item.second}`
                                     );
                                 }}

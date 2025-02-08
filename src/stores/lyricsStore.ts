@@ -110,25 +110,25 @@ export const lyricsStore = {
     sendColorConfig() {
         const nowColor = textColor();
         wsService.pushSetting("textColor", nowColor);
-        configService.saveConfig(this.getState);
+        void configService.saveConfig(this.getState);
     },
 
     setShowSecond(show: boolean) {
         setShowSecond(show);
         wsService.pushSetting("showSecond", show);
-        configService.saveConfig(this.getState);
+        void configService.saveConfig(this.getState);
     },
 
     setUseTranslationAsMain(use: boolean) {
         setUseTranslationAsMain(use);
         wsService.pushSetting("useTranslationAsMain", use);
-        configService.saveConfig(this.getState);
+        void configService.saveConfig(this.getState);
     },
 
     setAlignment(align: AlignType) {
         setAlignment(align);
         wsService.pushSetting("alignment", align);
-        configService.saveConfig(this.getState);
+        void configService.saveConfig(this.getState);
     },
 
     initializeState() {

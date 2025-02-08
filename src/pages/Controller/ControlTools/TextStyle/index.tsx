@@ -20,7 +20,7 @@ export default function Controller() {
                         onInput={(e) =>
                             changeTextColor("first", e.currentTarget.value)
                         }
-                        onChange={lyricsStore.sendColorConfig}
+                        onChange={() => lyricsStore.sendColorConfig()}
                     />
                     <p>副歌词:</p>
                     <input
@@ -30,7 +30,7 @@ export default function Controller() {
                         onInput={(e) =>
                             changeTextColor("second", e.currentTarget.value)
                         }
-                        onChange={lyricsStore.sendColorConfig}
+                        onChange={() => lyricsStore.sendColorConfig()}
                     />
                 </div>
             </div>
@@ -43,14 +43,14 @@ export default function Controller() {
             <div class="flex flex-row items-center gap-3">
                 <ToggleSwitch
                     modelValue={lyricsStore.getState.useTranslationAsMain}
-                    onUpdateModelValue={lyricsStore.setUseTranslationAsMain}
+                    onUpdateModelValue={(value) => lyricsStore.setUseTranslationAsMain(value)}
                 />
                 <h2 class="text-2xl font-bold">以翻译歌词为主</h2>
             </div>
             <div class="flex flex-row items-center gap-3">
                 <ToggleSwitch
                     modelValue={lyricsStore.getState.showSecond}
-                    onUpdateModelValue={lyricsStore.setShowSecond}
+                    onUpdateModelValue={(value) => lyricsStore.setShowSecond(value)}
                 />
                 <h2 class="text-2xl font-bold">显示副歌词</h2>
             </div>

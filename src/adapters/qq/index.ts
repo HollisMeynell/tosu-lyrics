@@ -1,4 +1,4 @@
-import { SEARCH_MUSIC_URL, GET_LYRIC_URL } from "@/config/constants";
+import { GET_LYRIC_URL, SEARCH_MUSIC_URL } from "@/config/constants";
 import { LyricAdapter } from "@/adapters/lyric-adapter";
 import { customFetch } from "@/utils/request";
 
@@ -56,13 +56,12 @@ export class QQLyricAdapter extends LyricAdapter {
                 return [];
             }
             return data.data.song.list.map((song) => {
-                const songInfo = {
+                return {
                     title: song.songname,
                     artist: song.singer.map((s) => s.name).join(", ") || "Unknown",
                     length: song.interval * 1000,
                     key: song.songmid,
                 };
-                return songInfo;
             });
         } catch (error) {
             console.error("[QQ]Failed to search music:", error);
