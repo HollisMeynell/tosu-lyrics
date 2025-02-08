@@ -101,7 +101,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 return (
                     Math.max(
                         p.children[0].scrollWidth,
-                        p.children[1].scrollWidth,
+                        p.children[1].scrollWidth
                     ) * 1.2
                 );
             }
@@ -129,8 +129,8 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 const currentLine = lyricUL.children[cursor()] as HTMLLIElement;
                 if (currentLine) updateScroll(currentLine);
             },
-            { defer: true },
-        ),
+            { defer: true }
+        )
     );
 
     // 初始化歌词
@@ -186,8 +186,8 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                     ? lyric().main
                     : lyric().origin
                 : lyric().origin
-                    ? lyric().origin
-                    : lyric().main;
+                  ? lyric().origin
+                  : lyric().main;
 
         const getSecondLyric = () =>
             lyricsStore.getState.useTranslationAsMain
@@ -210,6 +210,12 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                             : lyricsStore.getState.alignment === "left"
                               ? "left center"
                               : "right center",
+                    "align-items":
+                        lyricsStore.getState.alignment === "center"
+                            ? "center"
+                            : lyricsStore.getState.alignment === "left"
+                              ? "flex-start"
+                              : "flex-end",
                 }}
             >
                 <MainLyric text={getMainLyric()} />
