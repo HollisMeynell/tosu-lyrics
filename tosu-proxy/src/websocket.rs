@@ -1,11 +1,11 @@
 use actix_web::{rt, web, HttpRequest, HttpResponse};
 use actix_ws::{AggregatedMessage, MessageStream, Session};
-use rand::distr::Alphanumeric;
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::LazyLock;
+use rand::distr::Alphanumeric;
+use rand::Rng;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::{mpsc, RwLock};
 
@@ -67,22 +67,17 @@ impl WsSessions {
     }
 
     fn get_online_json(key: &str) -> String {
-        format!(r##"{{"command":{{"type":"online","id":"{key}","status":"online"}}}}"##)
+        format!(
+            r##"{{"command":{{"type":"online","id":"{key}","status":"online"}}}}"##
+        )
     }
 
     async fn get_new_client_json(key: &str) -> String {
-        let others = ALL_WS_SESSION
-            .0
-            .read()
-            .await
+        let others = ALL_WS_SESSION.0.read().await
             .keys()
-            .filter_map(|x| {
-                if x == key {
-                    None
-                } else {
-                    Some(format!("\"{x}\""))
-                }
-            })
+            .filter_map(|x|
+                if x == key { None } else { Some(format!("\"{x}\"")) }
+            )
             .collect::<Vec<String>>()
             .join(", ");
 
@@ -92,7 +87,9 @@ impl WsSessions {
     }
 
     fn get_offline_json(key: &str) -> String {
-        format!(r##"{{"command":{{"type":"online","id":"{key}","status":"offline"}}}}"##)
+        format!(
+            r##"{{"command":{{"type":"online","id":"{key}","status":"offline"}}}}"##
+        )
     }
 }
 
@@ -117,7 +114,7 @@ pub async fn handle(
     Ok(response)
 }
 
-pub async fn handle_ws(
+async fn handle_ws(
     mut session: Session,
     stream: MessageStream,
     key: String,

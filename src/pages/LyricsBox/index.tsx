@@ -1,4 +1,4 @@
-import TosuAdapter, { LyricLine } from "@/services/managers/tosuManager";
+import TosuAdapter from "@/services/managers/tosuManager";
 import lyricsStore from "@/stores/lyricsStore";
 import {
     Component,
@@ -11,6 +11,7 @@ import {
     onMount,
     Show,
 } from "solid-js";
+import { LyricLine } from "@/types/lyricTypes.ts";
 
 let blink = () => void 0;
 

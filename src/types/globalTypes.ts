@@ -1,9 +1,3 @@
-export type LyricRawLine = {
-    time: number;
-    first: string;
-    second?: string;
-};
-
 export type AlignType = "left" | "center" | "right";
 
 export type AlignOptions = { key: string; value: AlignType };

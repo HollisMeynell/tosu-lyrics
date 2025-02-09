@@ -1,10 +1,11 @@
 mod config;
 mod proxy;
 mod websocket;
+mod files;
 
-use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 use std::path::PathBuf;
+use actix_cors::Cors;
 use tokio::process::{Child, Command as TokioCommand};
 
 const ENV_PORT: &str = "TOSU_PROXY_PORT";
@@ -50,7 +51,7 @@ fn start_tosu() -> Option<Child> {
 
 fn str_to_port(port_str: &str, default: u16) -> u16 {
     port_str.parse::<u16>().unwrap_or_else(|_| {
-        println!("[{port_str}] is unable to port");
+        println!("[{port_str}] is unable parse to port");
         default
     })
 }
@@ -77,16 +78,19 @@ async fn main() -> std::io::Result<()> {
             .allow_any_origin()
             .allow_any_header()
             .allowed_methods(vec!["GET", "PUT"]);
-        let proxy = web::resource("/api/proxy")
-            .wrap(cors_proxy)
-            .route(web::post().to(proxy::handler));
+        let static_file = files::handle();
+        let proxy = web::resource("/api/proxy").wrap(cors_proxy).route(web::post().to(proxy::handler));
         let websocket = web::resource("/api/ws").route(web::get().to(websocket::handle));
         let config = web::resource("/api/config")
             .wrap(cors_conf)
             .route(web::put().to(config::handler_put))
             .route(web::get().to(config::handler_get));
 
-        App::new().service(proxy).service(websocket).service(config)
+        App::new()
+            .service(static_file)
+            .service(proxy)
+            .service(websocket)
+            .service(config)
     })
     .bind(("0.0.0.0", port))?
     .run()

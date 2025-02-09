@@ -14,7 +14,9 @@ interface ToggleNSwitchProps {
 }
 
 const ToggleNSwitch: Component<ToggleNSwitchProps> = (props) => {
-    const [selectedValue, setSelectedValue] = createSignal(props.selectedValue || props.options[0].value);
+    const [selectedValue, setSelectedValue] = createSignal(
+        props.selectedValue || props.options[0].value
+    );
     const [sliderWidth, setSliderWidth] = createSignal(0);
     const [sliderOffset, setSliderOffset] = createSignal(0);
 
@@ -73,10 +75,12 @@ const ToggleNSwitch: Component<ToggleNSwitchProps> = (props) => {
                 {(option) => (
                     <div
                         ref={(el) => (itemRefs[option.value] = el)}
-                        class={[
-                            "w-fit h-full flex justify-center items-center z-10 px-2",
-                            option.key === selectedValue() ? "text-gray-900" : "text-gray-500",
-                        ].join(" ")}
+                        class="w-fit h-full flex justify-center items-center z-10 px-2 dark:text-gray-200"
+                        classList={{
+                            ["text-gray-900 dark:text-gray-900"]:
+                                option.value === selectedValue(),
+                            ["text-gray-600"]: option.value !== selectedValue(),
+                        }}
                         onClick={() => handleItemClick(option)}
                     >
                         {option.key}

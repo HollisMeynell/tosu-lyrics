@@ -40,6 +40,7 @@ export default function BlackListLyrics() {
 
     return (
         <>
+            <h2 class="text-2xl mb-4">黑名单:</h2>
             <h3 class="text-2xl leading-10 mb-6" onClick={refresh}>
                 <Refresh
                     class="w-10 h-10 inline cursor-pointer mr-6 select-none active:scale-90
@@ -51,7 +52,8 @@ export default function BlackListLyrics() {
                 class="bg-gray-50 border border-gray-300 text-gray-900 mr-2
                 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500
                 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400
-                dark:text-whitedark:focus:ring-blue-500 dark:focus:border-blue-500 mt-2 mb-2"
+                dark:text-whitedark:focus:ring-blue-500 dark:focus:border-blue-500
+                dark:text-gray-200 mt-2 mb-2"
                 onClick={addBlackList}
             >
                 拉黑当前
@@ -60,7 +62,8 @@ export default function BlackListLyrics() {
                 class="bg-gray-50 border border-gray-300 text-gray-900 mr-2
                 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500
                 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400
-                dark:text-whitedark:focus:ring-blue-500 dark:focus:border-blue-500 mt-2 mb-2"
+                dark:text-whitedark:focus:ring-blue-500 dark:focus:border-blue-500
+                dark:text-gray-200 mt-2 mb-2"
                 onClick={saveBlackList}
             >
                 永久保存

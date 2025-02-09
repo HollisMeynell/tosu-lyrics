@@ -3,15 +3,16 @@ import { AUDIO_URL, WS_URL } from "@/config/constants";
 import { Lyric } from "@/services/managers/lyricManager";
 import Cache from "@/utils/cache.ts";
 import { TosuAPi } from "@/types/tosuTypes";
-import { QQLyricAdapter, NeteaseLyricAdapter, LyricAdapter } from "@/adapters";
+import { LyricAdapter, NeteaseLyricAdapter, QQLyricAdapter } from "@/adapters";
 import { inTitleBlackList } from "@/stores/lyricsStore.ts";
 import { debounce } from "@/utils/helpers.ts";
-import { LyricRawLine } from "@/types/globalTypes";
-
-export type LyricLine = {
-    main: string;
-    origin?: string;
-};
+import {
+    LyricLine,
+    LyricRawLine,
+    MusicQueryInfo,
+    MusicQueryInfoData,
+    UnifiedLyricResult,
+} from "@/types/lyricTypes.ts";
 
 type Temp = {
     latestId: number;
@@ -24,6 +25,13 @@ const WS_DELAY_TIME = 100;
 const WAIT_AUDIO_METADATA = 1000;
 
 const adapters: LyricAdapter[] = [NeteaseLyricAdapter, QQLyricAdapter];
+const adapterMap: {
+    [key: string]: LyricAdapter;
+} = {};
+(() => {
+    adapterMap[NeteaseLyricAdapter.name] = NeteaseLyricAdapter;
+    adapterMap[QQLyricAdapter.name] = QQLyricAdapter;
+})();
 
 let nowTitle = "";
 export const getNowTitle = () => {
@@ -34,6 +42,26 @@ let nowLyrics: LyricRawLine[] = [];
 export const getNowLyrics = () => {
     return nowLyrics;
 };
+
+export const getMusicQueryResult = () => {
+    const data: MusicQueryInfoData = {};
+    adapters.forEach((adapter) => {
+        data[adapter.name] = adapter.allResult;
+    });
+    return {
+        title: nowTitle,
+        data,
+    } as MusicQueryInfo;
+};
+
+export async function getLyricsByKey(
+    adapter: string,
+    key: string | number
+): Promise<UnifiedLyricResult> {
+    const thisAdapter = adapterMap[adapter];
+    if (!thisAdapter) return { lyric: "" };
+    return await thisAdapter.getLyricsByKey(key);
+}
 
 /**
  * 获取音频长度(毫秒), 超时机制为 3 秒

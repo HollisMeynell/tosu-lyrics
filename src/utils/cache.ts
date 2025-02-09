@@ -1,7 +1,8 @@
 // 对各缓存类型的CURD操作进行封装，提供统一的接口
 
 import { Lyric } from "@/services/managers/lyricManager";
-import { LyricRawLine } from "@/types/globalTypes";
+
+import { LyricRawLine } from "@/types/lyricTypes.ts";
 
 const STORE_NAME = "lyrics";
 const DB_INDEX_NAME = "nameIndex";

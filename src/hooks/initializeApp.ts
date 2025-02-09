@@ -12,7 +12,12 @@ import { lyricBlink } from "@/pages/LyricsBox";
 import { paramParse } from "@/utils/parseParams";
 import { MessageHandler, wsService } from "@/services/webSocketService";
 import { configService } from "@/services/configService";
-import { getNowLyrics, getNowTitle } from "@/services/managers/tosuManager";
+import {
+    getLyricsByKey,
+    getMusicQueryResult,
+    getNowLyrics,
+    getNowTitle,
+} from "@/services/managers/tosuManager";
 
 export const initializeApp = async () => {
     if (import.meta.env.MODE === "development") {
@@ -35,11 +40,31 @@ export const initializeApp = async () => {
         wsService.registerHandler("remove-all-cache", () =>
             cache.storageAdapter?.clearLyrics()
         );
+        wsService.registerHandler("change-lyric", (params) => {
+            const { adapter, key } = params as {
+                adapter: string;
+                key: string | number;
+            };
+            console.log("Change lyric to", adapter, key);
+        });
         wsService.registerQueryHandler("get-now-title", async () =>
             getNowTitle()
         );
         wsService.registerQueryHandler("query-now-lyrics", async () =>
             getNowLyrics()
+        );
+        wsService.registerQueryHandler("query-now-music-info", async () =>
+            getMusicQueryResult()
+        );
+        wsService.registerQueryHandler(
+            "query-lyrics-by-key",
+            async (params) => {
+                const { adapter, key } = params as {
+                    adapter: string;
+                    key: string | number;
+                };
+                return getLyricsByKey(adapter, key);
+            }
         );
 
         // 解析 URL 参数

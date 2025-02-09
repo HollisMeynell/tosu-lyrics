@@ -61,6 +61,7 @@ export default function ClientList() {
 
     return (
         <div class="flex flex-col items-start">
+            <h2 class="text-2xl mb-4">歌词端选择:</h2>
             <h3>如果客户端未显示, 请打开obs后点击下方按钮刷新</h3>
 
             <Controller />

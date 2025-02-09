@@ -1,23 +1,16 @@
 import { TIME_DIFF_FILTER } from "@/config/constants.ts";
-
-export type MusicInfo = {
-    title: string;
-    artist: string;
-    length: number;
-    key: number | string;
-};
+import { MusicInfo, UnifiedLyricResult } from "@/types/lyricTypes.ts";
 
 export type AdapterStatus = "Pending" | "NotFound" | "NoAccept" | "Loading";
-
-export type UnifiedLyricResult = {
-    lyric: string; // 原版歌词
-    trans?: string; // 翻译歌词
-};
 
 export abstract class LyricAdapter {
     name: string;
     status: AdapterStatus;
     result: MusicInfo[] = [];
+    // 所有的搜索结果, 用于发送到控制台来选择
+    allResult: MusicInfo[] = [];
+    // 当前正使用的歌词
+    current: number | string | undefined;
 
     protected constructor(name: string) {
         this.name = name;
@@ -36,6 +29,7 @@ export abstract class LyricAdapter {
         let songs: MusicInfo[];
         try {
             songs = await this.searchMusic(title);
+            this.allResult = songs;
             console.log(this.name, songs);
         } catch {
             this.status = "NotFound";
@@ -44,7 +38,9 @@ export abstract class LyricAdapter {
         if (length <= 0) {
             this.result = songs;
         } else {
-            this.result = songs.filter((song) => TIME_DIFF_FILTER(song.length, length));
+            this.result = songs.filter((song) =>
+                TIME_DIFF_FILTER(song.length, length)
+            );
         }
         if (this.result.length > 0) {
             return true;
@@ -71,7 +67,7 @@ export abstract class LyricAdapter {
     }
 
     // 通过 key 获取歌词
-    async getLyricsByKey(key: string): Promise<UnifiedLyricResult> {
+    async getLyricsByKey(key: string | number): Promise<UnifiedLyricResult> {
         return await this.fetchLyrics(key);
     }
 }

@@ -8,7 +8,12 @@ import {
 } from "@/types/wsTypes";
 import { BACKEND_WEBSOCKET_URL, WS_QUERY_TIMEOUT } from "@/config/constants";
 import { generateRandomString } from "@/utils/helpers";
-import { LyricRawLine } from "@/types/globalTypes";
+
+import {
+    LyricRawLine,
+    MusicQueryInfo,
+    UnifiedLyricResult,
+} from "@/types/lyricTypes.ts";
 
 export type MessageHandler = (value: unknown) => void;
 export type QueryHandler = (params?: unknown) => Promise<unknown>;
@@ -269,14 +274,10 @@ export const wsService = new WebSocketService();
  * 封装对其他客户端的操作
  */
 export class OtherClient {
-    private service: WebSocketService;
-
     constructor(
         private id: string,
-        wsService: WebSocketService
-    ) {
-        this.service = wsService;
-    }
+        private service: WebSocketService
+    ) {}
 
     public async getNowTitle(): Promise<string> {
         return this.service.postQuery(this.id, "get-now-title");
@@ -284,6 +285,24 @@ export class OtherClient {
 
     public async queryNowLyrics(): Promise<LyricRawLine[]> {
         return this.service.postQuery(this.id, "query-now-lyrics");
+    }
+
+    public async queryNowMusicInfo(): Promise<MusicQueryInfo> {
+        return this.service.postQuery(this.id, "query-now-music-info");
+    }
+
+    public async queryLyricsByKey(
+        adapter: string,
+        key: string | number
+    ): Promise<UnifiedLyricResult> {
+        return this.service.postQuery(this.id, "query-lyrics-by-key", {
+            adapter,
+            key,
+        });
+    }
+
+    public changeLyric(adapter: string, key: string | number) {
+        this.service.pushSetting("change-lyric", { adapter, key }, this.id);
     }
 
     public async queryCacheList(): Promise<

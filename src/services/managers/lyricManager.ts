@@ -1,5 +1,6 @@
 import { parseLyricText } from "@/utils/parseLyrics";
-import { LyricRawLine } from "@/types/globalTypes";
+
+import { LyricRawLine } from "@/types/lyricTypes.ts";
 
 export class Lyric {
     lyrics: LyricRawLine[];
