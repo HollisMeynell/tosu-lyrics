@@ -29,7 +29,7 @@ const ToggleList = (props: ToggleListProps) => {
     });
 
     return (
-        <div class="rounded-md overflow-hidden flex flex-col justify-center items-center max-w-[630px] mb-2">
+        <div class="rounded-md overflow-hidden flex flex-col justify-center items-center max-w-[630px]">
             <div
                 onClick={togglePanel}
                 class="panel-header w-full text-left p-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors rounded-md cursor-pointer flex items-center justify-between z-10"

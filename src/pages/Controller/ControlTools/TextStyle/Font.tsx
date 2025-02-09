@@ -40,7 +40,7 @@ export default function Controller() {
 
     return (
             <div class="flex flex-row items-center gap-19">
-                <h2 class="text-2xl font-bold">字体</h2>
+                <h2 class="text-2xl font-normal">字体</h2>
                 <div class="relative w-full md:w-56">
                     <select
                         value={lyricsStore.getState.font}

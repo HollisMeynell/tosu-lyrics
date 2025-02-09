@@ -10,7 +10,7 @@ export default function ClientList() {
     const [selectedClient, setSelectedClient] = createSignal<string>(
         clients()[0] || ""
     );
-    const [buttonCollDown, setButtonCollDown] = createSignal(false);
+    const [buttonDisabled, setButtonDisabled] = createSignal(!selectedClient());
 
     const updateClient = () => {
         const data = wsService.getOnlineClients();
@@ -19,9 +19,9 @@ export default function ClientList() {
     };
 
     const blinkOtherClient = () => {
-        setButtonCollDown(true);
+        setButtonDisabled(true);
         wsService.blinkOtherClient(selectedClient());
-        setTimeout(() => setButtonCollDown(false), 3000);
+        setTimeout(() => setButtonDisabled(false), 3000);
     };
 
     const Selector = () => (
@@ -86,7 +86,7 @@ export default function ClientList() {
                 <Button
                     className="py-[.5rem]"
                     onClick={blinkOtherClient}
-                    disabled={buttonCollDown() || !selectedClient()}
+                    disabled={buttonDisabled()}
                 >
                     测试
                 </Button>

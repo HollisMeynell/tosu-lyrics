@@ -4,7 +4,7 @@ import lyricsStore from "@/stores/lyricsStore.ts";
 export default function TextColor() {
     return (
         <div class="flex flex-row items-center gap-9">
-            <h2 class="text-2xl font-bold">文字颜色</h2>
+            <h2 class="text-2xl font-normal">文字颜色</h2>
             <div class="flex flex-row items-center">
                 <p>主歌词:</p>
                 <div class="mx-4 w-6 h-6 relative">

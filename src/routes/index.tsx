@@ -10,8 +10,8 @@ const ClientList = lazy(
 const BlackListLyrics = lazy(
     () => import("@/pages/Controller/ControlTools/BlackList")
 );
-const CurrentLyrics = lazy(
-    () => import("@/pages/Controller/ControlTools/Content/CurrentLyrics")
+const Content = lazy(
+    () => import("@/pages/Controller/ControlTools/Content")
 );
 const TextStyle = lazy(
     () => import("@/pages/Controller/ControlTools/TextStyle")
@@ -37,7 +37,7 @@ export default function AppRoutes() {
                 <Route path="/" component={ClientList} />
                 <Route path="/blackList" component={BlackListLyrics} />
                 <Route path="/client" component={ClientList} />
-                <Route path="/content" component={CurrentLyrics} />
+                <Route path="/content" component={Content} />
                 <Route path="/textstyle" component={TextStyle} />
             </Route>
         </Route>
