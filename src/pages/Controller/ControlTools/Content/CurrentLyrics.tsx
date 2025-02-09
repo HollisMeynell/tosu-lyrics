@@ -15,8 +15,10 @@ import {
 export default function CurrentLyrics() {
     const [lyrics, setLyrics] = createSignal<LyricRawLine[]>([]);
     const [musicInfo, setMusicInfo] = createSignal<MusicQueryInfoData>({});
+
     const searchCacheCurrent = async () => {
         const data = await wsService.defaultClient?.queryNowLyrics();
+        console.log(data);
         if (data) {
             setLyrics(data);
         } else {
@@ -62,21 +64,21 @@ export default function CurrentLyrics() {
 
     const LyricsHeader = (
         <div class="flex flex-row items-center">
-            <h2 class="text-2xl font-bold">歌词</h2>
+            <h2 class="text-2xl font-bold">当前歌词</h2>
             <button
                 class="bg-[#ec4899] text-white border-none px-5 py-1 ml-4 rounded-md
                  cursor-pointer text-base font-bold shadow-sm hover:bg-[#db2777]
                  transition-colors duration-300"
                 onClick={handleRefresh}
             >
-                获取当前歌词
+                刷新
             </button>
         </div>
     );
 
     const OriginHeader = (
-        <div>
-            <h2 class="text-2xl font-bold">获取搜索信息</h2>
+        <div class="flex flex-row items-center">
+            <h2 class="text-2xl font-bold">当前歌曲搜索结果</h2>
             <button
                 class="bg-[#ec4899] text-white border-none px-5 py-1 ml-4 rounded-md
                  cursor-pointer text-base font-bold shadow-sm hover:bg-[#db2777]

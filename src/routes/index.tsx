@@ -5,10 +5,10 @@ import { lazy } from "solid-js";
 const LyricsBox = lazy(() => import("@/pages/LyricsBox"));
 const Controller = lazy(() => import("@/pages/Controller"));
 const ClientList = lazy(
-    () => import("@/pages/Controller/ControlTools/Content/ClientList")
+    () => import("@/pages/Controller/ControlTools/Client")
 );
 const BlackListLyrics = lazy(
-    () => import("@/pages/Controller/ControlTools/Content/BlackListLyrics")
+    () => import("@/pages/Controller/ControlTools/BlackList")
 );
 const CurrentLyrics = lazy(
     () => import("@/pages/Controller/ControlTools/Content/CurrentLyrics")
