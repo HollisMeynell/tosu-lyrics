@@ -1,5 +1,5 @@
 import { wsService } from "@/services/webSocketService";
-import { Component, createSignal, For } from "solid-js";
+import { createSignal, For } from "solid-js";
 import Button from "@/components/ui/Button";
 import { ChevronRight } from "@/assets/Icons";
 
@@ -21,15 +21,10 @@ export default function ClientList() {
     const blinkOtherClient = () => {
         setButtonCollDown(true);
         wsService.blinkOtherClient(selectedClient());
-        wsService.setDefaultClient(selectedClient());
         setTimeout(() => setButtonCollDown(false), 3000);
     };
 
-    const Client: Component<{ id: string; index: number }> = (props) => {
-        return <option value={props.id}>客户端-{props.index}</option>;
-    };
-
-    const Controller = () => (
+    const Selector = () => (
         <div class="flex flex-row items-center gap-3">
             <div class="relative w-full md:w-48">
                 <select
@@ -43,7 +38,9 @@ export default function ClientList() {
                         </option>
                     )}
                     <For each={clients()}>
-                        {(id, index) => <Client id={id} index={index()} />}
+                        {(id, index) => (
+                            <option value={id}>客户端-{index()}</option>
+                        )}
                     </For>
                 </select>
                 <button class="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer">
@@ -61,22 +58,44 @@ export default function ClientList() {
     return (
         <div class="flex flex-col gap-4">
             <h2 class="text-2xl">歌词端选择</h2>
-            <h3>
-                客户端列表 ( 包含你用于控制的端，以及在 OBS 中打开以用于展示的端
-                ){" "}
-            </h3>
+            <hr class="w-24 border-gray-400 dark:border-gray-600" />
+            <div class="text-gray-900 dark:text-gray-200">
+                <p>
+                    客户端列表包含你用于控制的端，以及在 OBS
+                    中打开以用于展示的端。
+                </p>
+                <p>请选一个客户端作为你将展示在 OBS 中的端。</p>
+                <p>
+                    你可以通过测试按钮来测试端是否正确。当测试时，对应端将会闪烁。
+                </p>
+            </div>
 
-            <div class="flex flex-row gap-4 items-center">
-                <Controller />
+            <h3 class="text-xl">当前选择的端:</h3>
 
+            <div class="flex flex-row items-center gap-3">
+                <p class="text-xl">
+                    {selectedClient()
+                        ? `客户端-${clients().indexOf(selectedClient())}`
+                        : "无"}
+                </p>
+            </div>
+
+            <div class="flex flex-row gap-2 items-center">
+                <Selector />
                 <ChevronRight />
-
                 <Button
                     className="py-[.5rem]"
                     onClick={blinkOtherClient}
                     disabled={buttonCollDown() || !selectedClient()}
                 >
-                    测试(对应端的歌词将会闪烁)
+                    测试
+                </Button>
+                <ChevronRight />
+                <Button
+                    className="py-[.5rem]"
+                    onClick={() => wsService.setDefaultClient(selectedClient())}
+                >
+                    确定
                 </Button>
             </div>
         </div>

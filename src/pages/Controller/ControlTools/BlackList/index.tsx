@@ -45,7 +45,7 @@ export default function BlackListLyrics() {
             <div class="header space-x-4">
                 <h2 class="text-2xl inline">黑名单</h2>
                 <p class="text-sm inline text-gray-500">
-                    黑名单中的歌曲将不会被显示
+                    被你拉黑的歌曲以后将不会被显示
                 </p>
             </div>
 
@@ -53,7 +53,7 @@ export default function BlackListLyrics() {
 
             {/* Actions */}
             <div class="flex flex-row items-center">
-                <Button onClick={addBlackList}>拉黑当前</Button>
+                <Button onClick={addBlackList}>拉黑当前歌曲</Button>
                 <Button onClick={saveBlackList}>永久保存</Button>
             </div>
 
