@@ -56,7 +56,7 @@ const ToggleNSwitch: Component<ToggleNSwitchProps> = (props) => {
             ref={(el) => (containerRef = el)}
             class={[
                 "relative h-[2.8rem] rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-2 px-2",
-                "bg-[#cbd5e1] hover:bg-[#adbfd7] dark:bg-[#21314d] dark:hover:bg-[#2c3c59]",
+                "bg-[#d5dfec] hover:bg-[#adbfd7] dark:bg-[#21314d] dark:hover:bg-[#2c3c59]",
                 props.disabled ? "opacity-50 cursor-not-allowed" : "",
                 props.className,
             ].join(" ")}
@@ -75,12 +75,10 @@ const ToggleNSwitch: Component<ToggleNSwitchProps> = (props) => {
                 {(option) => (
                     <div
                         ref={(el) => (itemRefs[option.value] = el)}
-                        class="w-fit h-full flex justify-center items-center z-10 px-2 dark:text-gray-200"
-                        classList={{
-                            ["text-gray-900 dark:text-gray-900"]:
-                                option.value === selectedValue(),
-                            ["text-gray-600"]: option.value !== selectedValue(),
-                        }}
+                        class={[
+                            "w-fit h-full flex justify-center items-center z-10 px-2",
+                            option.value === selectedValue() ? "text-gray-900" : "text-gray-500",
+                        ].join(" ")}
                         onClick={() => handleItemClick(option)}
                     >
                         {option.key}

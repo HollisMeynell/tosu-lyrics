@@ -1,8 +1,8 @@
 import { getTitleBlackList, lyricsStore } from "@/stores/lyricsStore.ts";
 import { Component, createSignal, For } from "solid-js";
 import { wsService } from "@/services/webSocketService";
-import Refresh from "@/assets/Icons/Refresh.tsx";
-import ShutDown from "@/assets/Icons/ShutDown.tsx";
+import { Refresh, Delete } from "@/assets/Icons";
+import Button from "@/components/ui/Button";
 
 const BlackListItem: Component<{ title: string }> = (props) => {
     const { title } = props;
@@ -10,15 +10,16 @@ const BlackListItem: Component<{ title: string }> = (props) => {
         lyricsStore.deleteTitleBlackList(title);
     };
     return (
-        <div class={"mt-2 mb-2"}>
-            <ShutDown
-                class="mr-2 w-6 h-6 inline cursor-pointer "
+        <div class="mt-2 mb-2">
+            <Delete
+                class="mr-2 w-6 h-6 inline cursor-pointer select-none active:scale-90"
                 onClick={deleteThis}
             />
             {title}
         </div>
     );
 };
+
 export default function BlackListLyrics() {
     const [nowTitle, setNowTitle] = createSignal("");
 
@@ -39,39 +40,35 @@ export default function BlackListLyrics() {
     };
 
     return (
-        <>
-            <h2 class="text-2xl mb-4">黑名单:</h2>
-            <h3 class="text-2xl leading-10 mb-6" onClick={refresh}>
+        <div class="flex flex-col gap-4">
+            {/* Header */}
+            <div class="header space-x-4">
+                <h2 class="text-2xl inline">黑名单</h2>
+                <p class="text-sm inline text-gray-500">
+                    黑名单中的歌曲将不会被显示
+                </p>
+            </div>
+
+            <hr class="w-64 border-gray-400 dark:border-gray-600" />
+
+            {/* Actions */}
+            <div class="flex flex-row items-center">
+                <Button onClick={addBlackList}>拉黑当前</Button>
+                <Button onClick={saveBlackList}>永久保存</Button>
+            </div>
+
+            {/* BlackList */}
+            <h3 class="text-2xl leading-10" onClick={refresh}>
                 <Refresh
-                    class="w-10 h-10 inline cursor-pointer mr-6 select-none active:scale-90
-                    active:rotate-270 transition-transform duration-200 ease-in-out"
+                    class="w-8 h-8 inline cursor-pointer mr-6 select-none active:scale-90
+                    active:rotate-270 transition-transform duration-400 ease-in-out"
                 />
                 {nowTitle() || "暂无信息"}
             </h3>
-            <button
-                class="bg-gray-50 border border-gray-300 text-gray-900 mr-2
-                text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500
-                p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400
-                dark:text-whitedark:focus:ring-blue-500 dark:focus:border-blue-500
-                dark:text-gray-200 mt-2 mb-2"
-                onClick={addBlackList}
-            >
-                拉黑当前
-            </button>
-            <button
-                class="bg-gray-50 border border-gray-300 text-gray-900 mr-2
-                text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500
-                p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400
-                dark:text-whitedark:focus:ring-blue-500 dark:focus:border-blue-500
-                dark:text-gray-200 mt-2 mb-2"
-                onClick={saveBlackList}
-            >
-                永久保存
-            </button>
-            <br />
+
             <For each={getTitleBlackList()}>
                 {(title) => <BlackListItem title={title} />}
             </For>
-        </>
+        </div>
     );
 }

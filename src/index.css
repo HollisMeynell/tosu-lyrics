@@ -17,9 +17,9 @@
     src: url("/tLRC.otf");
 }
 
-* {
+/* * {
     font-family: LRC, tLRC, oLRC, serif;
-}
+} */
 
 html,
 body,

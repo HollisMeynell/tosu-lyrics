@@ -2,7 +2,7 @@
 import DarkModeToggle from "@/components/ui/DarkModeToggle.tsx";
 import { Component, JSX } from "solid-js";
 import { A } from "@solidjs/router";
-import SettingIcon from "@/assets/Icons/SettingIcon.tsx";
+import { SettingIcon } from "@/assets/Icons";
 
 interface ControllerProps {
     children: JSX.Element;

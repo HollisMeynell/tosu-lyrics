@@ -1,13 +1,10 @@
 import { lyricsStore, darkMode } from "@/stores/lyricsStore.ts";
 import { Match, Switch } from "solid-js";
 
-/**
- * 功能: 功能操作面板
- */
-export default function Controller() {
+export default function DarkModeToggle() {
     return (
         <button
-            class="fixed top-4 right-4 w-8 h-8 border-2 border-[#f0f0f0] dark:border-[#313131] rounded-md cursor-pointer flex items-center justify-center"
+            class="fixed top-4 right-4 w-8 h-8 border-2 border-[#f0f0f0] dark:border-[#313131] hover:border-[#b3b3b3] dark:hover:border-[#b3b3b3] rounded-md cursor-pointer flex items-center justify-center"
             onClick={lyricsStore.toggleDarkMode}
         >
             <svg

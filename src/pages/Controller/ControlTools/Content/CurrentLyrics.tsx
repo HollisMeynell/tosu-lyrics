@@ -3,7 +3,7 @@ import { Component, createSignal, For } from "solid-js";
 import { createEffect } from "solid-js";
 import { darkMode } from "@/stores/lyricsStore.ts";
 import ToggleList from "@/components/ui/ToggleList.tsx";
-import Copy from "@/assets/Icons/Copy.tsx";
+import { Copy } from "@/assets/Icons";
 import { wsService } from "@/services/webSocketService";
 
 import {
@@ -12,7 +12,7 @@ import {
     MusicQueryInfoData,
 } from "@/types/lyricTypes.ts";
 
-export default function Controller() {
+export default function CurrentLyrics() {
     const [lyrics, setLyrics] = createSignal<LyricRawLine[]>([]);
     const [musicInfo, setMusicInfo] = createSignal<MusicQueryInfoData>({});
     const searchCacheCurrent = async () => {

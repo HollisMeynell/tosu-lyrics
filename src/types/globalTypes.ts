@@ -18,6 +18,7 @@ export type Shadow = {
 };
 
 export type Settings = {
+    font: string;
     textColor: TextColorValue;
     shadow: Shadow;
     useTranslationAsMain: boolean;
@@ -26,3 +27,11 @@ export type Settings = {
     // 歌词标题黑名单
     titleBlackList?: string[];
 };
+
+export type FontData = {
+    postscriptName: string;
+    fullName: string;
+    family: string;
+    style: string;
+};
+

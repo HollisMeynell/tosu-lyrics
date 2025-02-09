@@ -18,6 +18,7 @@ const DEFAULT_SHADOW: Shadow = {
 };
 
 // 同步信息
+export const [font, setFont] = createSignal("");
 export const [textColor, setTextColor] = createSignal(DEFAULT_TEXT_COLOR);
 export const [shadow, setShadow] = createSignal<Shadow>(DEFAULT_SHADOW);
 export const [useTranslationAsMain, setUseTranslationAsMain] =
@@ -118,6 +119,7 @@ window.addEventListener("touchstart", (e) => {
 export const lyricsStore = {
     get getState(): Settings {
         return {
+            font: font(),
             shadow: shadow(),
             textColor: textColor(),
             useTranslationAsMain: useTranslationAsMain(),
@@ -138,6 +140,7 @@ export const lyricsStore = {
         };
         if (config) {
             // 兼容不同版本导致的部分配置缺失
+            setValue(config.font, setFont);
             setValue(config.useTranslationAsMain, setUseTranslationAsMain);
             setValue(config.showSecond, setShowSecond);
             setValue(config.alignment, setAlignment);
@@ -157,6 +160,12 @@ export const lyricsStore = {
 
     setShadow(shadow: Shadow) {
         setShadow(shadow);
+    },
+
+    setFont(font: string) {
+        setFont(font);
+        wsService.pushSetting("font", font);
+        void configService.saveConfig(this.getState);
     },
 
     setTextColor(order: "first" | "second", color: string) {

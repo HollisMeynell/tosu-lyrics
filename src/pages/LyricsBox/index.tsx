@@ -243,7 +243,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         <div class="w-full h-[300px] overflow-hidden">
             <ul
                 ref={lyricUL}
-                class="w-full px-4 flex flex-col list-none transition-transform duration-300"
+                class="w-full px-10 flex flex-col list-none transition-transform duration-300"
                 style={{
                     transform: `translateY(${-(cursor() - 1) * 100}px)`,
                     "align-items":
@@ -252,6 +252,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                             : lyricsStore.getState.alignment === "left"
                               ? "flex-start"
                               : "flex-end",
+                    "font-family": lyricsStore.getState.font,
                 }}
             >
                 <Index each={lyrics()}>{lines}</Index>
