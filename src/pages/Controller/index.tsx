@@ -2,8 +2,7 @@
 import DarkModeToggle from "@/components/ui/DarkModeToggle.tsx";
 import { Component, JSX } from "solid-js";
 import { A } from "@solidjs/router";
-import Palette from "@/assets/Icons/Palette.tsx";
-import Content from "@/assets/Icons/Content.tsx";
+import SettingIcon from "@/assets/Icons/SettingIcon.tsx";
 
 interface ControllerProps {
     children: JSX.Element;
@@ -20,16 +19,16 @@ const Controller: Component<ControllerProps> = (props) => {
             <div class="fixed top-0 left-0 w-16 h-full border-r-2 border-[#f0f0f0] dark:border-[#313131] py-6">
                 <nav class="w-6 mx-auto flex flex-col gap-6">
                     <A href="/lyrics/controller/client">
-                        O
+                        <SettingIcon type={"client"} class="w-6 h-6" />
                     </A>
                     <A href="/lyrics/controller/blackList">
-                        B
+                        <SettingIcon class="w-6 h-6" />
                     </A>
                     <A href="/lyrics/controller/textstyle">
-                        <Palette class="w-6 h-6" />
+                        <SettingIcon type={"palette"} class="w-6 h-6" />
                     </A>
                     <A href="/lyrics/controller/content">
-                        <Content class="w-6 h-6" />
+                        <SettingIcon type={"content"} class="w-6 h-6" />
                     </A>
                 </nav>
             </div>

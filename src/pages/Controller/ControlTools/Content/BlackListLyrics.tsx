@@ -3,17 +3,25 @@ import { Component, For } from "solid-js";
 import { wsService } from "@/services/webSocketService";
 
 const BlackListItem: Component<{ title: string }> = (props) => {
-    const {title} = props;
+    const { title } = props;
     const deleteThis = () => {
         lyricsStore.deleteTitleBlackList(title);
-    }
-    return <div>
-        <br/>
-        <br/>
-        <p>{title}</p>
-        <button onClick={deleteThis}>删除</button>
-        <br/>
-    </div>
+    };
+    return (
+        <div class={"mt-4 mb-4"}>
+            <p>{title}</p>
+            <button
+                class="bg-gray-50 border border-gray-300 text-gray-900
+                text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500
+                block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400
+                dark:text-whitedark:focus:ring-blue-500 dark:focus:border-blue-500 mt-2 mb-2"
+                onClick={deleteThis}
+            >
+                删除
+            </button>
+            <br />
+        </div>
+    );
 };
 export default function BlackListLyrics() {
     const addBlackList = async () => {
@@ -21,20 +29,36 @@ export default function BlackListLyrics() {
         if (name) {
             lyricsStore.addTitleBlackList(name);
         }
-    }
+    };
 
     const saveBlackList = () => {
         lyricsStore.asyncTitleBlackList();
-    }
+    };
 
-    return <>
-        <button onClick={addBlackList}>拉黑当前</button>
-        <br/>
-        <button onClick={saveBlackList}>永久保存</button>
-        <br/>
-        <For each={getTitleBlackList()}>
-            {(title) => <BlackListItem title={title} />}
-        </For>
-
-    </>;
+    return (
+        <>
+            <button
+                class="bg-gray-50 border border-gray-300 text-gray-900
+                text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500
+                block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400
+                dark:text-whitedark:focus:ring-blue-500 dark:focus:border-blue-500 mt-2 mb-2"
+                onClick={addBlackList}
+            >
+                拉黑当前
+            </button>
+            <button
+                class="bg-gray-50 border border-gray-300 text-gray-900
+                text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500
+                block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400
+                dark:text-whitedark:focus:ring-blue-500 dark:focus:border-blue-500 mt-2 mb-2"
+                onClick={saveBlackList}
+            >
+                永久保存
+            </button>
+            <br />
+            <For each={getTitleBlackList()}>
+                {(title) => <BlackListItem title={title} />}
+            </For>
+        </>
+    );
 }

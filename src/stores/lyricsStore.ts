@@ -20,15 +20,19 @@ const DEFAULT_SHADOW: Shadow = {
 // 同步信息
 export const [textColor, setTextColor] = createSignal(DEFAULT_TEXT_COLOR);
 export const [shadow, setShadow] = createSignal<Shadow>(DEFAULT_SHADOW);
-export const [useTranslationAsMain, setUseTranslationAsMain] = createSignal(false);
+export const [useTranslationAsMain, setUseTranslationAsMain] =
+    createSignal(true);
 export const [showSecond, setShowSecond] = createSignal(true);
-export const [alignment, setAlignment] = createSignal<AlignType>(alignmentOptions[1].value);
+export const [alignment, setAlignment] = createSignal<AlignType>(
+    alignmentOptions[1].value
+);
 const [titleBlackList, setTitleBlackList] = createStore({
     list: [] as string[],
     set: new Set<string>(),
 });
 
-export const inTitleBlackList = (title: string) => titleBlackList.set.has(title);
+export const inTitleBlackList = (title: string) =>
+    titleBlackList.set.has(title);
 
 export const getTitleBlackList = () => titleBlackList.list;
 
@@ -48,32 +52,43 @@ export const resetTitleBlackList = (data?: string[]) => {
 
 export const addTitleBlackListItem = (title: string) => {
     if (titleBlackList.set.has(title)) return;
-    setTitleBlackList("set", produce((set) => {
-        set.add(title);
-    }));
-    setTitleBlackList("list", produce((list) => {
-        list.unshift(title);
-    }));
+    setTitleBlackList(
+        "set",
+        produce((set) => {
+            set.add(title);
+        })
+    );
+    setTitleBlackList(
+        "list",
+        produce((list) => {
+            list.unshift(title);
+        })
+    );
 };
 
 export const deleteTitleBlackListItem = (title: string) => {
     if (!titleBlackList.set.has(title)) return;
-    setTitleBlackList("set", produce((set) => {
-        set.delete(title);
-    }));
-    setTitleBlackList("list", produce((list) => {
-        const index = list.indexOf(title);
-        list.splice(index, 1);
-    }));
+    setTitleBlackList(
+        "set",
+        produce((set) => {
+            set.delete(title);
+        })
+    );
+    setTitleBlackList(
+        "list",
+        produce((list) => {
+            const index = list.indexOf(title);
+            list.splice(index, 1);
+        })
+    );
 };
-
 
 // 非同步信息
 export const [darkMode, setDarkMode] = createSignal(
-    localStorage.getItem("darkMode") === "true",
+    localStorage.getItem("darkMode") === "true"
 );
 export const [showController, setShowController] = createSignal(
-    localStorage.getItem("showController") === "true",
+    localStorage.getItem("showController") === "true"
 );
 
 function toggleController() {
@@ -113,7 +128,7 @@ export const lyricsStore = {
     parseSettings: (config: Settings) => {
         const setValue = (
             val: unknown | undefined,
-            setter: (val: unknown) => void,
+            setter: (val: unknown) => void
         ) => {
             if (val != null) {
                 setter(val);
@@ -125,7 +140,7 @@ export const lyricsStore = {
             setValue(config.showSecond, setShowSecond);
             setValue(config.alignment, setAlignment);
             setValue(config.titleBlackList, (list) =>
-                resetTitleBlackList(list as string[]),
+                resetTitleBlackList(list as string[])
             );
 
             if (config.textColor) {
