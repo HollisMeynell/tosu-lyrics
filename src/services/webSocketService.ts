@@ -72,7 +72,7 @@ export class WebSocketService {
     }
 
     private handleSettingMessage = (
-        message: SettingMessage & { echo: string | null },
+        message: SettingMessage & { echo: string | null }
     ) => {
         const { key, value, target } = message;
         if (target && !this.isSelf(target)) return;
@@ -93,13 +93,13 @@ export class WebSocketService {
             this.onlineClients.push(message.id);
         } else if (message.status === "offline") {
             this.onlineClients = this.onlineClients.filter(
-                (id) => id !== message.id,
+                (id) => id !== message.id
             );
         }
     }
 
     private handleQueryRequest = async (
-        message: QueryRequestMessage & { echo: string | null },
+        message: QueryRequestMessage & { echo: string | null }
     ) => {
         console.log("Query request:", message);
         if (!this.isSelf(message.echo)) return;
@@ -141,7 +141,7 @@ export class WebSocketService {
     private sendQueryResponse(
         key: string,
         value: unknown,
-        error?: string,
+        error?: string
     ): void {
         this.sendMessage({
             command: {
@@ -226,7 +226,7 @@ export class WebSocketService {
     public async postQuery<T>(
         clientId: string,
         query: string,
-        params?: unknown,
+        params?: unknown
     ): Promise<T> {
         const key = generateRandomString(8);
 
@@ -273,16 +273,16 @@ export class OtherClient {
 
     constructor(
         private id: string,
-        wsService: WebSocketService,
+        wsService: WebSocketService
     ) {
         this.service = wsService;
     }
 
-    public async getNowTitle():Promise<string> {
+    public async getNowTitle(): Promise<string> {
         return this.service.postQuery(this.id, "get-now-title");
     }
 
-    public async queryNowLyrics():Promise<LyricRawLine[]> {
+    public async queryNowLyrics(): Promise<LyricRawLine[]> {
         return this.service.postQuery(this.id, "query-now-lyrics");
     }
 

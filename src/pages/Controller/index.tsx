@@ -21,14 +21,14 @@ const Controller: Component<ControllerProps> = (props) => {
                     <A href="/lyrics/controller/client">
                         <SettingIcon type={"client"} class="w-6 h-6" />
                     </A>
-                    <A href="/lyrics/controller/blackList">
-                        <SettingIcon class="w-6 h-6" />
+                    <A href="/lyrics/controller/content">
+                        <SettingIcon type={"content"} class="w-6 h-6" />
                     </A>
                     <A href="/lyrics/controller/textstyle">
                         <SettingIcon type={"palette"} class="w-6 h-6" />
                     </A>
-                    <A href="/lyrics/controller/content">
-                        <SettingIcon type={"content"} class="w-6 h-6" />
+                    <A href="/lyrics/controller/blackList">
+                        <SettingIcon type={"blackList"} class="w-6 h-6" />
                     </A>
                 </nav>
             </div>

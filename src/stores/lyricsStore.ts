@@ -51,7 +51,8 @@ export const resetTitleBlackList = (data?: string[]) => {
 };
 
 export const addTitleBlackListItem = (title: string) => {
-    if (titleBlackList.set.has(title)) return;
+    // if (titleBlackList.set.has(title)) return;
+    if (titleBlackList.list.indexOf(title) >= 0) return;
     setTitleBlackList(
         "set",
         produce((set) => {
@@ -67,7 +68,8 @@ export const addTitleBlackListItem = (title: string) => {
 };
 
 export const deleteTitleBlackListItem = (title: string) => {
-    if (!titleBlackList.set.has(title)) return;
+    // if (!titleBlackList.set.has(title)) return;
+    if (titleBlackList.list.indexOf(title) < 0) return;
     setTitleBlackList(
         "set",
         produce((set) => {

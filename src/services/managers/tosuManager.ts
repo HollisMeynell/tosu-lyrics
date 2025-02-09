@@ -17,11 +17,13 @@ type Temp = {
     latestId: number;
     songTime?: number;
     lyric?: Lyric;
+    paused?: boolean;
 };
 
 const WS_DELAY_TIME = 100;
 const WAIT_AUDIO_METADATA = 1000;
 
+const adapters: LyricAdapter[] = [NeteaseLyricAdapter, QQLyricAdapter];
 
 let nowTitle = "";
 export const getNowTitle = () => {
@@ -31,7 +33,7 @@ export const getNowTitle = () => {
 let nowLyrics: LyricRawLine[] = [];
 export const getNowLyrics = () => {
     return nowLyrics;
-}
+};
 
 /**
  * 获取音频长度(毫秒), 超时机制为 3 秒
@@ -74,7 +76,7 @@ export default class TosuAdapter {
 
     constructor(
         private setLyrics: (value: LyricLine[]) => void,
-        private setCursor: (value: number) => void,
+        private setCursor: (value: number) => void
     ) {
         this.ws = new ReconnectingWebSocket(WS_URL);
         this.ws.onmessage = this.handleWebSocketMessage.bind(this);
@@ -158,6 +160,7 @@ export default class TosuAdapter {
      * @param event 消息事件
      */
     private async handleWebSocketMessage(event: MessageEvent) {
+        if (this.currentState.paused) return;
         const data: TosuAPi = JSON.parse(event.data);
         const { id: bid, titleUnicode: title } = data.beatmap;
         const { live: liveTime } = data.beatmap.time;
@@ -208,7 +211,6 @@ export default class TosuAdapter {
      * @param length 歌曲长度
      */
     private async fetchLyrics(title: string, length: number): Promise<Lyric> {
-        const adapters: LyricAdapter[] = [NeteaseLyricAdapter, QQLyricAdapter];
         const newLyric = new Lyric();
 
         for (const adapter of adapters) {
@@ -243,5 +245,20 @@ export default class TosuAdapter {
      */
     stop() {
         this.ws.close();
+    }
+
+    /**
+     * 暂停更新
+     */
+    pause(paused?: boolean) {
+        if (paused === undefined) paused = true;
+        this.currentState.paused = paused;
+    }
+
+    /**
+     * 继续更新
+     */
+    continue() {
+        this.pause(false);
     }
 }

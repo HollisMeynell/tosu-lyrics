@@ -1,6 +1,7 @@
 import cache from "@/utils/cache";
 import {
-    addTitleBlackListItem, deleteTitleBlackListItem,
+    addTitleBlackListItem,
+    deleteTitleBlackListItem,
     lyricsStore,
     setAlignment,
     setShowSecond,
@@ -32,13 +33,13 @@ export const initializeApp = async () => {
             cache.storageAdapter?.clearLyrics(bid);
         });
         wsService.registerHandler("remove-all-cache", () =>
-            cache.storageAdapter?.clearLyrics(),
+            cache.storageAdapter?.clearLyrics()
         );
         wsService.registerQueryHandler("get-now-title", async () =>
-            getNowTitle(),
+            getNowTitle()
         );
         wsService.registerQueryHandler("query-now-lyrics", async () =>
-            getNowLyrics(),
+            getNowLyrics()
         );
 
         // 解析 URL 参数
@@ -60,15 +61,15 @@ export const initializeApp = async () => {
         wsService.registerHandler("textColor", setTextColor);
         wsService.registerHandler(
             "useTranslationAsMain",
-            setUseTranslationAsMain,
+            setUseTranslationAsMain
         );
         wsService.registerHandler(
             "addBlackList",
-            addTitleBlackListItem as MessageHandler,
+            addTitleBlackListItem as MessageHandler
         );
         wsService.registerHandler(
             "deleteBlackList",
-            deleteTitleBlackListItem as MessageHandler,
+            deleteTitleBlackListItem as MessageHandler
         );
         wsService.registerHandler("showSecond", setShowSecond);
         wsService.registerHandler("alignment", setAlignment);

@@ -58,16 +58,22 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         } else {
             blinkKey = 10;
         }
-        tosu?.stop();
+        tosu?.pause();
+        let needBack: boolean;
         const lyricsBack = lyrics();
         const cursorBack = cursor();
 
-        setLyrics([
-            { main: "调试中", origin: "Testing" },
-            { main: "正在调试中", origin: "Testing..." },
-            { main: "调试中", origin: "Testing" },
-        ]);
-        setCursor(1);
+        if (lyricsBack.length < 3) {
+            needBack = true;
+            setLyrics([
+                { main: "调试中", origin: "Testing" },
+                { main: "正在调试中", origin: "Testing..." },
+                { main: "调试中", origin: "Testing" },
+            ]);
+            setCursor(1);
+        } else {
+            needBack = false;
+        }
 
         let isVisible = true;
 
@@ -75,10 +81,13 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
             if (blinkKey <= 0) {
                 clearInterval(interval);
 
+                if (needBack) {
+                    setLyrics(lyricsBack);
+                    setCursor(cursorBack);
+                }
                 setLyrics(lyricsBack);
                 setCursor(cursorBack);
-                linkTosu();
-                return;
+                tosu?.continue();
             }
             isVisible = !isVisible;
             let lyricLI = lyricLIRef();
@@ -86,7 +95,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 lyricLI.style.visibility = isVisible ? "visible" : "hidden";
             }
             blinkKey--;
-        }, 500);
+        }, 250);
     };
 
     onCleanup(() => {
