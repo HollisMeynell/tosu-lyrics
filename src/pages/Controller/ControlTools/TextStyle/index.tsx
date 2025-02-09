@@ -1,7 +1,6 @@
 // 功能: 面板-文字样式（颜色、字体、显示效果）
 import lyricsStore from "@/stores/lyricsStore.ts";
-import ToggleSwitch from "@/components/ui/ToggleSwitch.tsx";
-import ToggleNSwitch from "@/components/ui/ToggleNSwitch.tsx";
+import { ToggleSwitch, ToggleNSwitch } from "@/components/ui";
 import TextColor from "./TextColor";
 import Font from "./Font";
 import { alignmentOptions } from "@/types/globalTypes";

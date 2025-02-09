@@ -2,7 +2,7 @@ import { getTitleBlackList, lyricsStore } from "@/stores/lyricsStore.ts";
 import { Component, createSignal, For } from "solid-js";
 import { wsService } from "@/services/webSocketService";
 import { Refresh, Delete } from "@/assets/Icons";
-import Button from "@/components/ui/Button";
+import { Button } from "@/components/ui";
 
 const BlackListItem: Component<{ title: string }> = (props) => {
     const { title } = props;
@@ -52,7 +52,7 @@ export default function BlackListLyrics() {
             <hr class="w-64 border-gray-400 dark:border-gray-600" />
 
             {/* Actions */}
-            <div class="flex flex-row items-center">
+            <div class="flex flex-row items-center gap-2">
                 <Button onClick={addBlackList}>拉黑当前歌曲</Button>
                 <Button onClick={saveBlackList}>永久保存</Button>
             </div>

@@ -10,7 +10,7 @@ export default function Content() {
     const [musicTitle, setMusicTitle] = createSignal<string>("");
 
     return (
-        <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-4 h-full">
             <div class="header space-x-4">
                 <h2 class="text-2xl font-medium inline">歌词内容控制</h2>
                 <Show when={musicTitle().length > 0}>
@@ -22,7 +22,7 @@ export default function Content() {
 
             <hr class="w-30 border-gray-400 dark:border-gray-600" />
 
-            <div class="flex flex-col gap-2">
+            <div class="flex flex-1 flex-col gap-2">
                 <CurrentLyrics lyrics={lyrics} setLyrics={setLyrics} />
                 <SearchResult
                     musicInfo={musicInfo}

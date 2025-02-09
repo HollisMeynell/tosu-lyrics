@@ -1,5 +1,5 @@
 // 功能: 功能操作面板
-import DarkModeToggle from "@/components/ui/DarkModeToggle.tsx";
+import { DarkModeToggle } from "@/components/ui";
 import { Component, JSX } from "solid-js";
 import { A } from "@solidjs/router";
 import { SettingIcon } from "@/assets/Icons";
@@ -32,7 +32,7 @@ const Controller: Component<ControllerProps> = (props) => {
                     </A>
                 </nav>
             </div>
-            <div class="ml-10 px-8">{props.children}</div>
+            <div class="ml-10 px-8 h-full">{props.children}</div>
             <DarkModeToggle />
         </div>
     );
