@@ -2,25 +2,6 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-@font-face {
-    font-family: "LRC";
-    src: url("/LRC.otf");
-}
-
-@font-face {
-    font-family: "oLRC";
-    src: url("/oLRC.otf");
-}
-
-@font-face {
-    font-family: "tLRC";
-    src: url("/tLRC.otf");
-}
-
-/* * {
-    font-family: LRC, tLRC, oLRC, serif;
-} */
-
 html,
 body,
 #root {

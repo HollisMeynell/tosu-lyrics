@@ -1,5 +1,5 @@
 import TosuAdapter from "@/services/managers/tosuManager";
-import lyricsStore from "@/stores/lyricsStore";
+import lyricsStore, { alignment, font } from "@/stores/lyricsStore";
 import {
     Component,
     Accessor,
@@ -12,6 +12,7 @@ import {
     Show,
 } from "solid-js";
 import { LyricLine } from "@/types/lyricTypes.ts";
+import { loadFont } from "@/utils/fonts.ts";
 
 let blink = () => void 0;
 
@@ -36,7 +37,7 @@ interface SecondLyricProps {
 }
 
 const LyricsBox: Component<LyricsBoxProps> = (props) => {
-    const isDebug = props.debug && !(import.meta.env.MODE === "development");
+    const isDebug = props.debug; //&& !(import.meta.env.MODE === "development");
     const [scroll, setScroll] = createSignal(false);
     const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
     const [cursor, setCursor] = createSignal(0);
@@ -143,6 +144,19 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         )
     );
 
+    createEffect(
+        on([font], () => {
+            if (!lyricUL) return;
+            const fontName = font();
+            if (fontName.length === 0) {
+                loadFont().then((font) => {
+                    lyricUL.style.fontStyle = font;
+                });
+            }
+            lyricUL.style.fontFamily = fontName;
+        })
+    );
+
     // 初始化歌词
     onMount(() => {
         if (isDebug) {
@@ -188,6 +202,32 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         </p>
     );
 
+    // 歌词对齐样式
+    const lyricAlignmentStyle = () => {
+        let alignmentStyle = "";
+        let transformOrigin = "";
+        switch (alignment()) {
+            case "left":
+                alignmentStyle = "flex-start";
+                transformOrigin = "left center";
+                break;
+            case "right":
+                alignmentStyle = "flex-end";
+                transformOrigin = "right center";
+                break;
+            default:
+            case "center":
+                alignmentStyle = "center";
+                transformOrigin = "center";
+                break;
+        }
+
+        return {
+            "align-items": alignmentStyle,
+            "transform-origin": transformOrigin,
+        };
+    };
+
     // 渲染歌词行
     const lines = (lyric: Accessor<LyricLine>, index: number) => {
         const getMainLyric = () =>
@@ -213,20 +253,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                     "text-white": cursor() === index,
                     "animate-scroll": cursor() === index && scroll(),
                 }}
-                style={{
-                    "transform-origin":
-                        lyricsStore.getState.alignment === "center"
-                            ? "center"
-                            : lyricsStore.getState.alignment === "left"
-                              ? "left center"
-                              : "right center",
-                    "align-items":
-                        lyricsStore.getState.alignment === "center"
-                            ? "center"
-                            : lyricsStore.getState.alignment === "left"
-                              ? "flex-start"
-                              : "flex-end",
-                }}
+                style={lyricAlignmentStyle()}
             >
                 <MainLyric text={getMainLyric()} />
                 <Show when={lyric().origin && lyricsStore.getState.showSecond}>
@@ -246,13 +273,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 class="w-full px-10 flex flex-col list-none transition-transform duration-300"
                 style={{
                     transform: `translateY(${-(cursor() - 1) * 100}px)`,
-                    "align-items":
-                        lyricsStore.getState.alignment === "center"
-                            ? "center"
-                            : lyricsStore.getState.alignment === "left"
-                              ? "flex-start"
-                              : "flex-end",
-                    "font-family": lyricsStore.getState.font,
+                    ...lyricAlignmentStyle(),
                 }}
             >
                 <Index each={lyrics()}>{lines}</Index>
