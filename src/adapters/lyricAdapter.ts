@@ -1,7 +1,14 @@
 import { TIME_DIFF_FILTER } from "@/config/constants.ts";
 import { MusicInfo, UnifiedLyricResult } from "@/types/lyricTypes.ts";
+import { Lyric } from "@/services/managers/lyricManager.ts";
 
 export type AdapterStatus = "Pending" | "NotFound" | "NoAccept" | "Loading";
+
+export function parseUnifiecLyric(title: string, lyric: UnifiedLyricResult) {
+    const result = new Lyric();
+    result.insertAll(lyric.lyric, lyric.trans, title);
+    return result;
+}
 
 export abstract class LyricAdapter {
     name: string;
@@ -23,8 +30,8 @@ export abstract class LyricAdapter {
     // 根据ID获取歌词
     abstract fetchLyrics(songID: number | string): Promise<UnifiedLyricResult>;
 
-    // 检索是否有歌词
-    async hasLyrics(title: string, length: number): Promise<boolean> {
+    // 检索是否有查到歌曲
+    async hasMusicInfo(title: string, length: number): Promise<boolean> {
         this.status = "Loading";
         let songs: MusicInfo[];
         try {

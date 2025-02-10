@@ -3,7 +3,7 @@ import { AUDIO_URL, WS_URL } from "@/config/constants";
 import { Lyric } from "@/services/managers/lyricManager";
 import Cache from "@/utils/cache.ts";
 import { TosuAPi } from "@/types/tosuTypes";
-import { LyricAdapter, NeteaseLyricAdapter, QQLyricAdapter } from "@/adapters";
+import { NeteaseLyricAdapter, QQLyricAdapter } from "@/adapters";
 import { inTitleBlackList } from "@/stores/lyricsStore.ts";
 import { debounce } from "@/utils/helpers.ts";
 import {
@@ -13,9 +13,9 @@ import {
     MusicQueryInfoData,
     UnifiedLyricResult,
 } from "@/types/lyricTypes.ts";
+import { LyricAdapter, parseUnifiecLyric } from "@/adapters/lyricAdapter.ts";
 
 type Temp = {
-    latestId: number;
     songTime?: number;
     lyric?: Lyric;
     paused?: boolean;
@@ -38,17 +38,25 @@ export const getNowTitle = () => {
     return nowTitle;
 };
 
+let __changeOrigin: (bid: number, lyric: Lyric) => void = () => {};
+export const changeOrigin = (data: unknown) => {
+    const { bid, lyric } = data as { bid: number; lyric: Lyric };
+    __changeOrigin(bid, lyric);
+};
+
 let nowLyrics: LyricRawLine[] = [];
 export const getNowLyrics = () => {
     return nowLyrics;
 };
 
+let latestId = 0;
 export const getMusicQueryResult = () => {
     const data: MusicQueryInfoData = {};
     adapters.forEach((adapter) => {
         data[adapter.name] = adapter.allResult;
     });
     return {
+        bid: latestId,
         title: nowTitle,
         data,
     } as MusicQueryInfo;
@@ -94,9 +102,8 @@ export async function getAudioLength(): Promise<number> {
     });
 }
 
-export default class TosuAdapter {
+export default class TosuManager {
     private currentState: Temp = {
-        latestId: 0,
         songTime: 0,
         lyric: undefined as Lyric | undefined,
     };
@@ -108,6 +115,7 @@ export default class TosuAdapter {
     ) {
         this.ws = new ReconnectingWebSocket(WS_URL);
         this.ws.onmessage = this.handleWebSocketMessage.bind(this);
+        __changeOrigin = this.displayLyric.bind(this);
     }
 
     /**
@@ -137,7 +145,7 @@ export default class TosuAdapter {
      * @param lyric 歌词
      */
     private displayLyric(bid: number, lyric: Lyric) {
-        if (this.currentState.latestId !== bid) return; // 防止请求过期
+        if (latestId !== bid) return; // 防止请求过期
         this.currentState.lyric = lyric;
         // 保存当前歌词以供查询
         nowLyrics = lyric.lyrics;
@@ -160,13 +168,13 @@ export default class TosuAdapter {
      * @param bid 歌曲 id
      */
     private async processBeatmap(title: string, bid: number) {
-        if (this.currentState.latestId !== bid) return; // 防止请求过期
+        if (latestId !== bid) return; // 防止请求过期
 
         try {
             const length = await getAudioLength();
             const lyric = await this.fetchLyrics(title, length);
 
-            if (this.currentState.latestId !== bid) return; // 再次防止请求过期
+            if (latestId !== bid) return; // 再次防止请求过期
 
             if (lyric.lyrics.length === 0) {
                 this.resetLyrics();
@@ -196,13 +204,13 @@ export default class TosuAdapter {
         localStorage.setItem("nowPlaying", JSON.stringify(bid));
 
         // 如果是同一首歌, 则更新播放位置
-        if (this.currentState.latestId == bid) {
+        if (latestId == bid) {
             this.updateCursor(liveTime);
             return;
         }
 
         // 如果是新歌, 则更新当前播放 bid 并重新获取歌词
-        this.currentState.latestId = bid;
+        latestId = bid;
         this.resetLyrics();
 
         // 更新当前播放歌曲标题
@@ -239,22 +247,26 @@ export default class TosuAdapter {
      * @param length 歌曲长度
      */
     private async fetchLyrics(title: string, length: number): Promise<Lyric> {
-        const newLyric = new Lyric();
+        let newLyric: Lyric | undefined;
 
         for (const adapter of adapters) {
-            const hasLyrics = await adapter.hasLyrics(title, length);
-            if (hasLyrics) {
+            const hasMusic = await adapter.hasMusicInfo(title, length);
+            if (hasMusic) {
                 try {
                     const lyric = await adapter.getLyricsFromResult();
-                    newLyric.insertAll(lyric.lyric, lyric.trans, title);
-                    return newLyric;
+                    newLyric = parseUnifiecLyric(title, lyric);
+                    // 当歌词为空时, 换下一个 adapter
+                    if (newLyric.lyrics.length <= 2) continue;
+                    // 歌词正常时结束循环
+                    break;
                 } catch (err) {
                     console.info(adapter.constructor.name, err);
                 }
             }
         }
 
-        if (newLyric.lyrics.length === 0) {
+        if (newLyric == undefined || newLyric.lyrics.length <= 2) {
+            // 全部 adapter 都没找到歌词, 丢出错误
             throw new Error("No lyrics found");
         }
 

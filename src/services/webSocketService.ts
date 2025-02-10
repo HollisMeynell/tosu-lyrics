@@ -14,6 +14,7 @@ import {
     MusicQueryInfo,
     UnifiedLyricResult,
 } from "@/types/lyricTypes.ts";
+import { Lyric } from "@/services/managers/lyricManager.ts";
 
 export type MessageHandler = (value: unknown) => void;
 export type QueryHandler = (params?: unknown) => Promise<unknown>;
@@ -301,8 +302,8 @@ export class OtherClient {
         });
     }
 
-    public changeLyric(adapter: string, key: string | number) {
-        this.service.pushSetting("change-lyric", { adapter, key }, this.id);
+    public changeLyric(bid: number, lyric: Lyric): void {
+        this.service.pushSetting("change-lyric", { bid, lyric }, this.id);
     }
 
     public async queryCacheList(): Promise<

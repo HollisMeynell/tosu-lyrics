@@ -3,19 +3,31 @@ import { Component, For, Show, createSignal } from "solid-js";
 import { wsService } from "@/services/webSocketService";
 import { MusicInfo, MusicQueryInfoData } from "@/types/lyricTypes.ts";
 import { ToggleListExtends, Button, DragPanel } from "@/components/ui";
+import { parseUnifiecLyric } from "@/adapters/lyricAdapter.ts";
+import { Lyric } from "@/services/managers/lyricManager.ts";
 
 const SearchResult: Component<{
     musicInfo: () => MusicQueryInfoData;
     setMusicInfo: (info: MusicQueryInfoData) => void;
     setMusicTitle: (title: string) => void;
 }> = ({ musicInfo, setMusicInfo, setMusicTitle }) => {
+    // 这里的 title 与 bid 必须要传
+    // title 是添加到歌词第一行
+    let nowTitle = "";
+    // bid 用于判断是否被切歌, 防止切歌后歌词错乱
+    let nowBid = 0;
+
+    const [nowLyric, setNowLyric] = createSignal<Lyric>();
+
     const searchMusicInfo = async () => {
         const result = await wsService.defaultClient?.queryNowMusicInfo();
         if (!result) {
             setMusicInfo({});
             return;
         }
-        const { title, data } = result; // 当前播放歌曲名, 以及搜索结果
+        const { bid, title, data } = result; // 当前播放歌曲名, 以及搜索结果
+        nowTitle = title;
+        nowBid = bid;
         setMusicInfo(data);
         setMusicTitle(title);
         loadPages();
@@ -26,12 +38,22 @@ const SearchResult: Component<{
             adapter,
             key
         );
-        console.log(result);
+
+        if (!result) return;
+        const lyric = parseUnifiecLyric(nowTitle, result);
+        // todo: 显示歌词
+        console.log(lyric);
+        setNowLyric(lyric);
     };
 
     // 发送换源命令
-    const changeSearchResult = (adapter: string, key: string | number) => {
-        wsService.defaultClient?.changeLyric(adapter, key);
+    const changeSearchResult = () => {
+        const lyric = nowLyric();
+        if (!lyric) {
+            alert("请先查看歌词");
+            return;
+        }
+        wsService.defaultClient?.changeLyric(nowBid, lyric);
     };
 
     const SearchResultHeader = () => (
@@ -58,12 +80,17 @@ const SearchResult: Component<{
                 <For each={items()}>
                     {(item: MusicInfo) => (
                         <div
-                            class="w-full flex flex-row items-between justify-between p-2 border-b border-gray-200 dark:border-gray-700"
-                            onClick={() => getLyricsByKey(props.key, item.key)}
+                            class="w-full flex flex-row items-between justify-between p-2
+                            border-b border-gray-200 dark:border-gray-700"
                         >
                             <div class="flex flex-row w-[calc(100%-12rem)] items-center gap-2">
-                                <DragPanel items={[item.title, item.artist]} className="w-[calc(100%-7rem)]" />
-                                <p class="w-28 overflow-hidden text-ellipsis text-nowrap">长度：{item.length}</p>
+                                <DragPanel
+                                    items={[item.title, item.artist]}
+                                    className="w-[calc(100%-7rem)]"
+                                />
+                                <p class="w-28 overflow-hidden text-ellipsis text-nowrap">
+                                    长度：{item.length}
+                                </p>
                             </div>
                             <div class="flex flex-row gap-2 w-44">
                                 <Button
@@ -73,11 +100,7 @@ const SearchResult: Component<{
                                 >
                                     查看歌词
                                 </Button>
-                                <Button
-                                    onClick={() =>
-                                        changeSearchResult(props.key, item.key)
-                                    }
-                                >
+                                <Button onClick={changeSearchResult}>
                                     应用歌词
                                 </Button>
                             </div>

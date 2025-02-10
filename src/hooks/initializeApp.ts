@@ -13,6 +13,7 @@ import { paramParse } from "@/utils/parseParams";
 import { MessageHandler, wsService } from "@/services/webSocketService";
 import { configService } from "@/services/configService";
 import {
+    changeOrigin,
     getLyricsByKey,
     getMusicQueryResult,
     getNowLyrics,
@@ -40,13 +41,7 @@ export const initializeApp = async () => {
         wsService.registerHandler("remove-all-cache", () =>
             cache.storageAdapter?.clearLyrics()
         );
-        wsService.registerHandler("change-lyric", (params) => {
-            const { adapter, key } = params as {
-                adapter: string;
-                key: string | number;
-            };
-            console.log("Change lyric to", adapter, key);
-        });
+        wsService.registerHandler("change-lyric", changeOrigin);
         wsService.registerQueryHandler("get-now-title", async () =>
             getNowTitle()
         );

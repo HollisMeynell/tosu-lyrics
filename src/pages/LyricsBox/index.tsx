@@ -1,4 +1,4 @@
-import TosuAdapter from "@/services/managers/tosuManager";
+import TosuManager from "@/services/managers/tosuManager";
 import lyricsStore, { alignment, font } from "@/stores/lyricsStore";
 import {
     Component,
@@ -15,6 +15,7 @@ import { LyricLine } from "@/types/lyricTypes.ts";
 import { loadFont } from "@/utils/fonts.ts";
 
 let blink = () => void 0;
+let tosu: TosuManager | undefined;
 
 // 触发歌词闪烁三次
 export const lyricBlink = () => {
@@ -46,10 +47,8 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     );
     let lyricUL: HTMLUListElement | undefined;
 
-    let tosu: TosuAdapter | undefined;
-
     const linkTosu = () => {
-        if (!isDebug) tosu = new TosuAdapter(setLyrics, setCursor);
+        if (!isDebug) tosu = new TosuManager(setLyrics, setCursor);
     };
 
     let blinkKey = 0;
