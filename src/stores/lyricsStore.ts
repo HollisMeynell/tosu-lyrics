@@ -4,6 +4,7 @@ import { wsService } from "@/services/webSocketService";
 import { configService } from "@/services/configService";
 import { AlignType, Settings, alignmentOptions } from "@/types/globalTypes";
 import { createStore, produce } from "solid-js/store";
+import { useNavigate } from "@solidjs/router";
 
 const DEFAULT_TEXT_COLOR = {
     first: "#ffffff",
@@ -90,14 +91,16 @@ export const deleteTitleBlackListItem = (title: string) => {
 export const [darkMode, setDarkMode] = createSignal(
     localStorage.getItem("darkMode") === "true"
 );
-export const [showController, setShowController] = createSignal(
-    localStorage.getItem("showController") === "true"
-);
 
 function toggleController() {
-    const show = !showController();
-    setShowController(show);
-    localStorage.setItem("showController", String(show));
+    // 切换设置页
+    let isController = window.location.href.indexOf("controller") >= 0;
+    const navigate = useNavigate(); // fixme: 不知道为什么会报错?
+    if (isController) {
+        navigate("/lyrics", { replace: true });
+    } else {
+        navigate("/lyrics/controller", { replace: true });
+    }
 }
 
 // 触发 Controller
@@ -223,12 +226,6 @@ export const lyricsStore = {
             document.documentElement.classList.remove("dark");
         }
         setDarkMode(darkModeMemo === "true");
-
-        let showControllerMemo = localStorage.getItem("showController");
-        if (showControllerMemo === null) {
-            localStorage.setItem("showController", "false");
-            setShowController(false);
-        }
     },
 
     toggleDarkMode() {
