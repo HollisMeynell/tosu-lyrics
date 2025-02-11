@@ -52,6 +52,14 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         if (!isDebug) tosu = new TosuManager(setLyrics, setCursor);
     };
 
+    const lyricShow = (show?: boolean) => {
+        if (show == undefined) show = true;
+        let lyricLI = lyricLIRef();
+        if (lyricLI) {
+            lyricLI.style.visibility = show ? "visible" : "hidden";
+        }
+    };
+
     let blinkKey = 0;
     blink = () => {
         if (blinkKey > 0) {
@@ -82,20 +90,16 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         const interval = setInterval(() => {
             if (blinkKey <= 0) {
                 clearInterval(interval);
-
+                lyricShow(true);
                 if (needBack) {
                     setLyrics(lyricsBack);
                     setCursor(cursorBack);
                 }
-                setLyrics(lyricsBack);
-                setCursor(cursorBack);
                 tosu?.continue();
+                return;
             }
             isVisible = !isVisible;
-            let lyricLI = lyricLIRef();
-            if (lyricLI) {
-                lyricLI.style.visibility = isVisible ? "visible" : "hidden";
-            }
+            lyricShow(isVisible);
             blinkKey--;
         }, 250);
     };
@@ -240,9 +244,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                   : lyric().main;
 
         const getSecondLyric = () =>
-            store.getState.useTranslationAsMain
-                ? lyric().origin
-                : lyric().main;
+            store.getState.useTranslationAsMain ? lyric().origin : lyric().main;
 
         return (
             <li
