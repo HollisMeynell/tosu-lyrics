@@ -4,7 +4,7 @@ import { Lyric } from "@/services/managers/lyricManager";
 import Cache from "@/utils/cache.ts";
 import { TosuAPi } from "@/types/tosuTypes";
 import { NeteaseLyricAdapter, QQLyricAdapter } from "@/adapters";
-import { inTitleBlackList } from "@/stores/lyricsStore.ts";
+import { inTitleBlackList } from "@/stores/blackListStore";
 import { debounce } from "@/utils/helpers.ts";
 import {
     LyricLine,

@@ -1,5 +1,6 @@
 import TosuManager from "@/services/managers/tosuManager";
-import lyricsStore, { alignment, font } from "@/stores/lyricsStore";
+import store from "@/stores/indexStore";
+import { alignment, font } from "@/stores/settingsStore";
 import {
     Component,
     Accessor,
@@ -176,7 +177,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         <p
             class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff]"
             style={{
-                color: lyricsStore.getState.textColor.first,
+                color: store.getState.textColor.first,
                 "text-align": props.align || "center",
             }}
         >
@@ -193,7 +194,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 hidden: !props.block,
             }}
             style={{
-                color: lyricsStore.getState.textColor.second,
+                color: store.getState.textColor.second,
                 "text-align": props.align || "center",
             }}
         >
@@ -230,7 +231,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     // 渲染歌词行
     const lines = (lyric: Accessor<LyricLine>, index: number) => {
         const getMainLyric = () =>
-            lyricsStore.getState.useTranslationAsMain
+            store.getState.useTranslationAsMain
                 ? lyric().main
                     ? lyric().main
                     : lyric().origin
@@ -239,7 +240,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                   : lyric().main;
 
         const getSecondLyric = () =>
-            lyricsStore.getState.useTranslationAsMain
+            store.getState.useTranslationAsMain
                 ? lyric().origin
                 : lyric().main;
 
@@ -255,7 +256,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 style={lyricAlignmentStyle()}
             >
                 <MainLyric text={getMainLyric()} />
-                <Show when={lyric().origin && lyricsStore.getState.showSecond}>
+                <Show when={lyric().origin && store.getState.showSecond}>
                     <SecondLyric
                         block={cursor() === index}
                         text={getSecondLyric()}

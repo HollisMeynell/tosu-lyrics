@@ -1,4 +1,5 @@
-import { getTitleBlackList, lyricsStore } from "@/stores/lyricsStore.ts";
+import store from "@/stores/indexStore";
+import { getTitleBlackList } from "@/stores/blackListStore";
 import { Component, createSignal, For } from "solid-js";
 import { wsService } from "@/services/webSocketService";
 import { Refresh, Delete } from "@/assets/Icons";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui";
 const BlackListItem: Component<{ title: string }> = (props) => {
     const { title } = props;
     const deleteThis = () => {
-        lyricsStore.deleteTitleBlackList(title);
+        store.deleteTitleBlackList(title);
     };
     return (
         <div class="mt-2 mb-2">
@@ -25,7 +26,7 @@ export default function BlackListLyrics() {
 
     const addBlackList = async () => {
         if (!nowTitle()) return;
-        lyricsStore.addTitleBlackList(nowTitle());
+        store.addTitleBlackList(nowTitle());
     };
 
     const refresh = async (e: { target: { tagName: string } }) => {
@@ -36,7 +37,7 @@ export default function BlackListLyrics() {
     };
 
     const saveBlackList = () => {
-        lyricsStore.asyncTitleBlackList();
+        store.asyncTitleBlackList();
     };
 
     return (

@@ -1,13 +1,12 @@
 import cache from "@/utils/cache";
 import {
-    addTitleBlackListItem,
-    deleteTitleBlackListItem,
-    lyricsStore,
     setAlignment,
     setShowSecond,
     setTextColor,
     setUseTranslationAsMain,
-} from "@/stores/lyricsStore";
+} from "@/stores/settingsStore";
+import store from "@/stores/indexStore";
+import { addTitleBlackListItem, deleteTitleBlackListItem } from "@/stores/blackListStore";
 import { lyricBlink } from "@/pages/LyricsBox";
 import { paramParse } from "@/utils/parseParams";
 import { MessageHandler, wsService } from "@/services/webSocketService";
@@ -75,7 +74,7 @@ export const initializeApp = async () => {
 
         // 加载存储配置
         const config = await configService.fetchConfig();
-        lyricsStore.parseSettings(config);
+        store.parseSettings(config);
 
         // 注册设置处理器
         wsService.registerHandler("textColor", setTextColor);

@@ -1,11 +1,12 @@
-import { lyricsStore, darkMode } from "@/stores/lyricsStore.ts";
+import store from "@/stores/indexStore";
+import { darkMode } from "@/stores/settingsStore";
 import { Match, Switch } from "solid-js";
 
 export default function DarkModeToggle() {
     return (
         <button
             class="fixed top-4 right-4 w-8 h-8 border-2 border-[#f0f0f0] dark:border-[#313131] hover:border-[#b3b3b3] dark:hover:border-[#b3b3b3] rounded-md cursor-pointer flex items-center justify-center"
-            onClick={lyricsStore.toggleDarkMode}
+            onClick={store.toggleDarkMode}
         >
             <svg
                 xmlns="http://www.w3.org/2000/svg"

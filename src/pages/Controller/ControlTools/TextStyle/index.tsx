@@ -1,5 +1,5 @@
 // 功能: 面板-文字样式（颜色、字体、显示效果）
-import lyricsStore from "@/stores/lyricsStore.ts";
+import store from "@/stores/indexStore";
 import { ToggleSwitch, ToggleNSwitch } from "@/components/ui";
 import TextColor from "./TextColor";
 import Font from "./Font";
@@ -16,9 +16,9 @@ export default function Controller() {
                     <h2 class="text-2xl font-normal">对齐方式</h2>
                     <ToggleNSwitch
                         options={alignmentOptions}
-                        selectedValue={lyricsStore.getState.alignment}
+                        selectedValue={store.getState.alignment}
                         onUpdateSelectedValue={(value) =>
-                            lyricsStore.setAlignment(value)
+                            store.setAlignment(value)
                         }
                     />
                 </div>
@@ -29,18 +29,18 @@ export default function Controller() {
                 {/* 显示 */}
                 <div class="flex flex-row items-center gap-3">
                     <ToggleSwitch
-                        modelValue={lyricsStore.getState.useTranslationAsMain}
+                        modelValue={store.getState.useTranslationAsMain}
                         onUpdateModelValue={(value) =>
-                            lyricsStore.setUseTranslationAsMain(value)
+                            store.setUseTranslationAsMain(value)
                         }
                     />
                     <h2 class="text-2xl font-normal">以翻译歌词为主</h2>
                 </div>
                 <div class="flex flex-row items-center gap-3">
                     <ToggleSwitch
-                        modelValue={lyricsStore.getState.showSecond}
+                        modelValue={store.getState.showSecond}
                         onUpdateModelValue={(value) =>
-                            lyricsStore.setShowSecond(value)
+                            store.setShowSecond(value)
                         }
                     />
                     <h2 class="text-2xl font-normal">显示副歌词</h2>

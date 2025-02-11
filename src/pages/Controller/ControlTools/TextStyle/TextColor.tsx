@@ -1,5 +1,5 @@
 // 功能: 面板-文字样式（颜色、字体、显示效果）
-import lyricsStore from "@/stores/lyricsStore.ts";
+import store from "@/stores/indexStore";
 
 export default function TextColor() {
     return (
@@ -11,20 +11,20 @@ export default function TextColor() {
                     <input
                         type="color"
                         class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        value={lyricsStore.getState.textColor.first}
+                        value={store.getState.textColor.first}
                         onInput={(e) =>
-                            lyricsStore.setTextColor(
+                            store.setTextColor(
                                 "first",
                                 e.currentTarget.value
                             )
                         }
-                        onChange={() => lyricsStore.sendColorConfig()}
+                        onChange={() => store.sendColorConfig()}
                     />
                     <div
                         class="color-mask absolute top-0 left-0 w-full h-full rounded-full z-0 pointer-events-none"
                         style={{
                             "background-color":
-                                lyricsStore.getState.textColor.first,
+                            store.getState.textColor.first,
                         }}
                     ></div>
                 </div>
@@ -33,20 +33,20 @@ export default function TextColor() {
                     <input
                         type="color"
                         class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        value={lyricsStore.getState.textColor.second}
+                        value={store.getState.textColor.second}
                         onInput={(e) =>
-                            lyricsStore.setTextColor(
+                            store.setTextColor(
                                 "second",
                                 e.currentTarget.value
                             )
                         }
-                        onChange={() => lyricsStore.sendColorConfig()}
+                        onChange={() => store.sendColorConfig()}
                     />
                     <div
                         class="color-mask absolute top-0 left-0 w-full h-full rounded-full z-0 pointer-events-none"
                         style={{
                             "background-color":
-                                lyricsStore.getState.textColor.second,
+                            store.getState.textColor.second,
                         }}
                     ></div>
                 </div>

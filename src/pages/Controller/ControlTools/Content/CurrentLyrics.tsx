@@ -1,7 +1,7 @@
 // 功能: 面板-显示当前播放歌曲的歌词
 import { For, Show, Component, Accessor } from "solid-js";
 import { createEffect } from "solid-js";
-import { darkMode } from "@/stores/lyricsStore.ts";
+import { darkMode } from "@/stores/settingsStore";
 import ToggleList from "@/components/ui/ToggleList.tsx";
 import { Copy } from "@/assets/Icons";
 import { wsService } from "@/services/webSocketService";
