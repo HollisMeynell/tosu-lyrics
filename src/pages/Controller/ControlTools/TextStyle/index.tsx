@@ -5,17 +5,18 @@ import TextColor from "./TextColor";
 import Font from "./Font";
 import { alignmentOptions } from "@/types/globalTypes";
 
-export default function Controller() {
+export default function TextStyle() {
     return (
         <div class="flex flex-col gap-4">
             <h1 class="text-2xl font-medium">文字样式</h1>
             <hr class="w-24 border-gray-400 dark:border-gray-600" />
-            <div class="flex flex-col gap-4">
+            <div class="flex flex-col items-start gap-8 md:gap-4">
                 {/* 对齐方式 */}
-                <div class="flex flex-row items-center gap-6">
+                <div class="flex flex-col items-start md:flex-row md:items-center gap-4 md:gap-6">
                     <h2 class="text-2xl font-normal">对齐方式</h2>
                     <ToggleNSwitch
                         options={alignmentOptions}
+                        className="min-w-[15rem]"
                         selectedValue={store.getState.alignment}
                         onUpdateSelectedValue={(value) =>
                             store.setAlignment(value)

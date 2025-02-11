@@ -39,7 +39,7 @@ interface SecondLyricProps {
 }
 
 const LyricsBox: Component<LyricsBoxProps> = (props) => {
-    const isDebug = props.debug; //&& !(import.meta.env.MODE === "development");
+    const isDebug = props.debug && !(import.meta.env.MODE === "development");
     const [scroll, setScroll] = createSignal(false);
     const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
     const [cursor, setCursor] = createSignal(0);
@@ -125,10 +125,25 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
 
         const maxWidth = getMaxWidth();
 
-        if (maxWidth > 1200) {
-            const offset = Math.round((maxWidth - 1200) / 2) + 10;
-            p.style.setProperty("--offset", `${offset}px`);
-            p.style.setProperty("--offset-f", `-${offset}px`);
+        const clientWidth = document.body.clientWidth;
+
+        const alignmentStyle = p.style.alignItems || "center";
+
+        if (maxWidth > clientWidth) {
+            // 计算偏移量(非常精细)
+            if (alignmentStyle === "flex-start") {
+                const offset = Math.round((maxWidth - clientWidth) / 2) + 10;
+                p.style.setProperty("--offset", `${offset}px`);
+                p.style.setProperty("--offset-f", `-${3 * offset}px`);
+            } else if (alignmentStyle === "center") {
+                const offset = Math.round((maxWidth - clientWidth) / 2);
+                p.style.setProperty("--offset", `${offset + 10}px`);
+                p.style.setProperty("--offset-f", `-${2 * offset}px`);
+            } else if (alignmentStyle === "flex-end") {
+                const offset = Math.round((maxWidth - clientWidth) / 2) + 10;
+                p.style.setProperty("--offset", `${3 * offset}px`);
+                p.style.setProperty("--offset-f", `-${offset - 20}px`);
+            }
             p.style.setProperty("--time", `${tosu?.getNextTime()}s`);
             setScroll(true);
         } else if (scroll()) {
@@ -136,18 +151,22 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         }
     };
 
+    // 更新歌词滚动
     createEffect(
         on(
             [lyrics, cursor],
             () => {
                 if (!lyricUL) return;
                 const currentLine = lyricUL.children[cursor()] as HTMLLIElement;
-                if (currentLine) updateScroll(currentLine);
+                if (currentLine) {
+                    updateScroll(currentLine);
+                }
             },
             { defer: true }
         )
     );
 
+    // 更新字体
     createEffect(
         on([font], () => {
             if (!lyricUL) return;
