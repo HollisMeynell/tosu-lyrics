@@ -198,7 +198,7 @@ export default class TosuManager {
     private async handleWebSocketMessage(event: MessageEvent) {
         if (this.currentState.paused) return;
         const data: TosuAPi = JSON.parse(event.data);
-        const { id: bid, titleUnicode: title } = data.beatmap;
+        const { set: sid, id: bid, titleUnicode: title } = data.beatmap;
         const { live: liveTime } = data.beatmap.time;
 
         localStorage.setItem("nowPlaying", JSON.stringify(bid));
@@ -222,10 +222,16 @@ export default class TosuManager {
         }
 
         // 尝试从缓存中获取歌词
-        const cachedLyrics = await Cache.getLyricsCache(bid);
+        const cachedLyrics = await Cache.getLyricsCache(sid);
         const lyric = new Lyric();
-        if (cachedLyrics) {
+        if (cachedLyrics != null) {
             lyric.lyrics = cachedLyrics;
+        } else {
+            const length = await getAudioLength();
+            const titleCache = await Cache.getLyricsByTitle(title, length);
+            if (titleCache != null) {
+                lyric.lyrics = titleCache;
+            }
         }
 
         if (lyric && lyric.lyrics.length > 0) {

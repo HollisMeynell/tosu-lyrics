@@ -6,12 +6,12 @@ import { LyricRawLine } from "@/types/lyricTypes.ts";
 
 const STORE_NAME = "lyrics";
 const DB_INDEX_NAME = "nameIndex";
-const DB_VERSION = 1.1;
+const DB_VERSION = 2;
 
 let lyricsDB: IDBDatabase | undefined;
 
 interface CacheData {
-    bid: number;
+    sid: number;
     name: string;
     length: number;
     lyrics: LyricRawLine[];
@@ -35,25 +35,29 @@ function initIndexedDB(): Promise<IDBDatabase> {
         dbRequest.onupgradeneeded = (event) => {
             const target = event.target as IDBOpenDBRequest;
             const db = target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                const store = db.createObjectStore(STORE_NAME, {
-                    keyPath: ["bid"],
-                });
-                store.createIndex(DB_INDEX_NAME, "name", { unique: false });
+            if (db.objectStoreNames.contains(STORE_NAME)) {
+                // 删除旧的对象存储
+                db.deleteObjectStore(STORE_NAME);
+                console.log("数据库升级, 删除旧的对象存储");
             }
+
+            const store = db.createObjectStore(STORE_NAME, {
+                keyPath: ["sid"],
+            });
+            store.createIndex(DB_INDEX_NAME, "name", { unique: false });
         };
     });
 }
 
 interface StorageAdapter {
     setLyrics(
-        bid: number,
+        sid: number,
         name: string,
         length: number,
         lyrics: Lyric
     ): Promise<void>;
 
-    getLyrics(bid: number): Promise<LyricRawLine[] | undefined>;
+    getLyrics(sid: number): Promise<LyricRawLine[] | undefined>;
 
     getLyricsByTitle(
         title: string
@@ -64,7 +68,7 @@ interface StorageAdapter {
      */
     getLyricsList(): Promise<string[]>;
 
-    clearLyrics(bid?: number): Promise<void>;
+    clearLyrics(key?: number | string): Promise<void>;
 }
 
 class IndexedDBAdapter implements StorageAdapter {
@@ -78,7 +82,7 @@ class IndexedDBAdapter implements StorageAdapter {
      * 设置歌词缓存
      */
     setLyrics(
-        bid: number,
+        sid: number,
         name: string,
         length: number,
         lyrics: Lyric
@@ -87,7 +91,7 @@ class IndexedDBAdapter implements StorageAdapter {
             const transaction = this.db.transaction([STORE_NAME], "readwrite");
             const store = transaction.objectStore(STORE_NAME);
             const data: CacheData = {
-                bid,
+                sid,
                 name,
                 length,
                 lyrics: lyrics.lyrics,
@@ -102,11 +106,11 @@ class IndexedDBAdapter implements StorageAdapter {
     /**
      * 获取歌词缓存
      */
-    getLyrics(bid: number): Promise<LyricRawLine[] | undefined> {
+    getLyrics(sid: number): Promise<LyricRawLine[] | undefined> {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], "readonly");
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.get(bid);
+            const request = store.get(sid);
 
             request.onsuccess = () => {
                 if (request.result) {
@@ -124,7 +128,7 @@ class IndexedDBAdapter implements StorageAdapter {
             const transaction = this.db.transaction([STORE_NAME], "readonly");
             const store = transaction.objectStore(STORE_NAME);
             const index = store.index(DB_INDEX_NAME);
-            const result = index.getAll(title);
+            const result = index.getAll(IDBKeyRange.only(title));
             result.onsuccess = () => {
                 resolve(result.result);
             };
@@ -145,17 +149,31 @@ class IndexedDBAdapter implements StorageAdapter {
         });
     }
 
-    clearLyrics(bid?: number): Promise<void> {
+    clearLyrics(key?: number | string): Promise<void> {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], "readwrite");
             const store = transaction.objectStore(STORE_NAME);
             let request;
-            if (bid) {
-                request = store.delete(bid);
-            } else {
+            if (key == null) {
                 request = store.clear();
+                request.onsuccess = () => resolve();
+            } else if (typeof key === "number") {
+                request = store.delete(key);
+                request.onsuccess = () => resolve();
+            } else {
+                const index = store.index(DB_INDEX_NAME);
+                request = index.openCursor(IDBKeyRange.only(key));
+                request.onsuccess = (event) => {
+                    // @ts-expect-error ts sb
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        cursor.delete();
+                        cursor.continue();
+                    } else {
+                        resolve();
+                    }
+                };
             }
-            request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
         });
     }
@@ -189,15 +207,28 @@ export default {
     storageAdapter,
     getStorageAdapter,
     setLyricsCache: async (
-        bid: number,
+        sid: number,
         name: string,
         length: number,
         lyrics: Lyric
     ) => {
-        return storageAdapter?.setLyrics(bid, name, length, lyrics);
+        return storageAdapter?.setLyrics(sid, name, length, lyrics);
     },
-    getLyricsCache: async (bid: number) => {
-        return storageAdapter?.getLyrics(bid);
+    getLyricsCache: async (sid: number) => {
+        return storageAdapter?.getLyrics(sid);
+    },
+    getLyricsByTitle: async (title: string, time: number) => {
+        let result = await storageAdapter?.getLyricsByTitle(title);
+        if (result == null || result.length == 0) return undefined;
+        result = result
+            .map((l) => {
+                return {
+                    ...l,
+                    diff: Math.abs(time - l.length),
+                };
+            })
+            .sort((a, b) => a.diff - b.diff);
+        return result[0].lyrics;
     },
     getLyricsCacheList: async () => {
         return storageAdapter?.getLyricsList();

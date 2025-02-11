@@ -88,7 +88,7 @@ const lyricsStore = {
 
     sendColorConfig() {
         const nowColor = textColor();
-        wsService.pushSetting("textColor", nowColor);
+        wsService.pushSetting("text-color", nowColor);
         void configService.saveConfig(this.getState);
     },
 
@@ -100,17 +100,17 @@ const lyricsStore = {
 
     setUseTranslationAsMain(use: boolean) {
         setUseTranslationAsMain(use);
-        wsService.pushSetting("useTranslationAsMain", use);
+        wsService.pushSetting("use-main-translation", use);
         void configService.saveConfig(this.getState);
     },
 
     addTitleBlackList(title: string) {
-        wsService.pushSetting("addBlackList", title);
+        wsService.pushSetting("add-black-list", title);
         addTitleBlackListItem(title);
     },
 
     deleteTitleBlackList(title: string) {
-        wsService.pushSetting("deleteBlackList", title);
+        wsService.pushSetting("delete-black-list", title);
         deleteTitleBlackListItem(title);
     },
 

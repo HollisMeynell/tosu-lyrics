@@ -30,6 +30,9 @@ const Controller: Component<ControllerProps> = (props) => {
                     <A href="/lyrics/controller/blackList">
                         <SettingIcon type={"blackList"} class="w-6 h-6" />
                     </A>
+                    <A href="/lyrics/controller/blackList">
+                        <SettingIcon type={"cache"} class="w-6 h-6" />
+                    </A>
                 </nav>
             </div>
             <div class="ml-10 px-8 h-full">{props.children}</div>

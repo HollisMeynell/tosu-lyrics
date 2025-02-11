@@ -312,8 +312,12 @@ export class OtherClient {
         return this.service.postQuery(this.id, "query-cache-list");
     }
 
-    public async removeCacheItem(bid: number): Promise<void> {
-        this.service.pushSetting("remove-cache-item", { bid }, this.id);
+    public async removeCacheItem(key: number | string): Promise<void> {
+        this.service.pushSetting(
+            "remove-cache-item",
+            { key, isBid: typeof key === "number" },
+            this.id
+        );
     }
 
     public async removeAllCache(): Promise<void> {

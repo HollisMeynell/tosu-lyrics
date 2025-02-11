@@ -6,7 +6,10 @@ import {
     setUseTranslationAsMain,
 } from "@/stores/settingsStore";
 import store from "@/stores/indexStore";
-import { addTitleBlackListItem, deleteTitleBlackListItem } from "@/stores/blackListStore";
+import {
+    addTitleBlackListItem,
+    deleteTitleBlackListItem,
+} from "@/stores/blackListStore";
 import { lyricBlink } from "@/pages/LyricsBox";
 import { paramParse } from "@/utils/parseParams";
 import { MessageHandler, wsService } from "@/services/webSocketService";
@@ -34,8 +37,10 @@ export const initializeApp = async () => {
             return allKeys || [];
         });
         wsService.registerHandler("remove-cache-item", (params) => {
-            const { bid } = params as { bid: number };
-            cache.storageAdapter?.clearLyrics(bid);
+            const { key } = params as {
+                key: string | number;
+            };
+            cache.storageAdapter?.clearLyrics(key);
         });
         wsService.registerHandler("remove-all-cache", () =>
             cache.storageAdapter?.clearLyrics()
@@ -77,17 +82,17 @@ export const initializeApp = async () => {
         store.parseSettings(config);
 
         // 注册设置处理器
-        wsService.registerHandler("textColor", setTextColor);
+        wsService.registerHandler("text-color", setTextColor);
         wsService.registerHandler(
-            "useTranslationAsMain",
+            "use-main-translation",
             setUseTranslationAsMain
         );
         wsService.registerHandler(
-            "addBlackList",
+            "add-black-list",
             addTitleBlackListItem as MessageHandler
         );
         wsService.registerHandler(
-            "deleteBlackList",
+            "delete-black-list",
             deleteTitleBlackListItem as MessageHandler
         );
         wsService.registerHandler("showSecond", setShowSecond);
