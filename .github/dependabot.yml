@@ -9,3 +9,7 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
+  - package-ecosystem: "cargo" 
+    directory: "/tosu-proxy/"
+    schedule:
+      interval: "daily"
