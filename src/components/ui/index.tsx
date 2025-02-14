@@ -17,5 +17,5 @@ export {
     ToggleNSwitch,
     DragPanel,
     ColorSelector,
-    Select
+    Select,
 };

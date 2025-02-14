@@ -20,7 +20,9 @@ interface ToggleListWithChildren {
 type ToggleListProps = ToggleListWithPages | ToggleListWithChildren; // 交叉类型
 
 const ToggleListExtends = (props: ToggleListProps) => {
-    const [selectedPage, setSelectedPage] = createSignal<string>(props.pages?.[0].name || "");
+    const [selectedPage, setSelectedPage] = createSignal<string>(
+        props.pages?.[0].name || ""
+    );
     const [active, setActive] = createSignal<boolean>(false);
     const [maxHeight, setMaxHeight] = createSignal<string>("0px");
     let panelContentRef: HTMLDivElement | undefined;

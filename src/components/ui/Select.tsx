@@ -25,7 +25,11 @@ export default function Select(props: SelectProps) {
         if (options.length === 0) {
             if (props.placeholder) {
                 // 添加占位符选项
-                options.push({ code: "", name: props.placeholder, placeholder: true });
+                options.push({
+                    code: "",
+                    name: props.placeholder,
+                    placeholder: true,
+                });
             } else {
                 // 添加默认占位符选项
                 options.push({ code: "", name: "无选项" });
@@ -61,10 +65,7 @@ export default function Select(props: SelectProps) {
             >
                 <For each={wrappedOptions()}>
                     {(option) => (
-                        <option
-                            value={option.code}
-                            hidden={option.placeholder}
-                        >
+                        <option value={option.code} hidden={option.placeholder}>
                             {option.name}
                         </option>
                     )}
