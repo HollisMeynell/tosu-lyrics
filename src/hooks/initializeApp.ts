@@ -33,11 +33,14 @@ export const initializeApp = async () => {
 
         // 注册缓存处理器
         wsService.registerQueryHandler("query-cache-list", async (params) => {
-            let { page, size } = params as { page?: number; size?: number };
-            page = page || 0;
-            size = size || 50;
+            const { page = 0, size = 50 } = params as {
+                page?: number;
+                size?: number;
+            };
+
             const allKeys = await cache.getLyricsCacheList(page, size);
-            return allKeys || [];
+
+            return allKeys ?? [];
         });
         wsService.registerHandler("remove-cache-item", (params) => {
             const { key } = params as {
