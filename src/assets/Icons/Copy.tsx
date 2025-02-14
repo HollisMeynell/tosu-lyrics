@@ -1,4 +1,4 @@
-export default function CopySvg(props: { stroke: string; class: string }) {
+export default function Copy(props: { stroke: string; class: string }) {
     return (
         <svg
             height="800px"

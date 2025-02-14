@@ -2,13 +2,15 @@
 import { For, Show, Component, Accessor } from "solid-js";
 import { createEffect } from "solid-js";
 import { darkMode } from "@/stores/settingsStore";
-import ToggleList from "@/components/ui/ToggleList.tsx";
+import { ToggleList } from "@/components/ui";
 import { Copy } from "@/assets/Icons";
 import { wsService } from "@/services/webSocketService";
 import { LyricRawLine } from "@/types/lyricTypes.ts";
 
-const CurrentLyrics: Component<{lyrics: Accessor<LyricRawLine[]>; setLyrics: (lyrics: LyricRawLine[]) => void}> = ({ lyrics, setLyrics }) => {
-
+const CurrentLyrics: Component<{
+    lyrics: Accessor<LyricRawLine[]>;
+    setLyrics: (lyrics: LyricRawLine[]) => void;
+}> = ({ lyrics, setLyrics }) => {
     createEffect(() => {
         void handleRefresh();
     });
@@ -71,6 +73,6 @@ const CurrentLyrics: Component<{lyrics: Accessor<LyricRawLine[]>; setLyrics: (ly
     );
 
     return <ToggleList header={LyricsHeader}>{LyricsContent}</ToggleList>;
-}
+};
 
 export default CurrentLyrics;

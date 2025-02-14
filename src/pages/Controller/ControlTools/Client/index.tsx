@@ -1,6 +1,6 @@
 import { wsService } from "@/services/webSocketService";
-import { createSignal, For } from "solid-js";
-import Button from "@/components/ui/Button";
+import { createSignal } from "solid-js";
+import { Button, Select } from "@/components/ui";
 import { ChevronRight } from "@/assets/Icons";
 
 export default function ClientList() {
@@ -26,29 +26,16 @@ export default function ClientList() {
 
     const Selector = () => (
         <div class="flex flex-row items-center gap-3">
-            <div class="relative w-full md:w-48">
-                <select
-                    value={selectedClient()}
-                    onInput={(e) => setSelectedClient(e.currentTarget.value)}
-                    class="w-full py-1.5 pl-3 pr-8 border border-[#cbd5e1] rounded-lg shadow-xs appearance-none bg-white focus:outline-hidden focus:ring-1 focus:ring-[#eb4898] focus:border-[#eb4898] hover:border-[#94a3b8] transition-colors cursor-pointer dark:bg-[#020616] dark:border-[#475569] dark:text-white dark:focus:border-[#e169a8] dark:hover:border-[#64748b]"
-                >
-                    {clients().length === 0 && (
-                        <option value={""} disabled>
-                            等待其他客户端
-                        </option>
-                    )}
-                    <For each={clients()}>
-                        {(id, index) => (
-                            <option value={id}>客户端-{index()}</option>
-                        )}
-                    </For>
-                </select>
-                <button class="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer">
-                    <span class="text-xl font-[100] text-[#94a3b8] leading-none">
-                        ×
-                    </span>
-                </button>
-            </div>
+            <Select
+                className="w-48 py-1.5"
+                options={clients().map((id) => ({
+                    code: id,
+                    name: `客户端-${clients().indexOf(id)}`,
+                }))}
+                value={selectedClient()}
+                onChange={setSelectedClient}
+                placeholder="等待其他客户端"
+            />
             <Button className="py-[.5rem]" onClick={updateClient}>
                 刷新
             </Button>

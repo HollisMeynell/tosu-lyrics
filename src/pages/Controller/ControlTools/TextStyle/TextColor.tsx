@@ -1,5 +1,5 @@
 // 功能: 面板-文字样式（颜色、字体、显示效果）
-import ColorSelector from "@/components/ui/customColorSelector";
+import { ColorSelector } from "@/components/ui";
 
 export default function TextColor() {
     return (

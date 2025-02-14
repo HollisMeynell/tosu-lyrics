@@ -5,6 +5,8 @@ import ToggleListExtends from "./ToggleListExtends";
 import ToggleSwitch from "./ToggleSwitch";
 import ToggleNSwitch from "./ToggleNSwitch";
 import DragPanel from "./DragPanel";
+import ColorSelector from "./CustomColorSelector";
+import Select from "./Select";
 
 export {
     Button,
@@ -14,4 +16,6 @@ export {
     ToggleSwitch,
     ToggleNSwitch,
     DragPanel,
+    ColorSelector,
+    Select
 };
