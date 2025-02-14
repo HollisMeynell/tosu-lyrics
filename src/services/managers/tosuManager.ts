@@ -13,7 +13,7 @@ import {
     MusicQueryInfoData,
     UnifiedLyricResult,
 } from "@/types/lyricTypes.ts";
-import { LyricAdapter, parseUnifiecLyric } from "@/adapters/lyricAdapter.ts";
+import { LyricAdapter, parseUnifiedLyric } from "@/adapters/lyricAdapter.ts";
 
 type Temp = {
     songTime?: number;
@@ -260,7 +260,7 @@ export default class TosuManager {
             if (hasMusic) {
                 try {
                     const lyric = await adapter.getLyricsFromResult();
-                    newLyric = parseUnifiecLyric(title, lyric);
+                    newLyric = parseUnifiedLyric(title, lyric);
                     // 当歌词为空时, 换下一个 adapter
                     if (newLyric.lyrics.length <= 2) continue;
                     // 歌词正常时结束循环

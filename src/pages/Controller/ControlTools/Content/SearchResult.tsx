@@ -3,7 +3,7 @@ import { Component, For, Show, createSignal } from "solid-js";
 import { wsService } from "@/services/webSocketService";
 import { MusicInfo, MusicQueryInfoData } from "@/types/lyricTypes.ts";
 import { ToggleListExtends, Button, DragPanel } from "@/components/ui";
-import { parseUnifiecLyric } from "@/adapters/lyricAdapter.ts";
+import { parseUnifiedLyric } from "@/adapters/lyricAdapter.ts";
 import { Lyric } from "@/services/managers/lyricManager.ts";
 
 const SearchResult: Component<{
@@ -40,7 +40,7 @@ const SearchResult: Component<{
         );
 
         if (!result) return;
-        const lyric = parseUnifiecLyric(nowTitle, result);
+        const lyric = parseUnifiedLyric(nowTitle, result);
         // todo: 显示歌词
         console.log(lyric);
         setNowLyric(lyric);

@@ -4,7 +4,7 @@ import { Lyric } from "@/services/managers/lyricManager.ts";
 
 export type AdapterStatus = "Pending" | "NotFound" | "NoAccept" | "Loading";
 
-export function parseUnifiecLyric(title: string, lyric: UnifiedLyricResult) {
+export function parseUnifiedLyric(title: string, lyric: UnifiedLyricResult) {
     const result = new Lyric();
     result.insertAll(lyric.lyric, lyric.trans, title);
     return result;
