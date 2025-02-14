@@ -41,7 +41,7 @@ export default function Controller() {
     return (
         <div class="flex flex-col items-start md:flex-row md:items-center gap-4 md:gap-19">
             <h2 class="text-2xl font-normal">字体</h2>
-            <div class="relative w-56">
+            <div class="relative w-56 select-none">
                 <select
                     value={store.getState.font}
                     id="dd-language"

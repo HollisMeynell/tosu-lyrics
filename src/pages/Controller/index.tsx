@@ -20,6 +20,7 @@ const CustomA: Component<{
             href={props.href}
             classList={{
                 "bg-[#ffc5e2bc]": location.pathname === props.href,
+                "dark:bg-[#ec4899]": location.pathname === props.href,
             }}
             class="h-10 rounded-lg p-2"
         >
@@ -34,7 +35,7 @@ const Controller: Component<ControllerProps> = (props) => {
         <div
             class="h-[calc(100%-300px)] bg-[#ffffff] dark:bg-[#141414]
             m-6 pl-6 pr-8 py-8 rounded-lg shadow-md overflow-hidden scrollbar-hide
-            dark:text-[#dcdcdc] text-ellipsis text-nowrap relative transform-3d"
+            dark:text-[#dcdcdc] text-ellipsis text-nowrap selection:bg-[#ffd4ea] selection:text-[#ec4899] dark:selection:bg-fuchsia-300 dark:selection:text-fuchsia-900 relative transform-3d"
         >
             <div class="fixed top-0 left-0 w-16 h-full border-r-2 border-[#f0f0f0] dark:border-[#313131] py-6">
                 <nav class="w-10 mx-auto flex flex-col justify-center items-center gap-4">
