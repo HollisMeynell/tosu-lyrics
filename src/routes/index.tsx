@@ -19,6 +19,9 @@ const Content = lazy(() => import("@/pages/Controller/ControlTools/Content"));
 const TextStyle = lazy(
     () => import("@/pages/Controller/ControlTools/TextStyle")
 );
+const CacheManager = lazy(
+    () => import("@/pages/Controller/ControlTools/CacheManager")
+);
 
 const RoutesRoot: Component<RouteSectionProps<unknown>> = (props) => {
     const navigate = useNavigate();
@@ -82,6 +85,7 @@ export default function AppRoutes() {
                 <Route path="/client" component={ClientList} />
                 <Route path="/content" component={Content} />
                 <Route path="/textstyle" component={TextStyle} />
+                <Route path="/cacheManager" component={CacheManager} />
             </Route>
         </Route>
     );

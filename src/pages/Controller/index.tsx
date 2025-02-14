@@ -78,7 +78,10 @@ const Controller: Component<ControllerProps> = (props) => {
                         href="/lyrics/controller/blackList"
                         icon="blackList"
                     />
-                    <CustomA href="/lyrics/controller/blackList" icon="cache" />
+                    <CustomA
+                        href="/lyrics/controller/cacheManager"
+                        icon="cache"
+                    />
                 </nav>
             </div>
             <div class="ml-18 mr-8 h-full relative overflow-y-auto overflow-x-hidden scrollbar-hide">
@@ -90,7 +93,6 @@ const Controller: Component<ControllerProps> = (props) => {
                 {props.children}
             </div>
             <DarkModeToggle />
-            <br />好
         </div>
     );
 };

@@ -16,6 +16,7 @@ import {
 } from "@/types/lyricTypes.ts";
 import { Lyric } from "@/services/managers/lyricManager.ts";
 import { Accessor, createSignal, Setter } from "solid-js";
+import { LyricCacheIndex } from "@/utils/cache.ts";
 
 export type MessageHandler = (value: unknown) => void;
 export type QueryHandler = (params?: unknown) => Promise<unknown>;
@@ -319,18 +320,21 @@ export class OtherClient {
         this.service.pushSetting("change-lyric", { bid, lyric }, this.id);
     }
 
-    public async queryCacheList(): Promise<
-        Array<{ bid: number; title: string }>
-    > {
-        return this.service.postQuery(this.id, "query-cache-list");
+    /**
+     *
+     */
+    public async queryCacheList(
+        page?: number,
+        size?: number
+    ): Promise<Array<LyricCacheIndex>> {
+        return this.service.postQuery(this.id, "query-cache-list", {
+            page,
+            size,
+        });
     }
 
     public async removeCacheItem(key: number | string): Promise<void> {
-        this.service.pushSetting(
-            "remove-cache-item",
-            { key, isBid: typeof key === "number" },
-            this.id
-        );
+        this.service.pushSetting("remove-cache-item", { key }, this.id);
     }
 
     public async removeAllCache(): Promise<void> {
