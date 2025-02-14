@@ -15,6 +15,7 @@ import {
     UnifiedLyricResult,
 } from "@/types/lyricTypes.ts";
 import { Lyric } from "@/services/managers/lyricManager.ts";
+import { Accessor, createSignal, Setter } from "solid-js";
 
 export type MessageHandler = (value: unknown) => void;
 export type QueryHandler = (params?: unknown) => Promise<unknown>;
@@ -29,11 +30,16 @@ export class WebSocketService {
     private queryQueue = new Map<string, QueryResultHandler>();
     private onlineClients: string[] = [];
     private selfId: string = "";
+    private setClientSignal: Setter<boolean>;
+    clientSignal: Accessor<boolean>;
     defaultClient: OtherClient | undefined;
 
     constructor() {
         this.ws = new ReconnectingWebSocket(BACKEND_WEBSOCKET_URL);
         this.setupWebSocket();
+        const [hasClient, setHasClient] = createSignal(false);
+        this.clientSignal = hasClient;
+        this.setClientSignal = setHasClient;
     }
 
     private setupWebSocket() {
@@ -98,9 +104,15 @@ export class WebSocketService {
         if (message.status === "online") {
             this.onlineClients.push(message.id);
         } else if (message.status === "offline") {
-            this.onlineClients = this.onlineClients.filter(
-                (id) => id !== message.id
-            );
+            this.handleOnlineClient(message.id);
+        }
+    }
+
+    private handleOnlineClient(id: string) {
+        this.onlineClients = this.onlineClients.filter((id) => id !== id);
+        if (this.defaultClient?.id === id) {
+            this.defaultClient = undefined;
+            this.setClientSignal(false);
         }
     }
 
@@ -265,6 +277,7 @@ export class WebSocketService {
     setDefaultClient(key: string) {
         if (!key) return;
         this.defaultClient = new OtherClient(key, this);
+        this.setClientSignal(true);
     }
 }
 
@@ -276,7 +289,7 @@ export const wsService = new WebSocketService();
  */
 export class OtherClient {
     constructor(
-        private id: string,
+        public id: string,
         private service: WebSocketService
     ) {}
 

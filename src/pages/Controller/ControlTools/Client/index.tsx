@@ -24,6 +24,8 @@ export default function ClientList() {
         setTimeout(() => setButtonDisabled(false), 3000);
     };
 
+    updateClient();
+
     const Selector = () => (
         <div class="flex flex-row items-center gap-3">
             <Select
