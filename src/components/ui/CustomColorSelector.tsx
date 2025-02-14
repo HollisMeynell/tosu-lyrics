@@ -3,13 +3,13 @@ import store from "@/stores/indexStore";
 import { Component } from "solid-js";
 
 interface customColorSelectorProps {
-    className?: string;
+    class?: string;
     colorType: "first" | "second";
 }
 
 const customColorSelector: Component<customColorSelectorProps> = (props) => {
     return (
-        <div class={`w-6 h-6 relative ${props.className}`}>
+        <div class={`w-6 h-6 relative ${props.class}`}>
             <input
                 type="color"
                 class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-10"

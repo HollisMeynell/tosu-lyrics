@@ -27,7 +27,7 @@ export default function ClientList() {
     const Selector = () => (
         <div class="flex flex-row items-center gap-3">
             <Select
-                className="w-48 py-1.5"
+                class="w-48 py-1.5"
                 options={clients().map((id) => ({
                     code: id,
                     name: `客户端-${clients().indexOf(id)}`,
@@ -36,7 +36,7 @@ export default function ClientList() {
                 onChange={setSelectedClient}
                 placeholder="等待其他客户端"
             />
-            <Button className="py-[.5rem]" onClick={updateClient}>
+            <Button class="py-[.5rem]" onClick={updateClient}>
                 刷新
             </Button>
         </div>
@@ -71,7 +71,7 @@ export default function ClientList() {
                 <Selector />
                 <ChevronRight />
                 <Button
-                    className="py-[.5rem]"
+                    class="py-[.5rem]"
                     onClick={blinkOtherClient}
                     disabled={buttonDisabled()}
                 >
@@ -79,7 +79,7 @@ export default function ClientList() {
                 </Button>
                 <ChevronRight />
                 <Button
-                    className="py-[.5rem]"
+                    class="py-[.5rem]"
                     onClick={() => wsService.setDefaultClient(selectedClient())}
                 >
                     确定

@@ -7,9 +7,9 @@ export default function TextColor() {
             <h2 class="text-2xl font-normal">文字颜色</h2>
             <div class="flex flex-row items-center gap-4">
                 <p>主歌词:</p>
-                <ColorSelector colorType="first" className="min-w-6" />
+                <ColorSelector colorType="first" class="min-w-6" />
                 <p>副歌词:</p>
-                <ColorSelector colorType="second" className="min-w-6" />
+                <ColorSelector colorType="second" class="min-w-6" />
             </div>
         </div>
     );

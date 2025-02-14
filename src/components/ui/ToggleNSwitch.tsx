@@ -9,7 +9,7 @@ interface ToggleNSwitchProps {
     options: Option[];
     selectedValue?: string;
     disabled?: boolean;
-    className?: string;
+    class?: string;
     onUpdateSelectedValue?: (value: string) => void;
 }
 
@@ -58,7 +58,7 @@ const ToggleNSwitch: Component<ToggleNSwitchProps> = (props) => {
                 "relative h-[2.8rem] rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-2 px-2 select-none",
                 "bg-[#d5dfec] hover:bg-[#adbfd7] dark:bg-[#21314d] dark:hover:bg-[#2c3c59]",
                 props.disabled ? "opacity-50 cursor-not-allowed" : "",
-                props.className,
+                props.class,
             ].join(" ")}
         >
             {/* 滑块 */}

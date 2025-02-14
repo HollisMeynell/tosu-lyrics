@@ -16,7 +16,7 @@ export default function TextStyle() {
                     <h2 class="text-2xl font-normal">对齐方式</h2>
                     <ToggleNSwitch
                         options={alignmentOptions}
-                        className="min-w-[15rem]"
+                        class="min-w-[15rem]"
                         selectedValue={store.getState.alignment}
                         onUpdateSelectedValue={(value) =>
                             store.setAlignment(value)

@@ -39,7 +39,7 @@ const Controller: Component<ControllerProps> = (props) => {
         >
             <div class="fixed top-0 left-0 w-16 h-full border-r-2 border-[#f0f0f0] dark:border-[#313131] py-6">
                 <nav class="w-10 mx-auto flex flex-col justify-center items-center gap-4">
-                    <CustomA href="/lyrics/controller/client" icon="client" />
+                    <CustomA href="/lyrics/controller/client" icon="default" />
                     <CustomA href="/lyrics/controller/content" icon="content" />
                     <CustomA
                         href="/lyrics/controller/textstyle"

@@ -1,12 +1,12 @@
 export default function Button(props: {
     onClick: () => void;
-    className?: string;
+    class?: string;
     children: string;
     disabled?: boolean;
 }) {
     return (
         <button
-            class={[props.className, `bg-gray-100 dark:bg-[#21314d]
+            class={[props.class, `bg-gray-100 dark:bg-[#21314d]
                     hover:bg-[#f0f0f0] dark:hover:bg-[#3b4a63]
                     border border-gray-300 dark:border-gray-600
                     text-sm text-gray-900 dark:text-gray-200

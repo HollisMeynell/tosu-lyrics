@@ -1,7 +1,7 @@
 import { createSignal, Component } from "solid-js";
 
 interface DragPanelProps {
-    className?: string;
+    class?: string;
     items: string[];
 }
 
@@ -40,7 +40,7 @@ const DragPanel: Component<DragPanelProps> = (props) => {
 
     return (
         <div
-            class={["px-3 h-full", props.className].join(" ")}
+            class={["px-3 h-full", props.class].join(" ")}
         >
             <div class="splitter flex h-full w-full overflow-hidden">
                 <div

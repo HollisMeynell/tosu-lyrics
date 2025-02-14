@@ -3,7 +3,7 @@ import { Component } from "solid-js";
 interface ToggleSwitchProps {
     modelValue?: boolean;
     disabled?: boolean;
-    className?: string;
+    class?: string;
     onUpdateModelValue?: (value: boolean) => void;
 }
 
@@ -23,7 +23,7 @@ const ToggleSwitch: Component<ToggleSwitchProps> = (props) => {
                     ? "bg-[#ec4899] hover:bg-[#db2777]"
                     : "bg-[#cbd5e1] hover:bg-[#94a3b8] dark:bg-[#21314d] dark:hover:bg-[#3b4a63]",
                 props.disabled ? "opacity-50 cursor-not-allowed" : "",
-                props.className,
+                props.class,
             ].join(" ")}
             onClick={toggle}
         >

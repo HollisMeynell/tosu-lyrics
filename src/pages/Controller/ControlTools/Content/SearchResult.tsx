@@ -86,7 +86,7 @@ const SearchResult: Component<{
                             <div class="flex flex-row w-[calc(100%-12rem)] items-center gap-2">
                                 <DragPanel
                                     items={[item.title, item.artist]}
-                                    className="w-[calc(100%-7rem)]"
+                                    class="w-[calc(100%-7rem)]"
                                 />
                                 <p class="w-28 overflow-hidden text-ellipsis text-nowrap">
                                     长度：{item.length}
