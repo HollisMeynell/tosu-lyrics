@@ -30,8 +30,8 @@ export class WebSocketService {
     // 发起查询方 请求回调队列 (应该是队列, 但是用 key 做索引所以用 map 了)
     private queryQueue = new Map<string, QueryResultHandler>();
     private onlineClients: string[] = [];
-    private selfId: string = "";
-    private setClientSignal: Setter<boolean>;
+    public selfId: string = "";
+    private readonly setClientSignal: Setter<boolean>;
     clientSignal: Accessor<boolean>;
     defaultClient: OtherClient | undefined;
 

@@ -1,11 +1,5 @@
 import { Button } from "@/components/ui";
-import {
-    Component,
-    createEffect,
-    createSignal,
-    For,
-    splitProps,
-} from "solid-js";
+import { createEffect, createSignal, For } from "solid-js";
 import { LyricCacheIndex } from "@/utils/cache.ts";
 import { wsService } from "@/services/webSocketService.ts";
 
@@ -16,30 +10,56 @@ function ms2str(time: number): string {
     return `${min}:${sec}`;
 }
 
-const CacheList: Component<{ page: number }> = (props) => {
-    const [local] = splitProps(props, ["page"]);
+export default function () {
+    const [page, setPage] = createSignal(0);
     const [cache, setCache] = createSignal<LyricCacheIndex[]>([]);
 
+    const requestBefore = () => {
+        setPage((s) => {
+            if (s <= 0) return 0;
+            return s - 1;
+        });
+    };
+
+    const requestNext = () => {
+        setPage((s) => {
+            if (cache().length < 50) return s;
+            return s + 1;
+        });
+    };
+
     const remove = (ket: string | number) => {
-        wsService.defaultClient?.removeCacheItem(ket);
-        update();
+        wsService.defaultClient?.removeCacheItem(ket).then(update);
+    };
+
+    const removeAll = () => {
+        wsService.defaultClient?.removeAllCache().then(update);
     };
 
     const cacheItem = (item: LyricCacheIndex) => {
         return (
-            <>
-                <span>{item.name}</span>|<span>{ms2str(item.length)}</span>
-                <Button onClick={() => remove(item.sid)}>删除此歌</Button>
-                <Button onClick={() => remove(item.name)}>删除标题匹配</Button>
-            </>
+            <div class="w-full mt-6 p-2 bg-fuchsia-100 rounded-lg">
+                <Button class="mr-4" onClick={() => remove(item.sid)}>
+                    删除此歌
+                </Button>
+                <Button class="mr-4" onClick={() => remove(item.name)}>
+                    删除标题匹配
+                </Button>
+                <span
+                    class="inline-flex items-center gap-x-1.5 py-1.5 px-3 mr-4
+                    rounded-lg text-xs font-medium bg-blue-100 text-blue-800
+                    dark:bg-blue-800/30 dark:text-blue-500"
+                >
+                    {ms2str(item.length)}
+                </span>
+                <span>{item.name}</span>
+            </div>
         );
     };
 
     const update = () => {
         (async () => {
-            const data = await wsService.defaultClient?.queryCacheList(
-                local.page
-            );
+            const data = await wsService.defaultClient?.queryCacheList(page());
             if (!data) return;
             setCache(data);
         })();
@@ -48,28 +68,20 @@ const CacheList: Component<{ page: number }> = (props) => {
     createEffect(async () => {
         update();
     });
-    return <For each={cache()}>{cacheItem}</For>;
-};
 
-export default function () {
-    const [page, setPage] = createSignal(0);
     return (
         <>
-            <Button
-                onClick={() => {
-                    setPage((s) => s - 1);
-                }}
-            >
-                上一页
+            <Button class="mb-6" onClick={removeAll}>
+                清空所有缓存
             </Button>
-            <Button
-                onClick={() => {
-                    setPage((s) => s + 1);
-                }}
-            >
-                下一页
-            </Button>
-            <CacheList page={page()} />
+            <br />
+            <Button onClick={requestBefore}>上一页</Button>
+            <span class="ml-6 mr-6">{page() + 1}</span>
+            <Button onClick={requestNext}>下一页</Button>
+            <br />
+            <For each={cache()} fallback={<span>当前缓存为空</span>}>
+                {cacheItem}
+            </For>
         </>
     );
 }

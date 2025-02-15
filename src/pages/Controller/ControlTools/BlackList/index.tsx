@@ -1,6 +1,10 @@
 import store from "@/stores/indexStore";
-import { getTitleBlackList } from "@/stores/blackListStore";
-import { Component, createSignal, For } from "solid-js";
+import {
+    blackListSignal,
+    deleteTitleBlackListItem,
+    getTitleBlackList,
+} from "@/stores/blackListStore";
+import { Component, createEffect, createSignal, For, on } from "solid-js";
 import { wsService } from "@/services/webSocketService";
 import { Refresh, Delete } from "@/assets/Icons";
 import { Button } from "@/components/ui";
@@ -9,6 +13,7 @@ const BlackListItem: Component<{ title: string }> = (props) => {
     const { title } = props;
     const deleteThis = () => {
         store.deleteTitleBlackList(title);
+        deleteTitleBlackListItem(title);
     };
     return (
         <div class="mt-2 mb-2">
@@ -23,6 +28,7 @@ const BlackListItem: Component<{ title: string }> = (props) => {
 
 export default function BlackListLyrics() {
     const [nowTitle, setNowTitle] = createSignal("");
+    const [blackList, setBlackList] = createSignal(getTitleBlackList());
 
     const addBlackList = async () => {
         if (!nowTitle()) return;
@@ -39,6 +45,12 @@ export default function BlackListLyrics() {
     const saveBlackList = () => {
         store.asyncTitleBlackList();
     };
+
+    createEffect(
+        on([blackListSignal], () => {
+            setBlackList(getTitleBlackList());
+        })
+    );
 
     return (
         <div class="flex flex-col gap-4">
@@ -67,7 +79,7 @@ export default function BlackListLyrics() {
                 {nowTitle() || "暂无信息"}
             </h3>
 
-            <For each={getTitleBlackList()}>
+            <For each={blackList()}>
                 {(title) => <BlackListItem title={title} />}
             </For>
         </div>

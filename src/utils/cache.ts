@@ -6,7 +6,7 @@ import { LyricRawLine } from "@/types/lyricTypes.ts";
 
 const STORE_NAME = "lyrics";
 const DB_INDEX_NAME = "nameIndex";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let lyricsDB: IDBDatabase | undefined;
 
@@ -44,7 +44,7 @@ function initIndexedDB(): Promise<IDBDatabase> {
             }
 
             const store = db.createObjectStore(STORE_NAME, {
-                keyPath: ["sid"],
+                keyPath: "sid",
             });
             store.createIndex(DB_INDEX_NAME, "name", { unique: false });
         };

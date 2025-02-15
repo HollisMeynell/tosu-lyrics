@@ -10,11 +10,25 @@ export default function ClientList() {
     const [selectedClient, setSelectedClient] = createSignal<string>(
         clients()[0] || ""
     );
+
+    const clientName = () => {
+        const id = selectedClient();
+        if (id === "") {
+            return "无";
+        }
+        const index = clients().indexOf(id);
+        if (index >= 0) {
+            return `客户端-${index}`;
+        }
+        return "已离线客户端";
+    };
+
     const [buttonDisabled, setButtonDisabled] = createSignal(!selectedClient());
 
     const updateClient = () => {
         const data = wsService.getOnlineClients();
         setClients(data);
+        setButtonDisabled(data.length === 0);
         setSelectedClient(data[0] || "");
     };
 
@@ -62,11 +76,7 @@ export default function ClientList() {
             <h3 class="text-xl">当前选择的端:</h3>
 
             <div class="flex flex-row items-center gap-3">
-                <p class="text-xl">
-                    {selectedClient()
-                        ? `客户端-${clients().indexOf(selectedClient())}`
-                        : "无"}
-                </p>
+                <p class="text-xl">{clientName()}</p>
             </div>
 
             <div class="flex flex-row gap-2 items-center">
@@ -83,6 +93,7 @@ export default function ClientList() {
                 <Button
                     class="py-[.5rem]"
                     onClick={() => wsService.setDefaultClient(selectedClient())}
+                    disabled={selectedClient() === ""}
                 >
                     确定
                 </Button>

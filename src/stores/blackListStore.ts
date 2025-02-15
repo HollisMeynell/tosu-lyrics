@@ -1,60 +1,41 @@
-import { createStore, produce } from "solid-js/store";
+import { createSignal } from "solid-js";
 
-export const [titleBlackList, setTitleBlackList] = createStore({
+export const [blackListSignal, setBlackListSignal] = createSignal<number>(0);
+export const blackListStore = {
     list: [] as string[],
     set: new Set<string>(),
-});
+};
 
-export const inTitleBlackList = (title: string) =>
-    titleBlackList.set.has(title);
+// fixme: 这玩意在 tosuManager 中无法实时生效, set 数据不能及时同步 ???
+export const inTitleBlackList = (title: string) => {
+    return blackListStore.set.has(title);
+};
 
-export const getTitleBlackList = () => titleBlackList.list;
+export const getTitleBlackList = () => blackListStore.list;
 
 export const resetTitleBlackList = (data?: string[]) => {
     if (data) {
-        setTitleBlackList({
-            list: data,
-            set: new Set(data),
-        });
+        blackListStore.list = data;
+        blackListStore.set = new Set(data);
+        setBlackListSignal(data.length);
     } else {
-        setTitleBlackList({
-            list: [],
-            set: new Set(),
-        });
+        blackListStore.list = [];
+        blackListStore.set = new Set();
+        setBlackListSignal(0);
     }
 };
 
 export const addTitleBlackListItem = (title: string) => {
-    // if (titleBlackList.set.has(title)) return;
-    if (titleBlackList.list.indexOf(title) >= 0) return;
-    setTitleBlackList(
-        "set",
-        produce((set) => {
-            set.add(title);
-        })
-    );
-    setTitleBlackList(
-        "list",
-        produce((list) => {
-            list.unshift(title);
-        })
-    );
+    if (blackListStore.set.has(title)) return;
+    blackListStore.list.unshift(title);
+    blackListStore.set.add(title);
+    setBlackListSignal(blackListStore.list.length);
 };
 
 export const deleteTitleBlackListItem = (title: string) => {
-    // if (!titleBlackList.set.has(title)) return;
-    if (titleBlackList.list.indexOf(title) < 0) return;
-    setTitleBlackList(
-        "set",
-        produce((set) => {
-            set.delete(title);
-        })
-    );
-    setTitleBlackList(
-        "list",
-        produce((list) => {
-            const index = list.indexOf(title);
-            list.splice(index, 1);
-        })
-    );
+    if (!blackListStore.set.has(title)) return;
+    const index = blackListStore.list.indexOf(title);
+    blackListStore.list.splice(index, 1);
+    blackListStore.set.delete(title);
+    setBlackListSignal(blackListStore.list.length);
 };

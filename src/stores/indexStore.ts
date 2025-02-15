@@ -20,7 +20,6 @@ import {
     addTitleBlackListItem,
     deleteTitleBlackListItem,
     resetTitleBlackList,
-    titleBlackList,
 } from "@/stores/blackListStore";
 
 import { Shadow } from "@/types/globalTypes";
@@ -38,7 +37,6 @@ const lyricsStore = {
             useTranslationAsMain: useTranslationAsMain(),
             showSecond: showSecond(),
             alignment: alignment(),
-            titleBlackList: titleBlackList.list,
         };
     },
 
