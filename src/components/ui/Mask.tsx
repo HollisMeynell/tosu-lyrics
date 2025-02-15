@@ -1,13 +1,17 @@
 import { Component, JSX } from "solid-js";
 
-const Mask: Component<{ children?: JSX.Element }> = (props) => {
+interface MaskProps {
+    class?: string;
+    children?: JSX.Element;
+}
+
+const Mask: Component<MaskProps> = (props) => {
     return (
         <div
-            class="absolute inset-0 z-100 flex items-center justify-center
-            before:absolute before:z-[-1] before:inset-0 before:rounded-lg
-            before:opacity-40 before:bg-black dark:before:bg-white"
-            {...props}
-        />
+            class={`absolute inset-0 z-100 flex items-center justify-center bg-black/50 dark:bg-black/90 ${props.class}`}
+        >
+            {props.children}
+        </div>
     );
 };
 

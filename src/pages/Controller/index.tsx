@@ -4,18 +4,20 @@ import { Component, JSX, Show } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { SettingIcon } from "@/assets/Icons";
 import { useLocation } from "@solidjs/router";
-import Mask from "@/components/ui/Mask.tsx";
+import { Mask } from "@/components/ui";
 import { wsService } from "@/services/webSocketService.ts";
 
 interface ControllerProps {
     children: JSX.Element;
 }
 
-const CustomA: Component<{
+interface CustomAProps {
     href: string;
-    classList?: Record<string, boolean>;
     icon: string;
-}> = (props) => {
+    classList?: Record<string, boolean>;
+}
+
+const CustomA: Component<CustomAProps> = (props) => {
     const location = useLocation();
     const isActive = () =>
         location.pathname === props.href ||
@@ -25,6 +27,7 @@ const CustomA: Component<{
             href={props.href}
             classList={{
                 "before:transform before:scale-0": !isActive(),
+                ...props.classList,
             }}
             class="h-10 rounded-lg p-2 relative before:w-full before:h-full
             before:absolute before:top-0 before:left-0 before:z-[-1]
@@ -39,16 +42,12 @@ const CustomA: Component<{
 const Controller: Component<ControllerProps> = (props) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const showMask = () => {
-        if (
+    const shouldShowMask = () => {
+        const isClientPage =
             location.pathname === "/lyrics/controller/client" ||
             location.pathname === "/lyrics/controller/" ||
-            location.pathname === "/lyrics/controller"
-        ) {
-            return false;
-        }
-
-        return !wsService.clientSignal();
+            location.pathname === "/lyrics/controller";
+        return !isClientPage && !wsService.clientSignal();
     };
 
     const jumpToClient = () => {
@@ -59,6 +58,15 @@ const Controller: Component<ControllerProps> = (props) => {
         <Button onClick={jumpToClient}>当前客户端不可用, 请选择客户端</Button>
     );
 
+    // 导航栏配置
+    const navItems = [
+        { href: "/lyrics/controller/client", icon: "default" },
+        { href: "/lyrics/controller/content", icon: "content" },
+        { href: "/lyrics/controller/textstyle", icon: "palette" },
+        { href: "/lyrics/controller/blackList", icon: "blackList" },
+        { href: "/lyrics/controller/cacheManager", icon: "cache" },
+    ];
+
     //通过 relative 和 transform-3d 实现 DarkModeToggle 组件的 fixed 定位相对父元素而非视窗 666 借鉴 https://www.cnblogs.com/ai888/p/18598560
     return (
         <div
@@ -68,30 +76,19 @@ const Controller: Component<ControllerProps> = (props) => {
         >
             <div class="fixed top-0 left-0 w-16 h-full border-r-2 border-[#f0f0f0] dark:border-[#313131] py-6">
                 <nav class="w-10 mx-auto flex flex-col justify-center items-center gap-4">
-                    <CustomA href="/lyrics/controller/client" icon="default" />
-                    <CustomA href="/lyrics/controller/content" icon="content" />
-                    <CustomA
-                        href="/lyrics/controller/textstyle"
-                        icon="palette"
-                    />
-                    <CustomA
-                        href="/lyrics/controller/blackList"
-                        icon="blackList"
-                    />
-                    <CustomA
-                        href="/lyrics/controller/cacheManager"
-                        icon="cache"
-                    />
+                {navItems.map((item) => (
+                        <CustomA href={item.href} icon={item.icon} />
+                    ))}
                 </nav>
             </div>
             <div class="ml-18 mr-8 h-full relative overflow-y-auto overflow-x-hidden scrollbar-hide">
-                <Show when={showMask()}>
-                    <Mask>
-                        <Tips />
-                    </Mask>
-                </Show>
                 {props.children}
             </div>
+            <Show when={shouldShowMask()}>
+                <Mask class="ml-16 h-full">
+                    <Tips />
+                </Mask>
+            </Show>
             <DarkModeToggle />
         </div>
     );
