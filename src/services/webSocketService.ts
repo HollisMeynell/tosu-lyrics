@@ -39,7 +39,13 @@ export class WebSocketService {
         this.ws = new ReconnectingWebSocket(BACKEND_WEBSOCKET_URL);
         this.setupWebSocket();
         const [hasClient, setHasClient] = createSignal(false);
-        this.clientSignal = hasClient;
+        this.clientSignal = () => {
+            if (!hasClient() && this.onlineClients.length == 1) {
+                this.setDefaultClient(this.onlineClients[0]);
+                return true;
+            }
+            return hasClient();
+        };
         this.setClientSignal = setHasClient;
     }
 

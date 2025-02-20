@@ -17,6 +17,8 @@ const SearchResult: Component<{
     // bid 用于判断是否被切歌, 防止切歌后歌词错乱
     let nowBid = 0;
 
+    const [active, setActive] = createSignal(false);
+
     const [nowLyric, setNowLyric] = createSignal<Lyric>();
 
     const searchMusicInfo = async () => {
@@ -41,8 +43,6 @@ const SearchResult: Component<{
 
         if (!result) return;
         const lyric = parseUnifiedLyric(nowTitle, result);
-        // todo: 显示歌词
-        console.log(lyric);
         setNowLyric(lyric);
     };
 
@@ -125,11 +125,17 @@ const SearchResult: Component<{
             content: <SearchResultItemList key={key} />,
         }));
         setPages(loadedPages);
+        setActive(true);
     };
 
     return (
         <>
-            <ToggleListExtends header={SearchResultHeader()} pages={pages()} />
+            <ToggleListExtends
+                show={active()}
+                setShow={setActive}
+                header={SearchResultHeader()}
+                pages={pages()}
+            />
         </>
     );
 };

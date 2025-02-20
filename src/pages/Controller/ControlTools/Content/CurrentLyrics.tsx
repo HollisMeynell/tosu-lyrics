@@ -1,5 +1,5 @@
 // 功能: 面板-显示当前播放歌曲的歌词
-import { For, Show, Component, Accessor } from "solid-js";
+import { For, Show, Component, Accessor, createSignal } from "solid-js";
 import { createEffect } from "solid-js";
 import { darkMode } from "@/stores/settingsStore";
 import { ToggleList } from "@/components/ui";
@@ -15,6 +15,8 @@ const CurrentLyrics: Component<{
         void handleRefresh();
     });
 
+    const [show, setShow] = createSignal(false);
+
     const handleRefresh = async () => {
         const data = await wsService.defaultClient?.queryNowLyrics();
         if (!data) {
@@ -22,6 +24,7 @@ const CurrentLyrics: Component<{
             return;
         }
         setLyrics(data);
+        setShow(true);
     };
 
     const LyricsHeader = (
@@ -72,7 +75,11 @@ const CurrentLyrics: Component<{
         </div>
     );
 
-    return <ToggleList header={LyricsHeader}>{LyricsContent}</ToggleList>;
+    return (
+        <ToggleList show={show()} setShow={setShow} header={LyricsHeader}>
+            {LyricsContent}
+        </ToggleList>
+    );
 };
 
 export default CurrentLyrics;

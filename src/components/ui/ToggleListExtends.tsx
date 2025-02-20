@@ -1,19 +1,30 @@
-import { createSignal, JSX, createEffect, For, Show } from "solid-js";
+import {
+    createSignal,
+    JSX,
+    createEffect,
+    For,
+    Show,
+    splitProps,
+} from "solid-js";
 
 interface Page {
     name: string;
     content: JSX.Element;
 }
 
-interface ToggleListWithPages {
-    pages: Page[];
+interface ToggleList {
     header: JSX.Element;
+    show: boolean;
+    setShow: (show: boolean) => void;
+}
+
+interface ToggleListWithPages extends ToggleList {
+    pages: Page[];
     children?: never; // 确保 children 不能传入
 }
 
-interface ToggleListWithChildren {
+interface ToggleListWithChildren extends ToggleList {
     pages?: never; // 确保 pages 不能传入
-    header: JSX.Element;
     children: JSX.Element;
 }
 
@@ -23,7 +34,10 @@ const ToggleListExtends = (props: ToggleListProps) => {
     const [selectedPage, setSelectedPage] = createSignal<string>(
         props.pages?.[0].name || ""
     );
-    const [active, setActive] = createSignal<boolean>(false);
+    const [{ show: active, setShow: setActive }] = splitProps(props, [
+        "show",
+        "setShow",
+    ]);
     const [maxHeight, setMaxHeight] = createSignal<string>("0px");
     let panelContentRef: HTMLDivElement | undefined;
 
@@ -31,7 +45,7 @@ const ToggleListExtends = (props: ToggleListProps) => {
     const togglePanel = (e: MouseEvent) => {
         // 检查事件源是否为header本身
         if (e.currentTarget === e.target) {
-            setActive(!active());
+            setActive(!active);
         }
     };
 
@@ -42,7 +56,7 @@ const ToggleListExtends = (props: ToggleListProps) => {
     };
 
     createEffect(() => {
-        if (active() && panelContentRef) {
+        if (active && panelContentRef) {
             // 获取内容的高度
             const height = panelContentRef.scrollHeight;
             setMaxHeight(`${height}px`);

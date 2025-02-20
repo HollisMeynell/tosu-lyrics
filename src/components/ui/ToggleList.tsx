@@ -1,12 +1,17 @@
-import { createSignal, JSX, createEffect } from "solid-js";
+import { createSignal, JSX, createEffect, splitProps } from "solid-js";
 
 interface ToggleListProps {
     header: JSX.Element;
     children: JSX.Element;
+    show: boolean;
+    setShow: (show: boolean) => void;
 }
 
 const ToggleList = (props: ToggleListProps) => {
-    const [active, setActive] = createSignal<boolean>(false);
+    const [{ show: active, setShow: setActive }] = splitProps(props, [
+        "show",
+        "setShow",
+    ]);
     const [maxHeight, setMaxHeight] = createSignal<string>("0px");
     let panelContentRef: HTMLDivElement | undefined;
 
@@ -14,12 +19,12 @@ const ToggleList = (props: ToggleListProps) => {
     const togglePanel = (e: MouseEvent) => {
         // 检查事件源是否为header本身
         if (e.currentTarget === e.target) {
-            setActive(!active());
+            setActive(!active);
         }
     };
 
     createEffect(() => {
-        if (active() && panelContentRef) {
+        if (active && panelContentRef) {
             // 获取内容的高度
             const height = panelContentRef.scrollHeight;
             setMaxHeight(`${height}px`);
