@@ -40,7 +40,7 @@ export default function Controller() {
             <Select
                 class="w-56"
                 options={fonts}
-                value={store.getState.font}
+                value={store.getState.settings.font}
                 onChange={(value) => store.setFont(value)}
             />
         </div>

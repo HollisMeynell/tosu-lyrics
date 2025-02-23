@@ -1,38 +1,27 @@
 import store from "@/stores/indexStore";
-import {
-    blackListSignal,
-    deleteTitleBlackListItem,
-    getTitleBlackList,
-} from "@/stores/blackListStore";
-import { Component, createEffect, createSignal, For, on } from "solid-js";
+import { Component, createSignal, For } from "solid-js";
 import { wsService } from "@/services/webSocketService";
 import { Refresh, Delete } from "@/assets/Icons";
 import { Button } from "@/components/ui";
 
 const BlackListItem: Component<{ title: string }> = (props) => {
-    const { title } = props;
-    const deleteThis = () => {
-        store.deleteTitleBlackList(title);
-        deleteTitleBlackListItem(title);
-    };
     return (
         <div class="mt-2 mb-2">
             <Delete
                 class="mr-2 w-6 h-6 inline cursor-pointer select-none active:scale-90"
-                onClick={deleteThis}
+                onClick={() => store.deleteTitleBlackList(props.title)}
             />
-            {title}
+            {props.title}
         </div>
     );
 };
 
 export default function BlackListLyrics() {
     const [nowTitle, setNowTitle] = createSignal("");
-    const [blackList, setBlackList] = createSignal(getTitleBlackList());
 
-    const addBlackList = async () => {
+    const addTitleToBlackList = async () => {
         if (!nowTitle()) return;
-        store.addTitleBlackList(nowTitle());
+        store.addTitleToBlackList(nowTitle());
     };
 
     const refresh = async (e: { target: { tagName: string } }) => {
@@ -43,14 +32,8 @@ export default function BlackListLyrics() {
     };
 
     const saveBlackList = () => {
-        store.asyncTitleBlackList();
+        store.syncTitleBlackList();
     };
-
-    createEffect(
-        on([blackListSignal], () => {
-            setBlackList(getTitleBlackList());
-        })
-    );
 
     return (
         <div class="flex flex-col gap-4">
@@ -66,8 +49,8 @@ export default function BlackListLyrics() {
 
             {/* Actions */}
             <div class="flex flex-row items-center gap-2">
-                <Button onClick={addBlackList}>拉黑当前歌曲</Button>
-                <Button onClick={saveBlackList}>永久保存</Button>
+                <Button onClick={addTitleToBlackList}>拉黑当前歌曲</Button>
+                <Button onClick={saveBlackList}>保存黑名单</Button>
             </div>
 
             {/* BlackList */}
@@ -79,7 +62,7 @@ export default function BlackListLyrics() {
                 {nowTitle() || "暂无信息"}
             </h3>
 
-            <For each={blackList()}>
+            <For each={Array.from(store.getState.titleBlackList || [])}>
                 {(title) => <BlackListItem title={title} />}
             </For>
         </div>

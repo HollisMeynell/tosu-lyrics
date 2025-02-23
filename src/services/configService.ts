@@ -1,8 +1,8 @@
-import { Settings } from "@/types/globalTypes";
+import { Config } from "@/types/globalTypes";
 import { BACKEND_CONFIG_URL } from "@/config/constants";
 
 class ConfigService {
-    async fetchConfig(): Promise<Settings> {
+    async fetchConfig(): Promise<Config> {
         const response = await fetch(BACKEND_CONFIG_URL);
         if (!response.ok) {
             throw new Error(`Failed to fetch config: ${response.status}`);
@@ -10,7 +10,7 @@ class ConfigService {
         return response.json();
     }
 
-    async saveConfig(config: Settings): Promise<void> {
+    async saveConfig(config: Config): Promise<void> {
         try {
             const response = await fetch(BACKEND_CONFIG_URL, {
                 method: "PUT",

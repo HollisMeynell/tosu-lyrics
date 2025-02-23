@@ -17,7 +17,7 @@ export default function TextStyle() {
                     <ToggleNSwitch
                         options={alignmentOptions}
                         class="min-w-[15rem]"
-                        selectedValue={store.getState.alignment}
+                        selectedValue={store.getState.settings.alignment}
                         onUpdateSelectedValue={(value) =>
                             store.setAlignment(value)
                         }
@@ -30,7 +30,7 @@ export default function TextStyle() {
                 {/* 显示 */}
                 <div class="flex flex-row items-center gap-3">
                     <ToggleSwitch
-                        modelValue={store.getState.useTranslationAsMain}
+                        modelValue={store.getState.settings.useTranslationAsMain}
                         onUpdateModelValue={(value) =>
                             store.setUseTranslationAsMain(value)
                         }
@@ -39,7 +39,7 @@ export default function TextStyle() {
                 </div>
                 <div class="flex flex-row items-center gap-3">
                     <ToggleSwitch
-                        modelValue={store.getState.showSecond}
+                        modelValue={store.getState.settings.showSecond}
                         onUpdateModelValue={(value) =>
                             store.setShowSecond(value)
                         }

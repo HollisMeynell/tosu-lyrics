@@ -200,7 +200,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         <p
             class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff]"
             style={{
-                color: store.getState.textColor.first,
+                color: store.getState.settings.textColor.first,
                 "text-align": props.align || "center",
             }}
         >
@@ -217,7 +217,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 hidden: !props.block,
             }}
             style={{
-                color: store.getState.textColor.second,
+                color: store.getState.settings.textColor.second,
                 "text-align": props.align || "center",
             }}
         >
@@ -254,7 +254,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     // 渲染歌词行
     const lines = (lyric: Accessor<LyricLine>, index: number) => {
         const getMainLyric = () =>
-            store.getState.useTranslationAsMain
+            store.getState.settings.useTranslationAsMain
                 ? lyric().main
                     ? lyric().main
                     : lyric().origin
@@ -263,7 +263,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                   : lyric().main;
 
         const getSecondLyric = () =>
-            store.getState.useTranslationAsMain ? lyric().origin : lyric().main;
+            store.getState.settings.useTranslationAsMain ? lyric().origin : lyric().main;
 
         return (
             <li
@@ -277,7 +277,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 style={lyricAlignmentStyle()}
             >
                 <MainLyric text={getMainLyric()} />
-                <Show when={lyric().origin && store.getState.showSecond}>
+                <Show when={lyric().origin && store.getState.settings.showSecond}>
                     <SecondLyric
                         block={cursor() === index}
                         text={getSecondLyric()}

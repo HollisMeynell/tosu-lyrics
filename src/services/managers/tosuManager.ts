@@ -4,7 +4,7 @@ import { Lyric } from "@/services/managers/lyricManager";
 import Cache from "@/utils/cache.ts";
 import { TosuAPi } from "@/types/tosuTypes";
 import { NeteaseLyricAdapter, QQLyricAdapter } from "@/adapters";
-import { inTitleBlackList } from "@/stores/blackListStore";
+import { blackList } from "@/stores/blackListStore";
 import { debounce } from "@/utils/helpers.ts";
 import {
     LyricLine,
@@ -217,7 +217,7 @@ export default class TosuManager {
         nowTitle = title;
 
         // 如果在黑名单中, 则跳过
-        if (inTitleBlackList(title)) {
+        if (blackList.inBlackList(title)) {
             return;
         }
 

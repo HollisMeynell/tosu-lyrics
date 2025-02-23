@@ -16,31 +16,30 @@ import {
     setUseTranslationAsMain,
 } from "@/stores/settingsStore";
 
-import {
-    addTitleBlackListItem,
-    deleteTitleBlackListItem,
-    resetTitleBlackList,
-} from "@/stores/blackListStore";
+import { blackList } from "@/stores/blackListStore";
 
 import { Shadow } from "@/types/globalTypes";
 import { wsService } from "@/services/webSocketService";
 import { configService } from "@/services/configService";
-import { AlignType, Settings } from "@/types/globalTypes";
+import { AlignType, Config } from "@/types/globalTypes";
 
 // Store
 const lyricsStore = {
-    get getState(): Settings {
+    get getState(): Config {
         return {
-            font: font(),
-            shadow: shadow(),
-            textColor: textColor(),
-            useTranslationAsMain: useTranslationAsMain(),
-            showSecond: showSecond(),
-            alignment: alignment(),
+            settings: {
+                font: font(),
+                shadow: shadow(),
+                textColor: textColor(),
+                useTranslationAsMain: useTranslationAsMain(),
+                showSecond: showSecond(),
+                alignment: alignment(),
+            },
+            titleBlackList: blackList.set,
         };
     },
 
-    parseSettings: (config: Settings) => {
+    parseSettings: (config: Config) => {
         const setValue = (
             val: unknown | undefined,
             setter: (val: unknown) => void
@@ -51,22 +50,22 @@ const lyricsStore = {
         };
         if (config) {
             // 兼容不同版本导致的部分配置缺失
-            setValue(config.font, setFont);
-            setValue(config.useTranslationAsMain, setUseTranslationAsMain);
-            setValue(config.showSecond, setShowSecond);
-            setValue(config.alignment, setAlignment);
+            setValue(config.settings.font, setFont);
+            setValue(config.settings.useTranslationAsMain, setUseTranslationAsMain);
+            setValue(config.settings.showSecond, setShowSecond);
+            setValue(config.settings.alignment, setAlignment);
             setValue(config.titleBlackList, (list) =>
-                resetTitleBlackList(list as string[])
+                blackList.reset(list as Set<string>)
             );
 
-            if (config.textColor) {
+            if (config.settings.textColor) {
                 setTextColor({
                     ...DEFAULT_TEXT_COLOR,
-                    ...config.textColor,
+                    ...config.settings.textColor,
                 });
             }
         }
-        lyricsStore.initializeState();
+        lyricsStore.initializeDarkMode();
     },
 
     setShadow(shadow: Shadow) {
@@ -102,17 +101,17 @@ const lyricsStore = {
         void configService.saveConfig(this.getState);
     },
 
-    addTitleBlackList(title: string) {
+    addTitleToBlackList(title: string) {
         wsService.pushSetting("add-black-list", title);
-        addTitleBlackListItem(title);
+        blackList.add(title);
     },
 
     deleteTitleBlackList(title: string) {
         wsService.pushSetting("delete-black-list", title);
-        deleteTitleBlackListItem(title);
+        blackList.remove(title);
     },
 
-    asyncTitleBlackList() {
+    syncTitleBlackList() {
         void configService.saveConfig(this.getState);
     },
 
@@ -122,7 +121,7 @@ const lyricsStore = {
         void configService.saveConfig(this.getState);
     },
 
-    initializeState() {
+    initializeDarkMode() {
         let darkModeMemo = localStorage.getItem("darkMode");
         if (darkModeMemo === null) {
             localStorage.setItem("darkMode", "true");

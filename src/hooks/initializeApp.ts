@@ -6,10 +6,7 @@ import {
     setUseTranslationAsMain,
 } from "@/stores/settingsStore";
 import store from "@/stores/indexStore";
-import {
-    addTitleBlackListItem,
-    deleteTitleBlackListItem,
-} from "@/stores/blackListStore";
+import { blackList } from "@/stores/blackListStore";
 import { lyricBlink } from "@/pages/LyricsBox";
 import { paramParse } from "@/utils/parseParams";
 import { MessageHandler, wsService } from "@/services/webSocketService";
@@ -95,11 +92,11 @@ export const initializeApp = async () => {
         );
         wsService.registerHandler(
             "add-black-list",
-            addTitleBlackListItem as MessageHandler
+            blackList.add as MessageHandler
         );
         wsService.registerHandler(
             "delete-black-list",
-            deleteTitleBlackListItem as MessageHandler
+            blackList.remove as MessageHandler
         );
         wsService.registerHandler("showSecond", setShowSecond);
         wsService.registerHandler("alignment", setAlignment);

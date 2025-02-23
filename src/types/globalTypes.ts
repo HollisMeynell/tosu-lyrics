@@ -24,9 +24,12 @@ export type Settings = {
     useTranslationAsMain: boolean;
     showSecond: boolean;
     alignment: AlignType;
-    // 歌词标题黑名单
-    titleBlackList?: string[];
 };
+
+export type Config = {
+    settings: Settings;
+    titleBlackList?: Set<string>;
+}
 
 export type FontData = {
     postscriptName: string;
