@@ -26,9 +26,17 @@ export type Settings = {
     alignment: AlignType;
 };
 
+// 定义黑名单项的类型
+export type BlacklistItem = {
+    id: string;
+    name: string;
+    reason?: string;
+    timestamp: number;
+};
+
 export type Config = {
     settings: Settings;
-    titleBlackList?: Set<string>;
+    titleBlackList?: BlacklistItem[];
 }
 
 export type FontData = {

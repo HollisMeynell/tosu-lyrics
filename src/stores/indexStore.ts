@@ -15,10 +15,8 @@ import {
     setTextColor,
     setUseTranslationAsMain,
 } from "@/stores/settingsStore";
-
-import { blackList } from "@/stores/blackListStore";
-
-import { Shadow } from "@/types/globalTypes";
+import { blacklistStore } from "./blacklistStore";
+import { BlacklistItem, Shadow } from "@/types/globalTypes";
 import { wsService } from "@/services/webSocketService";
 import { configService } from "@/services/configService";
 import { AlignType, Config } from "@/types/globalTypes";
@@ -35,7 +33,7 @@ const lyricsStore = {
                 showSecond: showSecond(),
                 alignment: alignment(),
             },
-            titleBlackList: blackList.set,
+            titleBlackList: blacklistStore.items,
         };
     },
 
@@ -55,7 +53,10 @@ const lyricsStore = {
             setValue(config.settings.showSecond, setShowSecond);
             setValue(config.settings.alignment, setAlignment);
             setValue(config.titleBlackList, (list) =>
-                blackList.reset(list as Set<string>)
+                {
+                    console.log(list);
+                    blacklistStore.restore(list as BlacklistItem[])
+                }
             );
 
             if (config.settings.textColor) {
@@ -103,12 +104,16 @@ const lyricsStore = {
 
     addTitleToBlackList(title: string) {
         wsService.pushSetting("add-black-list", title);
-        blackList.add(title);
+        blacklistStore.add({
+            id: title,
+            name: title,
+            reason: "Added by user",
+        });
     },
 
     deleteTitleBlackList(title: string) {
         wsService.pushSetting("delete-black-list", title);
-        blackList.remove(title);
+        blacklistStore.remove(title);
     },
 
     syncTitleBlackList() {

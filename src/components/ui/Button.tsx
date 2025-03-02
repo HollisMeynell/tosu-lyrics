@@ -1,7 +1,9 @@
+import { JSX } from "solid-js";
+
 export default function Button(props: {
     onClick: () => void;
     class?: string;
-    children: string;
+    children: string | JSX.Element;
     disabled?: boolean;
 }) {
     return (
@@ -11,7 +13,9 @@ export default function Button(props: {
                     border border-gray-300 dark:border-gray-600
                     text-sm text-gray-900 dark:text-gray-200
                     min-w-18 p-2.5 rounded-md cursor-pointer font-bold shadow-sm  transition-colors duration-300
-                    disabled:opacity-50 disabled:cursor-not-allowed`].join(" ")}
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    flex justify-center items-center
+                    `].join(" ")}
             onClick={props.onClick}
             disabled={props.disabled}
         >
