@@ -50,7 +50,7 @@
 
 ### 控制
 
-在外部浏览器访问[http://127.0.0.1:24050/lyrics/index.html](http://127.0.0.1:24050/lyrics/index.html)。
+在外部浏览器访问[http://127.0.0.1:41280/lyrics/index.html](http://127.0.0.1:41280/lyrics/index.html)。
 在 OBS 的浏览器的`交互`中、外部浏览器中，均可以通过
 
 - ctrl + alt + t
