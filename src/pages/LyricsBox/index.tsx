@@ -1,6 +1,12 @@
-import TosuManager from "@/services/managers/tosuManager";
 import store from "@/stores/indexStore";
 import { alignment, font } from "@/stores/settingsStore";
+import {
+    cursor,
+    lyrics,
+    nextTime,
+    setCursor,
+    setLyrics,
+} from "@/stores/lyricStore";
 import {
     Component,
     Accessor,
@@ -8,7 +14,6 @@ import {
     createSignal,
     Index,
     on,
-    onCleanup,
     onMount,
     Show,
 } from "solid-js";
@@ -16,7 +21,6 @@ import { LyricLine } from "@/types/lyricTypes.ts";
 import { loadFont } from "@/utils/fonts.ts";
 
 let blink = () => void 0;
-let tosu: TosuManager | undefined;
 
 // 触发歌词闪烁三次
 export const lyricBlink = () => {
@@ -43,16 +47,10 @@ interface SecondLyricProps {
 const LyricsBox: Component<LyricsBoxProps> = (props) => {
     const isDebug = props.debug && !(import.meta.env.MODE === "development");
     const [scroll, setScroll] = createSignal(false);
-    const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
-    const [cursor, setCursor] = createSignal(0);
     const [lyricLIRef, setLyricLIRef] = createSignal<HTMLLIElement | undefined>(
         undefined
     );
     let lyricUL: HTMLUListElement | undefined;
-
-    const linkTosu = () => {
-        if (!isDebug) tosu = new TosuManager(setLyrics, setCursor);
-    };
 
     const lyricShow = (show?: boolean) => {
         if (show == undefined) show = true;
@@ -70,7 +68,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         } else {
             blinkKey = 10;
         }
-        tosu?.pause();
         let needBack: boolean;
         const lyricsBack = lyrics();
         const cursorBack = cursor();
@@ -97,7 +94,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                     setLyrics(lyricsBack);
                     setCursor(cursorBack);
                 }
-                tosu?.continue();
                 return;
             }
             isVisible = !isVisible;
@@ -105,10 +101,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
             blinkKey--;
         }, 250);
     };
-
-    onCleanup(() => {
-        tosu?.stop();
-    });
 
     // 更新滚动
     const updateScroll = (p: HTMLLIElement) => {
@@ -152,7 +144,10 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 p.style.setProperty("--offset", `${offset}px`);
                 p.style.setProperty("--offset-f", `${0}px`);
             }
-            p.style.setProperty("--time", `${tosu?.getNextTime()}s`);
+            p.style.setProperty(
+                "--time",
+                `${nextTime() > 0 ? nextTime() / 1000 : 0}s`
+            );
             setScroll(true);
         } else if (scroll()) {
             setScroll(false);
@@ -191,15 +186,12 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     // 初始化歌词
     onMount(() => {
         if (isDebug) {
-            tosu?.stop();
             setLyrics([
                 { main: "测试歌词1", origin: "Test Lyrics 1" },
                 { main: "测试歌词2", origin: "Test Lyrics 2" },
                 { main: "测试歌词3", origin: "Test Lyrics 3" },
             ]);
             setCursor(1);
-        } else {
-            linkTosu();
         }
     });
 

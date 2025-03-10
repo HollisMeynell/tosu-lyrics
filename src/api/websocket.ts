@@ -16,6 +16,8 @@ export type LyricHandler = (data: WebsocketLyric) => void;
 export class Websocket {
     private ws: ReconnectingWebSocket;
     private actions = new Map<string, SettingHandler>();
+    private lyricHandler: LyricHandler | undefined;
+    private settingHandler: SettingHandler | undefined;
 
     /**
      * 初始化 WebSocket 对象
@@ -63,8 +65,7 @@ export class Websocket {
     }
 
     private onLyric(data: WebsocketLyric) {
-        // todo: 这里应该存一个 callback ?
-        console.log(data);
+        this.lyricHandler?.(data);
     }
 
     private onSetting(data: WebsocketSetting) {
@@ -72,6 +73,22 @@ export class Websocket {
             this.actions.get(data.echo)?.(data);
             return;
         }
+        // 无 echo 的 setting 为后端广播
+        this.settingHandler?.(data);
+    }
+
+    /**
+     * 设置歌词事件(后端单向推送)的处理器
+     */
+    public setLyricHandler(handler: LyricHandler | undefined) {
+        this.lyricHandler = handler;
+    }
+
+    /**
+     * 设置广播事件(无 echo 的 setting)的处理器
+     */
+    public setSettingHandler(handler: SettingHandler | undefined) {
+        this.settingHandler = handler;
     }
 
     private genKey(): string {

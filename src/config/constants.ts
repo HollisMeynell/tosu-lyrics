@@ -1,5 +1,5 @@
 export const BACKEND_CONFIG_URL = "http://127.0.0.1:41280/api/config";
-export const BACKEND_WEBSOCKET_URL = "http://127.0.0.1:41280/api/ws";
+export const BACKEND_WEBSOCKET_URL = "http://127.0.0.1:41280/ws";
 export let PROXY_URL = "http://127.0.0.1:41280/api/proxy";
 export const AUDIO_URL = "http://127.0.0.1:24050/files/beatmap/audio";
 export const WS_URL = "ws://127.0.0.1:24050/websocket/v2";

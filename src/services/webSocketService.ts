@@ -288,8 +288,23 @@ export class WebSocketService {
     }
 }
 
+// 延迟创建: 歌词展示页已切换新版协议, 旧服务仅控制面板使用,
+// 避免歌词页加载时即创建旧协议连接
+let wsServiceInstance: WebSocketService | undefined;
+const wsServiceProxy = new Proxy({} as WebSocketService, {
+    get(_target, prop, receiver) {
+        if (wsServiceInstance === undefined) {
+            wsServiceInstance = new WebSocketService();
+        }
+        const value = Reflect.get(wsServiceInstance, prop, receiver);
+        return typeof value === "function"
+            ? value.bind(wsServiceInstance)
+            : value;
+    },
+});
+
 // Singleton instance 暴露
-export const wsService = new WebSocketService();
+export const wsService = wsServiceProxy;
 
 /**
  * 封装对其他客户端的操作

@@ -206,6 +206,13 @@ async fn connect(req: &mut Request, res: &mut Response) -> Result<()> {
             let key = ALL_SESSIONS
                 .add_client(ClientType::create(is_client, tx))
                 .await;
+            // 歌词页接入后立即下发当前歌词状态, 无需等待下一次歌词变化
+            if is_client {
+                let snapshot = crate::service::LYRIC_SERVICE.lock().await.get_snapshot();
+                if let Some(snapshot) = snapshot {
+                    ALL_SESSIONS.send_message(&key, snapshot.into()).await;
+                }
+            }
             handle_ws(ws, key, rx).await;
         })
         .await?;

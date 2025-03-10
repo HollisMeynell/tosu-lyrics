@@ -1,15 +1,16 @@
 import cache from "@/utils/cache";
 import {
+    DEFAULT_TEXT_COLOR,
     setAlignment,
+    setFont,
     setShowSecond,
     setTextColor,
     setUseTranslationAsMain,
 } from "@/stores/settingsStore";
 import store from "@/stores/indexStore";
 import { blacklistStore } from "@/stores/blacklistStore";
-import { lyricBlink } from "@/pages/LyricsBox";
 import { paramParse } from "@/utils/parseParams";
-import { MessageHandler, wsService } from "@/services/webSocketService";
+import type { MessageHandler } from "@/services/webSocketService";
 import { configService } from "@/services/configService";
 import {
     changeOrigin,
@@ -18,11 +19,77 @@ import {
     getNowLyrics,
     getNowTitle,
 } from "@/services/managers/tosuManager";
+import { Websocket } from "@/api/websocket.ts";
+import { BaseLyricSetter, WebsocketSetting } from "@/api/model.ts";
+import { applyLyricEvent, clearLyrics } from "@/stores/lyricStore";
 
-export const initializeApp = async () => {
-    if (import.meta.env.MODE === "development") {
-        document.body.style.backgroundColor = "#3d2932";
+/**
+ * 后端设置广播 -> 展示页状态
+ */
+const handleSettingBroadcast = (data: WebsocketSetting) => {
+    switch (data.key) {
+        case "setColor": {
+            const value = data.value as BaseLyricSetter | undefined;
+            setTextColor({
+                first: value?.first ?? DEFAULT_TEXT_COLOR.first,
+                second: value?.second ?? DEFAULT_TEXT_COLOR.second,
+            });
+            break;
+        }
+        case "setAlignment": {
+            const value = data.value as BaseLyricSetter | undefined;
+            const align = value?.first ?? value?.second;
+            if (align === "left" || align === "center" || align === "right") {
+                setAlignment(align);
+            }
+            break;
+        }
+        case "setFont": {
+            const value = data.value as BaseLyricSetter | undefined;
+            const font = value?.first ?? value?.second;
+            if (font != null) {
+                setFont(font);
+            }
+            break;
+        }
+        case "setTranslationMain": {
+            if (typeof data.value === "boolean") {
+                setUseTranslationAsMain(data.value);
+            }
+            break;
+        }
+        case "setSecondShow": {
+            if (typeof data.value === "boolean") {
+                setShowSecond(data.value);
+            }
+            break;
+        }
+        case "setClear": {
+            clearLyrics();
+            break;
+        }
+        default:
+            break;
     }
+};
+
+/**
+ * 歌词展示页: 连接新版后端 WebSocket, 歌词推送写入 lyricStore, 设置广播写入 settingsStore
+ */
+const initializeLyricClient = () => {
+    const ws = new Websocket();
+    ws.setLyricHandler(applyLyricEvent);
+    ws.setSettingHandler(handleSettingBroadcast);
+};
+
+/**
+ * 控制面板: 沿用旧版 peer-to-peer 逻辑, 后续阶段接入新版协议后移除
+ */
+const initializeLegacy = async () => {
+    const [{ wsService }, { lyricBlink }] = await Promise.all([
+        import("@/services/webSocketService"),
+        import("@/pages/LyricsBox"),
+    ]);
 
     try {
         // 初始化存储适配器
@@ -106,4 +173,18 @@ export const initializeApp = async () => {
     } catch (error) {
         console.error("Failed to initialize:", error);
     }
+};
+
+export const initializeApp = async () => {
+    if (import.meta.env.MODE === "development") {
+        document.body.style.backgroundColor = "#3d2932";
+    }
+
+    // 歌词展示页接入新版后端 WebSocket, 控制面板暂沿用旧逻辑
+    if (!window.location.pathname.startsWith("/lyrics/controller")) {
+        initializeLyricClient();
+        return;
+    }
+
+    await initializeLegacy();
 };

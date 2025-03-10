@@ -6,6 +6,7 @@ use crate::lyric::{
 };
 use crate::model::websocket::WebSocketMessage;
 use crate::model::websocket::lyric::{LyricLinePayload, LyricPayload, SequenceType};
+use crate::model::websocket::setting::SettingPayload;
 use crate::model::websocket::setting::block::BlockItem;
 use crate::osu_source::OsuSongInfo;
 use crate::server::ALL_SESSIONS;
@@ -33,13 +34,14 @@ pub struct LyricService {
     current_lyric_start_time: i32,
     current_lyric_end_time: i32,
 
+    // 最近一次推送的歌词帧
+    last_frame: LyricPayload,
+
     music_cache: Arc<Mutex<HashMap<&'static str, Vec<SongInfo>>>>,
 
     // 任务取消通道
     cancel_tx: broadcast::Sender<()>,
     cancel_rx: Mutex<Option<broadcast::Receiver<()>>>,
-
-    wait_tasks: Mutex<Option<JoinSet<&'static str>>>,
 
     // 当前歌曲是否切换的状态
     is_song_changed: bool,
@@ -59,16 +61,19 @@ impl LyricService {
             offset: 0,
             current_lyric_start_time: -1,
             current_lyric_end_time: -1,
+            last_frame: LyricPayload::default(),
             // 使用 Arc 和 Mutex 包装缓存
             music_cache: Arc::new(Mutex::new(cache)),
             cancel_tx,
             cancel_rx: Mutex::new(Some(cancel_rx)),
-            wait_tasks: Mutex::new(None),
             is_song_changed: true,
         }
     }
 
     pub async fn song_change(&mut self, song: OsuSongInfo) -> Result<()> {
+        // 换歌时先重置歌词展示状态并清空展示, 避免旧歌词残留/旧窗口吞掉新歌推送
+        self.clear_state();
+        Self::broadcast_clear().await;
         self.clear_cache().await;
 
         let title = song.title_unicode.to_string();
@@ -103,6 +108,8 @@ impl LyricService {
                 Ok(lyric) => {
                     self.now_lyric = Some(lyric);
                     debug!("通过缓存加载 {title}");
+                    let now = self.now_save_cache.as_ref().map(|s| s.now).unwrap_or(0);
+                    self.push_now(now).await;
                     return Ok(());
                 }
                 Err(err) => {
@@ -142,57 +149,159 @@ impl LyricService {
             cancel_rx.resubscribe(),
         );
 
-        macro_rules! search_and_set {
-            (>$t:ident) => {
-                let search_success = self.search_and_set_lyric(&*$t, &title, length, &artist).await?;
-                if search_success
-                {
-                    debug!("通过网络加载 {title}");
-                    let Some(lyric) = &self.now_lyric else { return Ok(()); };
-                    let Some(save_key) = &self.now_save_cache else { return Ok(()); };
-                    match Self::save_lyric(save_key, lyric).await {
-                        Ok(_) | Err(Error::LyricParse(_)) => {
-                            debug!("记录到缓存 {title}");
-                        }
-                        Err(err) => {
-                            error!("存储缓存异常: {}", err);
-                        }
-                    };
-                    return Ok(());
-                }
-            };
-            (:$t:ident) => {
-                if self
-                    .search_and_set_lyric(&*$t, &title, length, &artist)
-                    .await?
-                {
-                    let mut tasks = self.wait_tasks.lock().await;
-                    *tasks = Some(join_set);
-                    drop(tasks);
-                    break;
-                }
-            };
-            ($name:ident:$t:ident) => {
-                if $name == $t.name() {
-                    search_and_set!(:$t)
-                }
-            }
-        }
+        // 等待两个源的搜索全部完成(保留并发搜索, 结果已写入 music_cache)
+        while join_set.join_next().await.is_some() {}
 
-        while let Some(source_name) = join_set.join_next().await {
-            let Ok(source_name) = source_name else {
-                continue;
-            };
-            search_and_set!(source_name:NETEASE_LYRIC_SOURCE);
-            search_and_set!(source_name:QQ_LYRIC_SOURCE);
+        // 与旧版一致: 网易云优先, QQ 兜底
+        if self
+            .try_source_lyric(&*NETEASE_LYRIC_SOURCE, &title, length, &artist)
+            .await?
+        {
+            return Ok(());
         }
-
-        search_and_set!(>NETEASE_LYRIC_SOURCE);
-        search_and_set!(>QQ_LYRIC_SOURCE);
+        if self
+            .try_source_lyric(&*QQ_LYRIC_SOURCE, &title, length, &artist)
+            .await?
+        {
+            return Ok(());
+        }
 
         self.now_lyric = None;
 
         Ok(())
+    }
+
+    /// 从指定源取词并缓存, 成功后立即下发首帧
+    /// 返回该源是否成功取到歌词
+    async fn try_source_lyric<S: LyricSource + 'static>(
+        &mut self,
+        source: &'static S,
+        title: &str,
+        length: u32,
+        artist: &str,
+    ) -> Result<bool> {
+        let search_success = self
+            .search_and_set_lyric(source, title, length, artist)
+            .await?;
+        if !search_success {
+            return Ok(false);
+        }
+
+        debug!("通过网络加载 {title}");
+
+        let now = {
+            let Some(lyric) = &self.now_lyric else {
+                return Ok(false);
+            };
+            let Some(save_key) = &self.now_save_cache else {
+                return Ok(false);
+            };
+            match Self::save_lyric(save_key, lyric).await {
+                Ok(_) | Err(Error::LyricParse(_)) => debug!("记录到缓存 {title}"),
+                Err(err) => error!("存储缓存异常: {}", err),
+            }
+            save_key.now
+        };
+
+        // 立即下发首帧, 恢复旧版的即时显示体验
+        self.push_now(now).await;
+        Ok(true)
+    }
+
+    /// 重置歌词展示状态(换歌/清空时调用)
+    pub fn clear_state(&mut self) {
+        self.now_lyric = None;
+        self.now_index = usize::MAX;
+        self.current_lyric_start_time = -1;
+        self.current_lyric_end_time = -1;
+        self.is_song_changed = true;
+    }
+
+    /// 向所有歌词页广播"清空歌词"
+    pub async fn broadcast_clear() {
+        let clean_message = SettingPayload::new("setClear".to_string());
+        ALL_SESSIONS
+            .send_to_all_client(Into::<WebSocketMessage>::into(clean_message).into())
+            .await;
+    }
+
+    /// 歌词加载完成后立即推送首帧(完整歌词 + 当前行), 不必等待下一次时间事件
+    async fn push_now(&mut self, now_ms: i32) {
+        let Some(lyric) = self.now_lyric.as_ref() else {
+            return;
+        };
+        let lyrics: Vec<LyricLinePayload> = lyric
+            .get_lyrics()
+            .iter()
+            .map(|line| LyricLinePayload {
+                origin: line.origin.clone(),
+                translation: line.translation.clone(),
+            })
+            .collect();
+
+        let t = ((if now_ms < 0 { 0 } else { now_ms }) + self.offset) as f32 / 1000f32;
+        let (index, next_time, start_time, end_time) = {
+            let Some(lyric) = self.now_lyric.as_ref() else {
+                return;
+            };
+            match lyric.find_line(t) {
+                Some((index, line)) => {
+                    let next_line = lyric.get_line_by_index(index + 1);
+                    let next_time = match next_line {
+                        None => -1,
+                        Some(next) => {
+                            (next.time * 1000f32) as i32 - (line.time * 1000f32) as i32
+                        }
+                    };
+                    let end_time = next_line
+                        .map(|l| (l.time * 1000f32) as i32)
+                        .unwrap_or(i32::MAX);
+                    (index as i32, next_time, (line.time * 1000f32) as i32, end_time)
+                }
+                None => {
+                    // 在首行之前: 先展示第一行
+                    let first_start = lyric
+                        .get_line_by_index(0)
+                        .map(|l| (l.time * 1000f32) as i32)
+                        .unwrap_or(0);
+                    let next_time = first_start.saturating_sub((t * 1000f32) as i32);
+                    (0, next_time, 0, first_start)
+                }
+            }
+        };
+
+        self.now_index = index as usize;
+        self.current_lyric_start_time = start_time;
+        self.current_lyric_end_time = end_time;
+        self.is_song_changed = false;
+
+        let mut ws_lyric = LyricPayload::default();
+        ws_lyric.lyric = Some(Arc::from(lyrics));
+        ws_lyric.current = index;
+        ws_lyric.next_time = next_time;
+
+        let message: WebSocketMessage = ws_lyric.clone().into();
+        self.last_frame = ws_lyric;
+        ALL_SESSIONS.send_to_all_client(message.into()).await;
+    }
+
+    /// 生成当前歌词状态快照, 用于歌词页接入时立即下发
+    pub fn get_snapshot(&self) -> Option<WebSocketMessage> {
+        let lyric = self.now_lyric.as_ref()?;
+        if lyric.get_lyrics().is_empty() {
+            return None;
+        }
+        let mut frame = self.last_frame.clone();
+        let lyrics: Vec<LyricLinePayload> = lyric
+            .get_lyrics()
+            .iter()
+            .map(|line| LyricLinePayload {
+                origin: line.origin.clone(),
+                translation: line.translation.clone(),
+            })
+            .collect();
+        frame.lyric = Some(Arc::from(lyrics));
+        Some(frame.into())
     }
 
     /// 时间单位为毫秒
@@ -205,7 +314,7 @@ impl LyricService {
         t += self.offset;
 
         if t >= self.current_lyric_start_time && t <= self.current_lyric_end_time {
-            // 时间没变
+            // 时间未越过当前行窗口
             return Ok(());
         }
 
@@ -223,46 +332,58 @@ impl LyricService {
             ws_lyric.lyric = Some(Arc::from(lyrics))
         }
 
-        {
-            let current = lyric.find_line(t as f32 / 1000f32);
-
-            if current.is_none() {
-                return Ok(());
+        let t_sec = t as f32 / 1000f32;
+        let Some((index, lyric_line)) = lyric.find_line(t_sec) else {
+            // 在首行之前: 若完整歌词尚未下发(如手动上传歌词), 以首帧下发
+            if ws_lyric.lyric.is_some() {
+                let first_start = lyric
+                    .get_line_by_index(0)
+                    .map(|line| (line.time * 1000f32) as i32)
+                    .unwrap_or(i32::MAX);
+                self.current_lyric_start_time = 0;
+                self.current_lyric_end_time = first_start;
+                self.now_index = 0;
+                ws_lyric.current = 0;
+                ws_lyric.next_time = first_start.saturating_sub(t);
+                let message: WebSocketMessage = ws_lyric.clone().into();
+                self.last_frame = ws_lyric;
+                ALL_SESSIONS.send_to_all_client(message.into()).await;
             }
+            return Ok(());
+        };
 
-            let (index, lyric_line) = current.ok_or(Error::Impossible)?;
+        // 记录当前行开始/结束(下一行开始)时间，单位毫秒
+        self.current_lyric_start_time = (lyric_line.time * 1000f32) as i32;
+        let next_line = lyric.get_line_by_index(index + 1);
+        self.current_lyric_end_time = match next_line {
+            None => i32::MAX,
+            Some(l) => (l.time * 1000f32) as i32,
+        };
 
-            // 记录当前行开始/结束(下一行开始)时间，单位毫秒
-            self.current_lyric_start_time = (lyric_line.time * 1000f32) as i32;
-            let next_line = lyric.get_line_by_index(index + 1);
-            self.current_lyric_end_time = match next_line {
-                None => i32::MAX,
-                Some(l) => (l.time * 1000f32) as i32,
-            };
-
-            if self.now_index == index {
-                return Ok(());
-            }
-
-            let prev_index = self.now_index;
-            self.now_index = index;
-
-            ws_lyric.sequence = if prev_index < index {
-                SequenceType::Down
-            } else {
-                SequenceType::Up
-            };
-
-            // next_time: 距离下一行开始的时长；末行为 -1
-            ws_lyric.next_time = match next_line {
-                None => -1,
-                Some(l) => (l.time * 1000f32) as i32 - self.current_lyric_start_time,
-            };
-
-            ws_lyric.current = self.now_index as i32;
+        // 行未变且没有待下发的完整歌词: 不推送
+        if self.now_index == index && ws_lyric.lyric.is_none() {
+            return Ok(());
         }
 
-        let message: WebSocketMessage = ws_lyric.into();
+        let prev_index = self.now_index;
+        self.now_index = index;
+
+        ws_lyric.sequence = if prev_index < index {
+            SequenceType::Down
+        } else {
+            SequenceType::Up
+        };
+
+        // next_time: 距离下一行开始的时长；末行为 -1
+        ws_lyric.next_time = match next_line {
+            None => -1,
+            Some(l) => (l.time * 1000f32) as i32 - self.current_lyric_start_time,
+        };
+
+        ws_lyric.current = self.now_index as i32;
+
+        let message: WebSocketMessage = ws_lyric.clone().into();
+        self.last_frame = ws_lyric;
         ALL_SESSIONS.send_to_all_client(message.into()).await;
         Ok(())
     }
@@ -274,23 +395,11 @@ impl LyricService {
         // Step 1: 广播取消信号给所有活动任务
         let _ = self.cancel_tx.send(());
 
-        // Step 2: 等待所有任务优雅完成
-        let mut tasks = self.wait_tasks.lock().await;
-        if let Some(join_set) = tasks.as_mut() {
-            while join_set.join_next().await.is_some() {
-                // 等待每个任务完成
-            }
-        }
-
-        // Step 3: 清空 JoinSet
-        *tasks = None;
-        drop(tasks);
-
-        // Step 4: 重置取消通道接收器，为下一批任务做准备
+        // Step 2: 重置取消通道接收器，为下一批任务做准备
         let new_rx = self.cancel_tx.subscribe();
         *self.cancel_rx.lock().await = Some(new_rx);
 
-        // Step 5: 清空音乐缓存
+        // Step 3: 清空音乐缓存
         let mut cache = self.music_cache.lock().await;
         if let Some(qq_cache) = cache.get_mut(QQ_LYRIC_SOURCE.name()) {
             qq_cache.clear();
@@ -308,10 +417,8 @@ impl LyricService {
         length: u32,
         artist: &str,
     ) -> Result<bool> {
-        let cache = self.music_cache.lock().await;
-        let cache_vec = cache.get(source.name());
-
-        let songs_to_search = cache_vec.unwrap();
+        let mut cache = self.music_cache.lock().await;
+        let songs_to_search = cache.get_mut(source.name()).unwrap();
 
         if songs_to_search.is_empty() {
             return Ok(false);
@@ -405,6 +512,11 @@ impl LyricService {
                 .inspect_err(|err| error!("存储缓存异常: {}", err))?;
         }
         self.now_lyric = Some(lyric);
+        // 重置推送状态, 使下一帧携带完整歌词
+        self.is_song_changed = true;
+        self.now_index = usize::MAX;
+        self.current_lyric_start_time = -1;
+        self.current_lyric_end_time = -1;
         _ = self.time_next(0);
         Ok(())
     }

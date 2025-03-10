@@ -1,9 +1,6 @@
 use super::LYRIC_SERVICE;
 use crate::error::Result;
-use crate::model::websocket::WebSocketMessage;
-use crate::model::websocket::setting::SettingPayload;
 use crate::osu_source::{OsuSongInfo, OsuSource, OsuState};
-use crate::server::ALL_SESSIONS;
 use std::sync::LazyLock;
 use tokio::sync::Mutex;
 use tokio::task::{AbortHandle, JoinHandle};
@@ -59,8 +56,8 @@ async fn on_song_update(song: OsuSongInfo) {
 }
 
 async fn on_clean() {
-    let clean_message = SettingPayload::new("setClear".to_string());
-    ALL_SESSIONS
-        .send_to_all_client(Into::<WebSocketMessage>::into(clean_message).into())
-        .await;
+    // 清空歌词服务状态(菜单/清空指令), 并向所有歌词页广播清空
+    let mut lyric_service = LYRIC_SERVICE.lock().await;
+    lyric_service.clear_state();
+    super::LyricService::broadcast_clear().await;
 }
