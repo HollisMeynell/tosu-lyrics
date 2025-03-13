@@ -107,3 +107,33 @@
 - 本项目的原型和样式改进灵感来自 [@EmitPots](https://github.com/EmitPots)。
 - 参考项目：[LyricDisplayerPlugin](https://github.com/OsuSync/LyricDisplayerPlugin)。
 - 感谢所有贡献者和用户的支持！🙌
+
+## 未来 (画上大饼先)
+
+之前开发是想最小化依赖, 仅作为 tosu 的一个插件来完成工作, 随着功能的增加, 
+纯 ts 对缓存, 配置, 控制等方面支持不足, 开发越来越困难, 
+索性重构一下, 让前端回归最纯粹的展示功能, 正所谓
+
+> Make each program do one thing well.
+
+第二期重构将会解耦前端处理数据, 采用后端接入 tosu, Websocket 仅发送指令控制页面显示
+
+后端任务列表:
+- [ ] 接入数据源获取当前歌曲
+  - [ ] 接入 [tosu](https://github.com/tosuapp/tosu)
+  - [ ] 使用 [rosu-memory](https://github.com/486c/rosu-memory) 直接读取数据
+  - [ ] 接入 [gosumemory](https://github.com/l3lackShark/gosumemory) (tosu 接口兼容)
+- [ ] 查询歌词
+  - [ ] qq 歌词数据源
+  - [ ] 网易云歌词数据源
+- [ ] ws 接收 / 下发指令
+  - [ ] 歌词换行
+  - [ ] 时间轴调整
+  - [ ] 歌曲更新
+  - [ ] 样式更新
+  - [ ] 拉黑 / 显示
+- [ ] 缓存歌词(增/删, 缓存过期时间)
+- [ ] 持久化配置
+- [ ] 存储字体
+- [ ] 上传歌词
+- [ ] 编写后端文档, 支持自己实现页面
