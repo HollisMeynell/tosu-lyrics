@@ -66,6 +66,13 @@ jobs:
           cargo build --release
           mv target/release/${{ matrix.exe }} ../release
           cd ..
+      - name: Run upx
+        continue-on-error: true
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          version: latest
+          files: release/${{ matrix.exe }}
+          args: --best -q
 
       - name: Download frontend artifact
         uses: actions/download-artifact@v4
