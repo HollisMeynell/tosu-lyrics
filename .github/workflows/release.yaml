@@ -1,0 +1,87 @@
+name: Build and Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - 'v.*'
+
+jobs:
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.15.3
+
+      - name: Setup Node.js and pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies and build
+        run: |
+          pnpm install
+          pnpm run build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
+
+  build-backend:
+    needs: [build-frontend]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            exe: tosu-proxy
+            target: linux-release.zip
+
+          - os: windows-latest
+            exe: tosu-proxy.exe
+            target: win-release.zip
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build backend
+        run: |
+          mkdir -p release
+          cd tosu-proxy
+          cargo build --release
+          mv target/release/${{ matrix.exe }} ../release
+          cd ..
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: ./release/static/lyrics
+
+      - name: Prepare archive
+        uses: thedoctor0/zip-release@0.7.5
+        with:
+          type: 'zip'
+          filename: ${{ matrix.target }}
+          directory: ./release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/${{ matrix.target }}
+          tag_name: ${{ github.ref_name }}
