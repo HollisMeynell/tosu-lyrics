@@ -46,11 +46,11 @@
 
 ### 显示
 
-将该地址添加到 OBS 的浏览器源中。建议设置宽为 1200，高为 300, 在自定义CSS中添加 `.dark body {background-color: rgba(0, 0, 0, 0);}` 用于在夜间模式将背景透明化。
+将 `http://127.0.0.1:41280/lyrics/` 添加到 OBS 的浏览器源中。建议设置宽为 1200，高为 300, 在自定义CSS中添加 `.dark body {background-color: rgba(0, 0, 0, 0);}` 用于在夜间模式将背景透明化。
 
 ### 控制
 
-在外部浏览器访问[http://127.0.0.1:41280/lyrics/index.html](http://127.0.0.1:41280/lyrics/index.html)。
+在外部浏览器访问[http://127.0.0.1:41280/lyrics/](http://127.0.0.1:41280/lyrics/)。
 在 OBS 的浏览器的`交互`中、外部浏览器中，均可以通过
 
 - ctrl + alt + t
@@ -72,8 +72,7 @@
 > - 自定义字体支持 `ttf`、`woff` 等字体格式，但需将文件名严格填写为 `LRC.otf`, `tLRC.otf` 或 `oLRC.otf` (即 'xxx.ttf' => 'LRC.otf')。
 
 ## 如何更新
-
-- 如果已经使用了旧版本, 仅需要更新 `index.html` 文件即可, 其他的文件无需重复下载
+- 下载新的 release 压缩包，解压后覆盖到 tosu 根目录。
 - 如果旧版本出现异常的歌词，请在更新后清理缓存来解决。
     操作方法：向 obs 浏览器源中 url 末尾添加`?clear-cache=true`参数，并确定，刷新缓存后将参数去除
 
