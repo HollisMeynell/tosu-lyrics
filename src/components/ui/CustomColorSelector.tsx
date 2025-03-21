@@ -22,11 +22,12 @@ const customColorSelector: Component<customColorSelectorProps> = (props) => {
             <div
                 class="color-mask absolute top-0 left-0 w-full h-full rounded-full border-[1.5px] border-[#e5e7eb] dark:border-[#475569] z-0 pointer-events-none"
                 style={{
-                    "background-color": store.getState.settings.textColor[props.colorType],
+                    "background-color":
+                        store.getState.settings.textColor[props.colorType],
                 }}
             ></div>
         </div>
     );
-}
+};
 
 export default customColorSelector;

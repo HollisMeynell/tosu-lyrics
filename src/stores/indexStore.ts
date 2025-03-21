@@ -49,15 +49,16 @@ const lyricsStore = {
         if (config) {
             // 兼容不同版本导致的部分配置缺失
             setValue(config.settings.font, setFont);
-            setValue(config.settings.useTranslationAsMain, setUseTranslationAsMain);
+            setValue(
+                config.settings.useTranslationAsMain,
+                setUseTranslationAsMain
+            );
             setValue(config.settings.showSecond, setShowSecond);
             setValue(config.settings.alignment, setAlignment);
-            setValue(config.titleBlackList, (list) =>
-                {
-                    console.log(list);
-                    blacklistStore.restore(list as BlacklistItem[])
-                }
-            );
+            setValue(config.titleBlackList, (list) => {
+                console.log(list);
+                blacklistStore.restore(list as BlacklistItem[]);
+            });
 
             if (config.settings.textColor) {
                 setTextColor({

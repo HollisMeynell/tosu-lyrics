@@ -54,7 +54,9 @@ export class NeteaseLyricAdapter extends LyricAdapter {
                 data.result?.songs.map((x) => {
                     return {
                         title: x.name,
-                        artist: x.artists.map((x) => x.name).join(", ") || "Unknown",
+                        artist:
+                            x.artists.map((x) => x.name).join(", ") ||
+                            "Unknown",
                         length: Math.round(x.duration),
                         key: x.id,
                     };

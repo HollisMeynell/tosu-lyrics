@@ -58,7 +58,8 @@ export class QQLyricAdapter extends LyricAdapter {
             return data.data.song.list.map((song) => {
                 return {
                     title: song.songname,
-                    artist: song.singer.map((s) => s.name).join(", ") || "Unknown",
+                    artist:
+                        song.singer.map((s) => s.name).join(", ") || "Unknown",
                     length: song.interval * 1000,
                     key: song.songmid,
                 };

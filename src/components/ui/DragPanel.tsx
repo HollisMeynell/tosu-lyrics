@@ -39,9 +39,7 @@ const DragPanel: Component<DragPanelProps> = (props) => {
     console.log("props.items", props.items);
 
     return (
-        <div
-            class={["px-3 h-full", props.class].join(" ")}
-        >
+        <div class={["px-3 h-full", props.class].join(" ")}>
             <div class="splitter flex h-full w-full overflow-hidden">
                 <div
                     class="left-panel flex-none flex items-center overflow-hidden text-ellipsis text-nowrap"

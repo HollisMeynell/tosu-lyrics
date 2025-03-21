@@ -187,10 +187,10 @@ export interface HealthBar {
 }
 
 export interface Hits {
-    '0': number;
-    '50': number;
-    '100': number;
-    '300': number;
+    "0": number;
+    "50": number;
+    "100": number;
+    "300": number;
     geki: number;
     katu: number;
     sliderBreaks: number;
@@ -249,10 +249,10 @@ export interface Leaderboard {
 }
 
 export interface Hits2 {
-    '0': number;
-    '50': number;
-    '100': number;
-    '300': number;
+    "0": number;
+    "50": number;
+    "100": number;
+    "300": number;
     geki: number;
     katu: number;
 }
@@ -293,17 +293,17 @@ export interface Performance {
 }
 
 export interface Accuracy {
-    '90': number;
-    '91': number;
-    '92': number;
-    '93': number;
-    '94': number;
-    '95': number;
-    '96': number;
-    '97': number;
-    '98': number;
-    '99': number;
-    '100': number;
+    "90": number;
+    "91": number;
+    "92": number;
+    "93": number;
+    "94": number;
+    "95": number;
+    "96": number;
+    "97": number;
+    "98": number;
+    "99": number;
+    "100": number;
 }
 
 export interface Graph {
@@ -331,10 +331,10 @@ export interface ResultsScreen {
 }
 
 export interface Hits3 {
-    '0': number;
-    '50': number;
-    '100': number;
-    '300': number;
+    "0": number;
+    "50": number;
+    "100": number;
+    "300": number;
     geki: number;
     katu: number;
     sliderEndHits: number;
@@ -396,7 +396,7 @@ export interface TourneyChatMessages {
 
 export interface TourneyClients {
     ipcId: number;
-    team: 'left' | 'right';
+    team: "left" | "right";
     user: {
         id: number;
         name: string;
@@ -412,4 +412,3 @@ export interface TourneyClients {
     };
     play: Play;
 }
-

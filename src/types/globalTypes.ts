@@ -37,7 +37,7 @@ export type BlacklistItem = {
 export type Config = {
     settings: Settings;
     titleBlackList?: BlacklistItem[];
-}
+};
 
 export type FontData = {
     postscriptName: string;
@@ -45,4 +45,3 @@ export type FontData = {
     family: string;
     style: string;
 };
-

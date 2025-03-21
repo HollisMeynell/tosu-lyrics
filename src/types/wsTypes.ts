@@ -1,4 +1,8 @@
-export type CommandType = 'setting' | 'online' | 'query-request' | 'query-response';
+export type CommandType =
+    | "setting"
+    | "online"
+    | "query-request"
+    | "query-response";
 
 export interface CommandMessage {
     type: CommandType;

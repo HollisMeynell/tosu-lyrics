@@ -84,94 +84,98 @@ const BlacklistComponent: Component = () => {
         store.syncTitleBlackList();
     };
 
-    {/* 添加新黑名单项表单 */}
+    {
+        /* 添加新黑名单项表单 */
+    }
     const addItemForm = () => {
         return (
             <div class="flex flex-col gap-4 w-full lg:w-1/3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-sm">
-            <h3 class="text-xl font-semibold text-gray-800 dark:text-white border-b pb-2 mb-2">
-                添加新的黑名单项
-            </h3>
-            <div class="flex flex-col gap-4">
-                <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        ID：
-                    </label>
-                    <input
-                        type="text"
-                        value={newItem().id}
-                        onInput={(e) =>
-                            setNewItem({
-                                ...newItem(),
-                                id: e.currentTarget.value,
-                            })
-                        }
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                        placeholder="输入ID"
-                    />
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-white border-b pb-2 mb-2">
+                    添加新的黑名单项
+                </h3>
+                <div class="flex flex-col gap-4">
+                    <div class="form-group">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            ID：
+                        </label>
+                        <input
+                            type="text"
+                            value={newItem().id}
+                            onInput={(e) =>
+                                setNewItem({
+                                    ...newItem(),
+                                    id: e.currentTarget.value,
+                                })
+                            }
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                            placeholder="输入ID"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            名称：
+                        </label>
+                        <input
+                            type="text"
+                            value={newItem().name}
+                            onInput={(e) =>
+                                setNewItem({
+                                    ...newItem(),
+                                    name: e.currentTarget.value,
+                                })
+                            }
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                            placeholder="输入名称"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            原因：
+                        </label>
+                        <input
+                            type="text"
+                            value={newItem().reason || ""}
+                            onInput={(e) =>
+                                setNewItem({
+                                    ...newItem(),
+                                    reason: e.currentTarget.value,
+                                })
+                            }
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                            placeholder="输入添加原因（可选）"
+                        />
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        名称：
-                    </label>
-                    <input
-                        type="text"
-                        value={newItem().name}
-                        onInput={(e) =>
-                            setNewItem({
-                                ...newItem(),
-                                name: e.currentTarget.value,
-                            })
-                        }
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                        placeholder="输入名称"
-                    />
-                </div>
-                <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        原因：
-                    </label>
-                    <input
-                        type="text"
-                        value={newItem().reason || ""}
-                        onInput={(e) =>
-                            setNewItem({
-                                ...newItem(),
-                                reason: e.currentTarget.value,
-                            })
-                        }
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                        placeholder="输入添加原因（可选）"
-                    />
-                </div>
-            </div>
-            <Button
-                class="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                onClick={handleAdd}
-            >
-                添加
-            </Button>
-
-            <div class="flex flex-col sm:flex-row gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <Button
-                    class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
-                    onClick={saveBlackList}
+                    class="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    onClick={handleAdd}
                 >
-                    保存黑名单
+                    添加
                 </Button>
 
-                <Button
-                    class="flex-1"
-                    onClick={() => blacklistStore.clear()}
-                >
-                    <Delete class="mr-2 w-4 h-4 inline cursor-pointer select-none active:scale-90" />
-                    清空黑名单
-                </Button>
+                <div class="flex flex-col sm:flex-row gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <Button
+                        class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+                        onClick={saveBlackList}
+                    >
+                        保存黑名单
+                    </Button>
+
+                    <Button
+                        class="flex-1"
+                        onClick={() => blacklistStore.clear()}
+                    >
+                        <Delete class="mr-2 w-4 h-4 inline cursor-pointer select-none active:scale-90" />
+                        清空黑名单
+                    </Button>
+                </div>
             </div>
-        </div>
         );
     };
 
-    {/* 黑名单项表格行 */}
+    {
+        /* 黑名单项表格行 */
+    }
     const trItem = (item: BlacklistItem) => {
         return (
             <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
@@ -227,7 +231,9 @@ const BlacklistComponent: Component = () => {
         );
     };
 
-    {/* 黑名单项表格行回退 */}
+    {
+        /* 黑名单项表格行回退 */
+    }
     const trFallback = (item: BlacklistItem) => {
         return (
             <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">

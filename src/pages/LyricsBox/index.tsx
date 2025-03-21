@@ -263,7 +263,9 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                   : lyric().main;
 
         const getSecondLyric = () =>
-            store.getState.settings.useTranslationAsMain ? lyric().origin : lyric().main;
+            store.getState.settings.useTranslationAsMain
+                ? lyric().origin
+                : lyric().main;
 
         return (
             <li
@@ -277,7 +279,9 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 style={lyricAlignmentStyle()}
             >
                 <MainLyric text={getMainLyric()} />
-                <Show when={lyric().origin && store.getState.settings.showSecond}>
+                <Show
+                    when={lyric().origin && store.getState.settings.showSecond}
+                >
                     <SecondLyric
                         block={cursor() === index}
                         text={getSecondLyric()}

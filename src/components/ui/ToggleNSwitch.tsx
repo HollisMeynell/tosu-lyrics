@@ -77,7 +77,9 @@ const ToggleNSwitch: Component<ToggleNSwitchProps> = (props) => {
                         ref={(el) => (itemRefs[option.value] = el)}
                         class={[
                             "w-fit h-full flex justify-center items-center z-10 px-2",
-                            option.value === selectedValue() ? "text-gray-900" : "text-gray-500",
+                            option.value === selectedValue()
+                                ? "text-gray-900"
+                                : "text-gray-500",
                         ].join(" ")}
                         onClick={() => handleItemClick(option)}
                     >

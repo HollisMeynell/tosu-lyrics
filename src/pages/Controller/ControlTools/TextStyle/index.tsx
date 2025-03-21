@@ -30,7 +30,9 @@ export default function TextStyle() {
                 {/* 显示 */}
                 <div class="flex flex-row items-center gap-3">
                     <ToggleSwitch
-                        modelValue={store.getState.settings.useTranslationAsMain}
+                        modelValue={
+                            store.getState.settings.useTranslationAsMain
+                        }
                         onUpdateModelValue={(value) =>
                             store.setUseTranslationAsMain(value)
                         }

@@ -6,6 +6,7 @@
     "scripts": {
         "dev": "vite --open /lyrics/controller",
         "build": "vite build",
+        "format": "prettier --write ./src/**/*.{ts,tsx,js,jsx,json,css,scss,less,html} --end-of-line auto",
         "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
         "preview": "vite preview"
     },
