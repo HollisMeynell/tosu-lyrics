@@ -118,26 +118,25 @@ async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<LyricWe
             }
         }
     });
-    let ws_id = key.clone();
     tokio::task::spawn(async move {
         while let Some(data) = ws_receiver.next().await {
             match data {
                 Ok(message) => {
-                    on_ws_message(&ws_id, message).await;
+                    on_ws_message(&key, message).await;
                 }
                 Err(e) => {
-                    log!(Level::Error, "websocket err(id={ws_id}): {e:?}");
+                    log!(Level::Error, "websocket err(id={key}): {e:?}");
                 }
             }
         }
     });
-    // todo: handle setter
 }
 
-/// is setter client if url "ws:...?setter=true"
+/// is setter client if url "ws://(ip:port)?setter=true"
 #[handler]
 async fn connect(req: &mut Request, res: &mut Response) -> Result<()> {
     use salvo::websocket::WebSocketUpgrade;
+    // 因为要忽略向设置端发送歌词, 需要通过 ws 连接的参数 setter 来判断是否为设置器 "ws://127.0.0.1:41280?setter=true"
     let is_client = req.query::<bool>("setter").is_none();
     async fn salvo_sb(ws: WebSocket) {
         let (tx, rx) = mpsc::unbounded_channel::<LyricWebsocketMessage>();
