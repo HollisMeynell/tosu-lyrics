@@ -63,11 +63,11 @@ fn str_to_port(port_str: &str, default: u16) -> u16 {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     tracing_subscriber::fmt().init();
-
-    use std::env;
+    server::start_server().await;
     if 1 == 1 {
         return Ok(());
     }
+    use std::env;
 
     let port: u16 = env::var(ENV_PORT)
         .map(|port_str| str_to_port(&port_str, DEFAULT_PORT))
