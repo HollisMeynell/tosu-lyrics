@@ -1,8 +1,8 @@
-use std::path::Path;
-use std::sync::LazyLock;
 use actix_files::{Files, NamedFile};
 use actix_web::dev::{fn_service, ServiceRequest, ServiceResponse};
 use actix_web::Result;
+use std::path::Path;
+use std::sync::LazyLock;
 
 static STATIC_FILE_PATHS: [&str; 3] = [
     "./static/lyrics/index.html",

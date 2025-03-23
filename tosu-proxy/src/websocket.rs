@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::LazyLock;
-use rand::distr::Alphanumeric;
-use rand::Rng;
+
+use crate::util::generate_random_string;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::{mpsc, RwLock};
 
@@ -67,17 +67,22 @@ impl WsSessions {
     }
 
     fn get_online_json(key: &str) -> String {
-        format!(
-            r##"{{"command":{{"type":"online","id":"{key}","status":"online"}}}}"##
-        )
+        format!(r##"{{"command":{{"type":"online","id":"{key}","status":"online"}}}}"##)
     }
 
     async fn get_new_client_json(key: &str) -> String {
-        let others = ALL_WS_SESSION.0.read().await
+        let others = ALL_WS_SESSION
+            .0
+            .read()
+            .await
             .keys()
-            .filter_map(|x|
-                if x == key { None } else { Some(format!("\"{x}\"")) }
-            )
+            .filter_map(|x| {
+                if x == key {
+                    None
+                } else {
+                    Some(format!("\"{x}\""))
+                }
+            })
             .collect::<Vec<String>>()
             .join(", ");
 
@@ -87,18 +92,8 @@ impl WsSessions {
     }
 
     fn get_offline_json(key: &str) -> String {
-        format!(
-            r##"{{"command":{{"type":"online","id":"{key}","status":"offline"}}}}"##
-        )
+        format!(r##"{{"command":{{"type":"online","id":"{key}","status":"offline"}}}}"##)
     }
-}
-
-fn generate_random_string() -> String {
-    rand::rng()
-        .sample_iter(&Alphanumeric)
-        .take(16)
-        .map(char::from)
-        .collect()
 }
 
 pub async fn handle(

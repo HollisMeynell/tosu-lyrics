@@ -1,11 +1,15 @@
 mod config;
-mod proxy;
-mod websocket;
+mod error;
 mod files;
+mod lyric;
+mod proxy;
+mod server;
+mod util;
+mod websocket;
 
+use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 use std::path::PathBuf;
-use actix_cors::Cors;
 use tokio::process::{Child, Command as TokioCommand};
 
 const ENV_PORT: &str = "TOSU_PROXY_PORT";
@@ -58,7 +62,12 @@ fn str_to_port(port_str: &str, default: u16) -> u16 {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    tracing_subscriber::fmt().init();
+
     use std::env;
+    if 1 == 1 {
+        return Ok(());
+    }
 
     let port: u16 = env::var(ENV_PORT)
         .map(|port_str| str_to_port(&port_str, DEFAULT_PORT))
@@ -79,7 +88,9 @@ async fn main() -> std::io::Result<()> {
             .allow_any_header()
             .allowed_methods(vec!["GET", "PUT"]);
         let static_file = files::handle();
-        let proxy = web::resource("/api/proxy").wrap(cors_proxy).route(web::post().to(proxy::handler));
+        let proxy = web::resource("/api/proxy")
+            .wrap(cors_proxy)
+            .route(web::post().to(proxy::handler));
         let websocket = web::resource("/api/ws").route(web::get().to(websocket::handle));
         let config = web::resource("/api/config")
             .wrap(cors_conf)
