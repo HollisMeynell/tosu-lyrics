@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

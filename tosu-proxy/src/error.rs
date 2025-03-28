@@ -1,5 +1,5 @@
 use salvo::http::StatusCode;
-use salvo::{async_trait, Depot, Request, Response};
+use salvo::{Depot, Request, Response, async_trait};
 use std::fmt::Debug;
 use thiserror::Error;
 
@@ -7,6 +7,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Error, Debug)]
 pub enum Error {
+    #[error("{0}")]
+    Static(&'static str),
+
     #[error("{0}")]
     Runtime(String),
 
@@ -17,6 +20,9 @@ pub enum Error {
     Io(#[from] std::io::Error),
 
     #[error(transparent)]
+    Request(#[from] reqwest::Error),
+
+    #[error(transparent)]
     WebSB1(#[from] salvo::http::StatusError),
 
     #[error(transparent)]
@@ -25,19 +31,19 @@ pub enum Error {
     #[error("this error can not be throw...")]
     Impossible,
 }
-/*
-impl<T: Debug> From<T> for LyricError {
-    fn from(value: T) -> Self {
-        Self::Runtime(format!("this struct error: {value:?}"))
+
+impl From<String> for Error {
+    fn from(value: String) -> Self {
+        Self::Runtime(value)
     }
 }
 
-impl<T: ToString> From<T> for LyricError {
-    fn from(value: T) -> Self {
-        Self::Runtime(value.to_string())
+impl From<&'static str> for Error {
+    fn from(value: &'static str) -> Self {
+        Self::Static(value)
     }
 }
-*/
+
 #[async_trait]
 impl salvo::Writer for Error {
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {

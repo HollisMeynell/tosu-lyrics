@@ -8,7 +8,7 @@ mod util;
 mod websocket;
 
 use actix_cors::Cors;
-use actix_web::{web, App, HttpServer};
+use actix_web::{App, HttpServer, web};
 use std::path::PathBuf;
 use tokio::process::{Child, Command as TokioCommand};
 
@@ -17,11 +17,7 @@ const DEFAULT_PORT: u16 = 41280;
 
 pub fn get_local_path() -> Option<PathBuf> {
     let path = std::env::current_dir().unwrap();
-    if path.is_dir() {
-        Some(path)
-    } else {
-        None
-    }
+    if path.is_dir() { Some(path) } else { None }
 }
 
 fn start_tosu() -> Option<Child> {

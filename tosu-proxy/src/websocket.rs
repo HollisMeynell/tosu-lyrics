@@ -1,4 +1,4 @@
-use actix_web::{rt, web, HttpRequest, HttpResponse};
+use actix_web::{HttpRequest, HttpResponse, rt, web};
 use actix_ws::{AggregatedMessage, MessageStream, Session};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 
 use crate::util::generate_random_string;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct ConfigMessage {

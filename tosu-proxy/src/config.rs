@@ -1,5 +1,5 @@
 use crate::get_local_path;
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use serde_json::Value;
 use std::fs;
 use std::io::Write;
@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
-use tracing::log::{log, Level};
+use tracing::log::{Level, log};
 /******************* new **********************/
 
 pub static CONFIG_ENDPOINT_WEBSOCKET: &str = "ws";

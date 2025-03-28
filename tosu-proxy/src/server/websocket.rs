@@ -4,11 +4,11 @@ use crate::config::CONFIG_ENDPOINT_WEBSOCKET;
 use crate::error::Result;
 use crate::util::generate_random_string;
 use salvo::websocket::{Message, WebSocket};
-use salvo::{handler, Request, Response, Router};
+use salvo::{Request, Response, Router, handler};
 use std::sync::LazyLock;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use tokio::sync::{mpsc, RwLock};
-use tracing::log::{log, Level};
+use tokio::sync::{RwLock, mpsc};
+use tracing::log::{Level, log};
 
 static ALL_SESSIONS: LazyLock<WebsocketSession> = LazyLock::new(|| WebsocketSession::new());
 
