@@ -25,7 +25,7 @@ struct SongList {
 struct QQSong {
     songname: String,
     singer: Vec<Singer>,
-    interval: u64,
+    interval: u32,
     songmid: String,
 }
 
@@ -96,6 +96,7 @@ impl LyricSource for QQLyricSource {
                     .map(|s| s.name)
                     .collect::<Vec<_>>()
                     .join(", "),
+                // 这里腾讯给的是秒数, 转换一下
                 length: song.interval * 1000,
                 key: song.songmid,
             })

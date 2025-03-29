@@ -6,10 +6,6 @@ mod parse {
     use regex::Regex;
     use std::sync::LazyLock;
 
-    /// split regex
-    static REG_LINE_START: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?=\[.+:.+\])").unwrap());
-
     /// parse time regex
     static REG_LYRIC_LINE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"\[(\d+):(\d+\.\d+)](.+)").unwrap());
@@ -33,11 +29,32 @@ mod parse {
         LyricRawLine { time, line }
     }
     pub fn parse_lyric_text_raw(lyric_text: &str) -> Vec<LyricRawLine> {
-        REG_LINE_START
-            .split(lyric_text)
-            .filter_map(|line| REG_LYRIC_LINE.captures(line))
-            .map(|caps| parse_lyric_line(&caps))
-            .collect()
+        // tnnd rust 正则不支持回溯
+        let mut line_buffer = String::new();
+        let mut result = vec![];
+        fn parse_line(text: &str, data: &mut Vec<LyricRawLine>) {
+            let b = REG_LYRIC_LINE.captures(&text);
+            if b.is_none() {
+                return;
+            }
+            let caps = b.unwrap();
+            let line = parse_lyric_line(&caps);
+            data.push(line);
+        }
+        for char in lyric_text.chars() {
+            if char == '\n' {
+                continue;
+            }
+            if char == '[' && !line_buffer.is_empty() {
+                parse_line(&line_buffer, &mut result);
+                line_buffer.clear();
+            }
+            line_buffer.push(char);
+        }
+        if !line_buffer.is_empty() {
+            parse_line(&line_buffer, &mut result);
+        }
+        result
     }
 }
 
@@ -48,22 +65,24 @@ pub struct LyricLine {
     pub second: Option<String>,
 }
 
+#[derive(Debug)]
 pub struct Lyric {
     lyrics: Vec<LyricLine>,
     end_time: f32,
     cursor: usize,
 }
 
-impl Lyric {
-    pub fn new() -> Self {
+impl Default for Lyric {
+    fn default() -> Self {
         Self {
             lyrics: Vec::new(),
             end_time: -1.0,
             cursor: 0,
         }
     }
-
-    pub fn parse(&mut self, lyric: &str, trans: Option<&str>, title: Option<&str>) -> Result<()> {
+}
+impl Lyric {
+    pub fn parse(lyric: &str, trans: Option<&str>, title: Option<&str>) -> Result<Self> {
         use parse::*;
         if lyric.trim().is_empty() {
             return Err(Error::LyricParse("empty lyric".to_string()));
@@ -82,19 +101,21 @@ impl Lyric {
                 },
             )
         }
+
+        let mut lyric = Self::default();
         for lr in lyric_lines {
-            let lyric = self.get_line_mut(lr.time)?;
+            let lyric = lyric.get_line_mut(lr.time)?;
             lyric.first = Some(lr.into())
         }
-        self.cursor = 0;
+        lyric.cursor = 0;
 
         if trans.is_none() {
-            return Ok(());
+            return Ok(lyric);
         }
 
         let trans_lines = parse_lyric_text_raw(trans.unwrap());
         for tr in trans_lines {
-            let lyric = self.get_line_mut(tr.time)?;
+            let lyric = lyric.get_line_mut(tr.time)?;
             let line = Some(tr.into());
             if lyric.first.is_none() {
                 lyric.first = line
@@ -102,8 +123,8 @@ impl Lyric {
                 lyric.second = line
             }
         }
-        self.cursor = 0;
-        Ok(())
+        lyric.cursor = 0;
+        Ok(lyric)
     }
 
     fn get_line_mut(&mut self, time: f32) -> Result<&mut LyricLine> {

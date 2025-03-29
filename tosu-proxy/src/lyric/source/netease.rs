@@ -20,7 +20,7 @@ struct NeteaseResult {
 struct NeteaseSong {
     name: String,
     artists: Vec<NeteaseArtist>,
-    duration: u64,
+    duration: u32,
     id: i64,
 }
 
@@ -33,7 +33,7 @@ struct NeteaseArtist {
 #[derive(Deserialize)]
 struct NeteaseLyricResponse {
     lrc: LyricItem,
-    tlyric: LyricItem,
+    tlyric: Option<LyricItem>,
 }
 
 #[derive(Deserialize)]
@@ -50,7 +50,7 @@ impl Default for NeteaseLyricSource {
 impl NeteaseLyricSource {
     fn search_url(title: &str) -> String {
         format!(
-            "https://music.163.com/api/search/get/?s={}&type=1&limit=5",
+            "https://music.163.com/api/search/get?s={}&type=1&limit=5",
             title
         )
     }
@@ -97,21 +97,23 @@ impl LyricSource for NeteaseLyricSource {
 
     async fn fetch_lyrics(&self, song_id: &str) -> Result<LyricResult> {
         let url = Self::lyric_url(song_id);
-        print!("{url}");
         let result: NeteaseLyricResponse = CLIENT.get(&url).send().await?.json().await?;
 
-        let lyric = LyricResult {
-            lyric: if result.lrc.lyric.is_empty() {
-                None
-            } else {
-                Some(result.lrc.lyric)
-            },
-            trans: if result.tlyric.lyric.is_empty() {
-                None
-            } else {
-                Some(result.tlyric.lyric)
-            },
+        let lyric = if result.lrc.lyric.is_empty() {
+            None
+        } else {
+            Some(result.lrc.lyric)
         };
-        Ok(lyric)
+        let trans = match result.tlyric {
+            None => None,
+            Some(l) => {
+                if l.lyric.is_empty() {
+                    None
+                } else {
+                    Some(l.lyric)
+                }
+            }
+        };
+        Ok(LyricResult { lyric, trans })
     }
 }
