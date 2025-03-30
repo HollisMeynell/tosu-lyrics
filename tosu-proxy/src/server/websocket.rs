@@ -8,7 +8,7 @@ use salvo::{Request, Response, Router, handler};
 use std::sync::LazyLock;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::{RwLock, mpsc};
-use tracing::log::{Level, log};
+use tracing::{error, info};
 
 static ALL_SESSIONS: LazyLock<WebsocketSession> = LazyLock::new(|| WebsocketSession::new());
 
@@ -85,7 +85,7 @@ impl WebsocketSession {
             .for_each(|(_, client)| {
                 let r = client.get_channel().send(message.clone());
                 if let Err(e) = r {
-                    log!(Level::Error, "can not send message: {e:?}")
+                    error!("can not send message: {e}")
                 }
             })
     }
@@ -96,7 +96,7 @@ impl WebsocketSession {
     {
         if let Some(channel) = self.0.read().await.get(key.as_ref()) {
             if let Err(e) = channel.get_channel().send(message) {
-                log!(Level::Error, "can not send message: {e:?}")
+                error!("can not send message: {e}")
             }
         }
     }
@@ -110,7 +110,7 @@ async fn on_ws_message(key: &str, msg: Message) {
     } else if msg.is_text() {
         let t = msg.as_str().unwrap();
         ALL_SESSIONS.send_message(&key, msg.clone()).await;
-        log!(Level::Info, "text: {t}");
+        info!("text: {t}");
     }
 }
 
@@ -120,7 +120,7 @@ async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message
     tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
             if let Err(e) = ws_sender.send(msg).await {
-                log!(Level::Error, "Failed to send message: {e:?}");
+                error!("Failed to send message: {e}");
                 break;
             }
         }
@@ -134,7 +134,7 @@ async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message
                 });
             }
             Err(e) => {
-                log!(Level::Error, "websocket err(id={key}): {e:?}");
+                error!("websocket err(id={key}): {e}");
             }
         }
     }

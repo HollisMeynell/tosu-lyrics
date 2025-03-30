@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
-use tracing::log::{Level, log};
+use tracing::{error, info};
 /******************* new **********************/
 
 pub static CONFIG_ENDPOINT_WEBSOCKET: &str = "ws";
@@ -37,7 +37,7 @@ pub static GLOBAL_CONFIG: LazyLock<Settings> = LazyLock::new(|| {
     if !config_path.exists() {
         let default_config = Settings::default();
         let default_config_str = serde_json::to_string(&default_config).unwrap();
-        log!(Level::Info, "config file not exists, create default file");
+        error!("config file not exists, create default file");
         fs::write(config_path, default_config_str).expect("can not create config file");
         return default_config;
     }
@@ -53,7 +53,7 @@ pub static GLOBAL_CONFIG: LazyLock<Settings> = LazyLock::new(|| {
         .expect("can not parse config file!")
         .try_deserialize::<Settings>()
         .unwrap();
-    log!(Level::Info, "load config ok.");
+    info!("load config ok.");
     config
 });
 

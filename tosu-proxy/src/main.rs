@@ -1,4 +1,5 @@
 mod config;
+mod database;
 mod error;
 mod files;
 mod lyric;
@@ -9,9 +10,11 @@ mod websocket;
 
 use actix_cors::Cors;
 use actix_web::{App, HttpServer, web};
+use error::Result;
 use std::path::PathBuf;
 use tokio::process::{Child, Command as TokioCommand};
 
+//===========================old===========================
 const ENV_PORT: &str = "TOSU_PROXY_PORT";
 const DEFAULT_PORT: u16 = 41280;
 
@@ -56,13 +59,39 @@ fn str_to_port(port_str: &str, default: u16) -> u16 {
     })
 }
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    tracing_subscriber::fmt().init();
+//===========================old===========================
+
+//===========================new===========================
+async fn init_logger() {
+    use tracing::Level;
+    let level = if cfg!(debug_assertions) {
+        Level::TRACE
+    } else {
+        Level::INFO
+    };
+    tracing_subscriber::fmt()
+        .with_max_level(level)
+        .with_test_writer()
+        .init();
+}
+
+async fn init_server() {
     server::start_server().await;
+}
+
+//===========================new===========================
+#[actix_web::main]
+async fn main() -> Result<()> {
+    init_logger().await;
+    database::init_database().await;
+    init_server().await;
+    database::close();
+    println!("bye~");
+
     if 1 == 1 {
         return Ok(());
     }
+    // ===========================old===========================
     use std::env;
 
     let port: u16 = env::var(ENV_PORT)

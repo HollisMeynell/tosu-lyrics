@@ -28,6 +28,9 @@ pub enum Error {
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 
+    #[error(transparent)]
+    Database(#[from] sea_orm::error::DbErr),
+
     #[error("this error can not be throw...")]
     Impossible,
 }
