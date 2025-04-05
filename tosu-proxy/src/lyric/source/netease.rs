@@ -1,3 +1,4 @@
+use salvo::async_trait;
 use super::{CLIENT, LyricResult, LyricSource, SongInfo};
 use crate::error::Result;
 use serde::Deserialize;
@@ -63,6 +64,7 @@ impl NeteaseLyricSource {
     }
 }
 
+#[async_trait]
 impl LyricSource for NeteaseLyricSource {
     fn name(&self) -> &str {
         "Netease"

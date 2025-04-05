@@ -1,20 +1,14 @@
-mod config;
-mod database;
-mod error;
-mod files;
-mod lyric;
-mod proxy;
-mod server;
-mod util;
-mod websocket;
-
-use actix_cors::Cors;
-use actix_web::{App, HttpServer, web};
-use error::Result;
 use std::path::PathBuf;
+use actix_cors::Cors;
+use actix_web::{web, App, HttpServer};
 use tokio::process::{Child, Command as TokioCommand};
+use crate::error::*;
 
-//===========================old===========================
+mod files;
+mod proxy;
+mod websocket;
+mod config;
+
 const ENV_PORT: &str = "TOSU_PROXY_PORT";
 const DEFAULT_PORT: u16 = 41280;
 
@@ -59,39 +53,7 @@ fn str_to_port(port_str: &str, default: u16) -> u16 {
     })
 }
 
-//===========================old===========================
-
-//===========================new===========================
-async fn init_logger() {
-    use tracing::Level;
-    let level = if cfg!(debug_assertions) {
-        Level::TRACE
-    } else {
-        Level::INFO
-    };
-    tracing_subscriber::fmt()
-        .with_max_level(level)
-        .with_test_writer()
-        .init();
-}
-
-async fn init_server() {
-    server::start_server().await;
-}
-
-//===========================new===========================
-#[actix_web::main]
-async fn main() -> Result<()> {
-    init_logger().await;
-    database::init_database().await;
-    init_server().await;
-    database::close();
-    println!("bye~");
-
-    if 1 == 1 {
-        return Ok(());
-    }
-    // ===========================old===========================
+pub async fn run() -> Result<()> {
     use std::env;
 
     let port: u16 = env::var(ENV_PORT)
@@ -128,9 +90,9 @@ async fn main() -> Result<()> {
             .service(websocket)
             .service(config)
     })
-    .bind(("0.0.0.0", port))?
-    .run()
-    .await?;
+        .bind(("0.0.0.0", port))?
+        .run()
+        .await?;
 
     if let Some(mut tosu) = tosu {
         let _ = tosu.kill();

@@ -1,4 +1,6 @@
+#[cfg(feature = "new")]
 use salvo::http::StatusCode;
+#[cfg(feature = "new")]
 use salvo::{Depot, Request, Response, async_trait};
 use std::fmt::Debug;
 use thiserror::Error;
@@ -12,7 +14,7 @@ pub enum Error {
 
     #[error("{0}")]
     Runtime(String),
-
+    #[cfg(feature = "new")]
     #[error("parse lyric error: {0}")]
     LyricParse(String),
 
@@ -22,12 +24,14 @@ pub enum Error {
     #[error(transparent)]
     Request(#[from] reqwest::Error),
 
+    #[cfg(feature = "new")]
     #[error(transparent)]
     WebSB1(#[from] salvo::http::StatusError),
 
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 
+    #[cfg(feature = "new")]
     #[error(transparent)]
     Database(#[from] sea_orm::error::DbErr),
 
@@ -47,6 +51,7 @@ impl From<&'static str> for Error {
     }
 }
 
+#[cfg(feature = "new")]
 #[async_trait]
 impl salvo::Writer for Error {
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {

@@ -5,7 +5,7 @@ use crate::error::{Error, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
-
+use salvo::async_trait;
 pub use netease::NeteaseLyricSource;
 pub use qq::QQLyricSource;
 
@@ -35,6 +35,7 @@ pub struct LyricResult {
     pub trans: Option<String>,
 }
 
+#[async_trait]
 pub trait LyricSource {
     fn name(&self) -> &str;
     async fn search_music(&self, title: &str) -> Result<Vec<SongInfo>>;

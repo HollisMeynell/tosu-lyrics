@@ -63,7 +63,7 @@ jobs:
         run: |
           mkdir -p release
           cd tosu-proxy
-          cargo build --release
+          cargo build --release --bin tosu-proxy --features=old
           mv target/release/${{ matrix.exe }} ../release
           cd ..
       - name: Run upx

@@ -9,27 +9,57 @@ lto = true
 strip = true
 codegen-units = 1
 
+[[bin]]
+name = "tosu-proxy"
+path = "src/bin/old.rs"
+required-features = ["old"]
+
+[[bin]]
+name = "osu-lyric"
+path = "src/bin/new.rs"
+required-features = ["new"]
+
 [lints.rust]
 unused = "allow"
 
 [dependencies]
-bincode = "2.0.1"
-regex = "1.11.1"
-config = "0.15.11"
 thiserror = "2.0.12"
-salvo = { version = "0.77.1", features = ["default", "websocket"] }
-tokio = { version = "1.44.1", features = ["rt-multi-thread", "process", "sync", "macros"] }
-sea-orm = { version = "1.1.7", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"] }
-tracing = "0.1"
-tracing-subscriber = "0.3"
-reqwest = { version = "0.12.14", features = ["rustls-tls", "charset", "json"] }
+reqwest = { version = "0.12.15", features = ["rustls-tls", "charset", "json"] }
+tokio = { version = "1.44.2", features = ["rt-multi-thread", "process", "sync", "macros"]}
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.134"
+serde_json = "1.0.140"
 rand = "0.9.0"
-futures-util = "0.3.31"
+
+bincode = { version = "2.0.1", optional = true }
+regex = { version = "1.11.1", optional = true }
+config = { version = "0.15.11", optional = true }
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", optional = true }
+futures-util = { version = "0.3.31", optional = true }
+salvo = { version = "0.77.1", features = ["default", "websocket"], optional = true }
+sea-orm = { version = "1.1.8", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"], optional = true }
 
 # old
-actix-web = "4.9.0"
-actix-ws = "0.3.0"
-actix-cors = "0.7.0"
-actix-files = "0.6.6"
+actix-web = { version = "4.10.2", optional = true }
+actix-ws = { version = "0.3.0", optional = true }
+actix-cors = { version = "0.7.1", optional = true }
+actix-files = { version = "0.6.6", optional = true }
+
+[features]
+default = []
+new = [
+    "bincode",
+    "regex",
+    "config",
+    "tracing",
+    "salvo",
+    "tracing-subscriber",
+    "futures-util",
+    "sea-orm",
+]
+old = [
+    "actix-web",
+    "actix-ws",
+    "actix-cors",
+    "actix-files",
+]
