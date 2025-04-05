@@ -21,37 +21,21 @@ body,
 @layer utilities {
     @keyframes scroll {
         0% {
-            transform: scale(1.2) translateX(calc(var(--offset, 5%) + 50px));
+            transform: translateX(calc(var(--offset, 5%) + 50px));
         }
         25% {
-            transform: scale(1.2) translateX(calc(var(--offset, 5%) + 50px));
+            transform: translateX(calc(var(--offset, 5%) + 50px));
         }
         75% {
-            transform: scale(1.2) translateX(calc(var(--offset-f, -5%) - 50px));
+            transform: translateX(calc(var(--offset-f, -5%) - 50px));
         }
         100% {
-            transform: scale(1.2) translateX(calc(var(--offset-f, -5%) - 50px));
-        }
-    }
-
-    @keyframes scrollX {
-        0% {
-            transform: scale(1.2) translateX(var(--offset, 5%));
-        }
-        50% {
-            transform: scale(1.2) translateX(var(--offset-f, -5%));
-        }
-        100% {
-            transform: scale(1.2) translateX(var(--offset, 5%));
+            transform: translateX(calc(var(--offset-f, -5%) - 50px));
         }
     }
 
     .animate-scroll {
         animation: scroll var(--time) linear infinite;
-    }
-
-    .animate-scrollX {
-        animation: scrollX var(--time) linear infinite;
     }
 }
 

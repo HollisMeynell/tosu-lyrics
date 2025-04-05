@@ -30,12 +30,14 @@ interface LyricsBoxProps {
 interface MainLyricProps {
     text: string | undefined;
     align?: "left" | "center" | "right";
+    active: boolean;
 }
 
 interface SecondLyricProps {
     block: boolean;
     text: string | undefined;
     align?: "left" | "center" | "right";
+    active: boolean;
 }
 
 const LyricsBox: Component<LyricsBoxProps> = (props) => {
@@ -198,10 +200,11 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     // 子组件
     const MainLyric: Component<MainLyricProps> = (props) => (
         <p
-            class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff]"
+            class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff] transition-all duration-300"
             style={{
                 color: store.getState.settings.textColor.first,
                 "text-align": props.align || "center",
+                "font-size": props.active ? "3em" : "1.5em",
             }}
         >
             {props.text}
@@ -211,7 +214,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     const SecondLyric: Component<SecondLyricProps> = (props) => (
         <p
             classList={{
-                "font-oLRC whitespace-nowrap text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4":
+                "font-oLRC whitespace-nowrap text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4 transition-all duration-300":
                     true,
                 block: props.block,
                 hidden: !props.block,
@@ -219,6 +222,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
             style={{
                 color: store.getState.settings.textColor.second,
                 "text-align": props.align || "center",
+                "font-size": props.active ? "2em" : "1em",
             }}
         >
             {props.text}
@@ -270,21 +274,20 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         return (
             <li
                 classList={{
-                    "w-fit h-[100px] flex flex-col justify-center items-center select-none scale-[0.6] transition-all duration-200":
+                    "w-fit h-[100px] flex flex-col justify-center items-center select-none transition-all duration-200":
                         true,
-                    "scale-[1.2]": cursor() === index,
-                    "text-white": cursor() === index,
                     "animate-scroll": cursor() === index && scroll(),
                 }}
                 style={lyricAlignmentStyle()}
             >
-                <MainLyric text={getMainLyric()} />
+                <MainLyric text={getMainLyric()} active={cursor() === index} />
                 <Show
                     when={lyric().origin && store.getState.settings.showSecond}
                 >
                     <SecondLyric
                         block={cursor() === index}
                         text={getSecondLyric()}
+                        active={cursor() === index}
                     />
                 </Show>
             </li>
@@ -295,7 +298,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         <div class="w-full h-[300px] overflow-hidden">
             <ul
                 ref={lyricUL}
-                class="w-full px-10 flex flex-col list-none transition-transform duration-300"
+                class="w-full px-10 flex flex-col list-none transition-all duration-300"
                 style={{
                     transform: `translateY(${-(cursor() - 1) * 100}px)`,
                     ...lyricAlignmentStyle(),
