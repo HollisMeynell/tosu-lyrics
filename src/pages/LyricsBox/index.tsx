@@ -115,14 +115,12 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         setLyricLIRef(p);
         const getMaxWidth = () => {
             if (p.children.length === 2) {
-                return (
-                    Math.max(
-                        p.children[0].scrollWidth,
-                        p.children[1].scrollWidth
-                    ) * 1.2
+                return Math.max(
+                    p.children[0].scrollWidth,
+                    p.children[1].scrollWidth
                 );
             }
-            return p.children[0].scrollWidth * 1.2;
+            return p.children[0].scrollWidth;
         };
 
         const maxWidth = getMaxWidth();
@@ -200,7 +198,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     // 子组件
     const MainLyric: Component<MainLyricProps> = (props) => (
         <p
-            class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff] transition-all duration-300"
+            class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff] transition-[font-size] duration-300"
             style={{
                 color: store.getState.settings.textColor.first,
                 "text-align": props.align || "center",
@@ -214,7 +212,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     const SecondLyric: Component<SecondLyricProps> = (props) => (
         <p
             classList={{
-                "font-oLRC whitespace-nowrap text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4 transition-all duration-300":
+                "font-oLRC whitespace-nowrap text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4 transition-[font-size] duration-300":
                     true,
                 block: props.block,
                 hidden: !props.block,
@@ -274,7 +272,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         return (
             <li
                 classList={{
-                    "w-fit h-[100px] flex flex-col justify-center items-center select-none transition-all duration-200":
+                    "w-fit h-[100px] flex flex-col justify-center items-center select-none ":
                         true,
                     "animate-scroll": cursor() === index && scroll(),
                 }}
@@ -298,7 +296,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         <div class="w-full h-[300px] overflow-hidden">
             <ul
                 ref={lyricUL}
-                class="w-full px-10 flex flex-col list-none transition-all duration-300"
+                class="w-full px-10 flex flex-col list-none transition-transform duration-300"
                 style={{
                     transform: `translateY(${-(cursor() - 1) * 100}px)`,
                     ...lyricAlignmentStyle(),
