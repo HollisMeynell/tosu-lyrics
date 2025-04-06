@@ -21,16 +21,16 @@ body,
 @layer utilities {
     @keyframes scroll {
         0% {
-            transform: translateX(calc(var(--offset, 5%) + 50px));
+            transform: translateX(calc(var(--offset, 5%)));
         }
         25% {
-            transform: translateX(calc(var(--offset, 5%) + 50px));
+            transform: translateX(calc(var(--offset, 5%)));
         }
         75% {
-            transform: translateX(calc(var(--offset-f, -5%) - 50px));
+            transform: translateX(calc(var(--offset-f, -5%)));
         }
         100% {
-            transform: translateX(calc(var(--offset-f, -5%) - 50px));
+            transform: translateX(calc(var(--offset-f, -5%)));
         }
     }
 

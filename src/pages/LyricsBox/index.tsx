@@ -116,7 +116,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         const getMaxWidth = () => {
             if (p.children.length === 2) {
                 return Math.max(
-                    p.children[0].scrollWidth,
+                    p.children[0].scrollWidth * 2,
                     p.children[1].scrollWidth
                 );
             }
@@ -125,24 +125,32 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
 
         const maxWidth = getMaxWidth();
 
-        const clientWidth = document.body.clientWidth;
+        if (!lyricUL) return;
+
+        const clientWidth = lyricUL.clientWidth;
 
         const alignmentStyle = p.style.alignItems || "center";
 
+        console.log(`${maxWidth} || ${clientWidth}`);
         if (maxWidth > clientWidth) {
+            const ulPadding = 40;
             // 计算偏移量(非常精细)
+
             if (alignmentStyle === "flex-start") {
-                const offset = Math.round((maxWidth - clientWidth) / 2) + 10;
-                p.style.setProperty("--offset", `${offset}px`);
-                p.style.setProperty("--offset-f", `-${3 * offset}px`);
+                const offset =
+                    Math.round(maxWidth - clientWidth) + 2 * ulPadding;
+                p.style.setProperty("--offset", `${0}px`);
+                p.style.setProperty("--offset-f", `-${offset}px`);
             } else if (alignmentStyle === "center") {
-                const offset = Math.round((maxWidth - clientWidth) / 2);
-                p.style.setProperty("--offset", `${offset + 10}px`);
-                p.style.setProperty("--offset-f", `-${2 * offset}px`);
+                const offset =
+                    Math.round((maxWidth - clientWidth) / 2) + ulPadding;
+                p.style.setProperty("--offset", `${offset}px`);
+                p.style.setProperty("--offset-f", `-${offset}px`);
             } else if (alignmentStyle === "flex-end") {
-                const offset = Math.round((maxWidth - clientWidth) / 2) + 10;
-                p.style.setProperty("--offset", `${3 * offset}px`);
-                p.style.setProperty("--offset-f", `-${offset - 20}px`);
+                const offset =
+                    Math.round(maxWidth - clientWidth) + 2 * ulPadding;
+                p.style.setProperty("--offset", `${offset}px`);
+                p.style.setProperty("--offset-f", `${0}px`);
             }
             p.style.setProperty("--time", `${tosu?.getNextTime()}s`);
             setScroll(true);
