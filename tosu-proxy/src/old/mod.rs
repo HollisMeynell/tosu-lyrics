@@ -74,6 +74,7 @@ pub async fn run() -> Result<()> {
             .allow_any_origin()
             .allow_any_header()
             .allowed_methods(vec!["GET", "PUT"]);
+        let index = web::resource("/").route(web::get().to(files::index));
         let static_file = files::handle();
         let proxy = web::resource("/api/proxy")
             .wrap(cors_proxy)
@@ -85,6 +86,7 @@ pub async fn run() -> Result<()> {
             .route(web::get().to(config::handler_get));
 
         App::new()
+            .service(index)
             .service(static_file)
             .service(proxy)
             .service(websocket)

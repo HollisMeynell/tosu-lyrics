@@ -1,5 +1,5 @@
 use actix_files::{Files, NamedFile};
-use actix_web::Result;
+use actix_web::{HttpResponse, Result};
 use actix_web::dev::{ServiceRequest, ServiceResponse, fn_service};
 use std::path::Path;
 use std::sync::LazyLock;
@@ -44,4 +44,10 @@ pub fn handle() -> Files {
     Files::new("/lyrics", path)
         .index_file("index.html")
         .default_handler(fn_service(fallback))
+}
+
+pub async fn index() -> HttpResponse {
+    HttpResponse::MovedPermanently()
+        .append_header(("Location", "/lyrics"))
+        .finish()
 }
