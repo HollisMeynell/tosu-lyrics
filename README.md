@@ -123,8 +123,8 @@
   - [ ] 使用 [rosu-memory](https://github.com/486c/rosu-memory) 直接读取数据
   - [ ] 接入 [gosumemory](https://github.com/l3lackShark/gosumemory) (tosu 接口兼容)
 - [ ] 查询歌词
-  - [ ] qq 歌词数据源
-  - [ ] 网易云歌词数据源
+  - [x] qq 歌词数据源
+  - [x] 网易云歌词数据源
 - [ ] ws 接收 / 下发指令
   - [ ] 歌词换行
   - [ ] 时间轴调整
