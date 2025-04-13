@@ -7,11 +7,6 @@ static STATIC_FILE_PATHS: [&str; 3] = [
     "./",
 ];
 
-#[handler]
-async fn root_redirect(res: &mut Response) {
-    res.render(Redirect::permanent("/lyrics"));
-}
-
 pub fn get_file_route() -> Router {
     let static_handler = StaticDir::new(STATIC_FILE_PATHS)
         .defaults("index.html")
@@ -20,5 +15,4 @@ pub fn get_file_route() -> Router {
 
     Router::new()
         .push(Router::with_path("lyrics").goal(static_handler))
-        .push(Router::with_path("/").get(root_redirect))
 }

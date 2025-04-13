@@ -28,7 +28,7 @@ impl Default for Settings {
             port: 41280,
             database: "sqlite://lyric.db?mode=rwc".to_string(),
             tosu: Some(TosuConfig {
-                url: "ws://".to_string(),
+                url: "ws://127.0.0.1:24050".to_string(),
             }),
         }
     }
@@ -41,7 +41,7 @@ pub static GLOBAL_CONFIG: LazyLock<Settings> = LazyLock::new(|| {
     if !config_path.exists() {
         let default_config = Settings::default();
         let default_config_str = serde_json::to_string_pretty(&default_config).unwrap();
-        info!("config file not exists, create default file");
+        info!("Config file not found. Generating default configuration. Please edit and restart the program. Exiting.");
         fs::write(config_path, default_config_str).expect("can not create config file");
         std::process::exit(0);
     }
@@ -57,6 +57,6 @@ pub static GLOBAL_CONFIG: LazyLock<Settings> = LazyLock::new(|| {
         .expect("can not parse config file!")
         .try_deserialize::<Settings>()
         .unwrap();
-    info!("load config ok.");
+    info!("config loaded successfully.");
     config
 });
