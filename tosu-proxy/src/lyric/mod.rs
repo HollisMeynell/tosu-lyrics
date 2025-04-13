@@ -1,8 +1,26 @@
 mod lyric;
 mod source;
 
+use crate::config::Settings;
+use crate::error::Result;
 pub use lyric::*;
 pub use source::*;
+
+pub struct LyricService {}
+
+impl LyricService {
+    /// 时间单位为毫秒
+    pub async fn time_next(&mut self, t: i32) -> Result<()> {
+        Ok(())
+    }
+    pub async fn song_change(&mut self, title: &str) -> Result<()> {
+        Ok(())
+    }
+}
+
+pub async fn init_lyric() -> Result<()> {
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {

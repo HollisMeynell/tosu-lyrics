@@ -25,6 +25,8 @@ async fn init_server() {
 async fn main() -> error::Result<()> {
     init_logger().await;
     database::init_database().await;
+    lyric::init_lyric().await?;
+    osu_source::init_osu_source().await?;
     init_server().await;
     database::close();
     println!("bye~");

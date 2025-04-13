@@ -25,11 +25,14 @@ unused = "allow"
 [dependencies]
 thiserror = "2.0.12"
 reqwest = { version = "0.12.15", features = ["rustls-tls", "charset", "json"] }
-tokio = { version = "1.44.2", features = ["rt-multi-thread", "process", "sync", "macros"]}
+tokio = { version = "1.44.2", features = ["fs", "rt-multi-thread", "process", "sync", "macros"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 rand = "0.9.0"
+# 后续将文件打包进二进制文件?
+# rust-embed="8.6.0"
 
+async-trait = { version = "0.1.88", optional = true }
 bincode = { version = "2.0.1", optional = true }
 regex = { version = "1.11.1", optional = true }
 config = { version = "0.15.11", optional = true }
@@ -38,7 +41,7 @@ tracing-subscriber = { version = "0.3", optional = true }
 futures-util = { version = "0.3.31", optional = true }
 salvo = { version = "0.77.1", features = ["default", "websocket"], optional = true }
 sea-orm = { version = "1.1.8", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"], optional = true }
-
+sea-schema = { version = "0.16.1", features = ["writer"], optional = true }
 # old
 actix-web = { version = "4.10.2", optional = true }
 actix-ws = { version = "0.3.0", optional = true }
@@ -48,6 +51,7 @@ actix-files = { version = "0.6.6", optional = true }
 [features]
 default = []
 new = [
+    "async-trait",
     "bincode",
     "regex",
     "config",
@@ -56,6 +60,7 @@ new = [
     "tracing-subscriber",
     "futures-util",
     "sea-orm",
+    "sea-schema",
 ]
 old = [
     "actix-web",

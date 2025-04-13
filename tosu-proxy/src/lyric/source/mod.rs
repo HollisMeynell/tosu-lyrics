@@ -2,12 +2,12 @@ mod netease;
 mod qq;
 
 use crate::error::{Error, Result};
+use async_trait::async_trait;
+pub use netease::NeteaseLyricSource;
+pub use qq::QQLyricSource;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
-use salvo::async_trait;
-pub use netease::NeteaseLyricSource;
-pub use qq::QQLyricSource;
 
 pub static QQ_LYRIC_SOURCE: LazyLock<QQLyricSource> = LazyLock::new(|| QQLyricSource::default());
 

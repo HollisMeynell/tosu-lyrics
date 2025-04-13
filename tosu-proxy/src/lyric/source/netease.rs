@@ -1,6 +1,6 @@
-use salvo::async_trait;
 use super::{CLIENT, LyricResult, LyricSource, SongInfo};
 use crate::error::Result;
+use async_trait::async_trait;
 use serde::Deserialize;
 
 pub struct NeteaseLyricSource;

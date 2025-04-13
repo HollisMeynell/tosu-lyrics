@@ -1,13 +1,13 @@
-use std::path::PathBuf;
-use actix_cors::Cors;
-use actix_web::{web, App, HttpServer};
-use tokio::process::{Child, Command as TokioCommand};
 use crate::error::*;
+use actix_cors::Cors;
+use actix_web::{App, HttpServer, web};
+use std::path::PathBuf;
+use tokio::process::{Child, Command as TokioCommand};
 
+mod config;
 mod files;
 mod proxy;
 mod websocket;
-mod config;
 
 const ENV_PORT: &str = "TOSU_PROXY_PORT";
 const DEFAULT_PORT: u16 = 41280;
@@ -92,9 +92,9 @@ pub async fn run() -> Result<()> {
             .service(websocket)
             .service(config)
     })
-        .bind(("0.0.0.0", port))?
-        .run()
-        .await?;
+    .bind(("0.0.0.0", port))?
+    .run()
+    .await?;
 
     if let Some(mut tosu) = tosu {
         let _ = tosu.kill();

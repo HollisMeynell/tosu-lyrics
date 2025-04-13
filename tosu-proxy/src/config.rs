@@ -9,12 +9,16 @@ use tracing::info;
 
 pub static CONFIG_ENDPOINT_WEBSOCKET: &str = "ws";
 static CONFIG_PATH: &str = "config.json5";
-
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TosuConfig {
+    url: String,
+}
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Settings {
     pub server: String,
     pub port: u16,
     pub database: String,
+    pub tosu: Option<TosuConfig>,
 }
 
 impl Default for Settings {
@@ -23,6 +27,9 @@ impl Default for Settings {
             server: "0.0.0.0".to_string(),
             port: 41280,
             database: "sqlite://lyric.db?mode=rwc".to_string(),
+            tosu: Some(TosuConfig {
+                url: "ws://".to_string(),
+            }),
         }
     }
 }
@@ -33,7 +40,7 @@ pub static GLOBAL_CONFIG: LazyLock<Settings> = LazyLock::new(|| {
     let config_path = Path::new(CONFIG_PATH);
     if !config_path.exists() {
         let default_config = Settings::default();
-        let default_config_str = serde_json::to_string(&default_config).unwrap();
+        let default_config_str = serde_json::to_string_pretty(&default_config).unwrap();
         info!("config file not exists, create default file");
         fs::write(config_path, default_config_str).expect("can not create config file");
         std::process::exit(0);
@@ -53,4 +60,3 @@ pub static GLOBAL_CONFIG: LazyLock<Settings> = LazyLock::new(|| {
     info!("load config ok.");
     config
 });
-

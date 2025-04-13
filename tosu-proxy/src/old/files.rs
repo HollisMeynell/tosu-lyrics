@@ -1,6 +1,6 @@
 use actix_files::{Files, NamedFile};
-use actix_web::{HttpResponse, Result};
 use actix_web::dev::{ServiceRequest, ServiceResponse, fn_service};
+use actix_web::{HttpResponse, Result};
 use std::path::Path;
 use std::sync::LazyLock;
 
