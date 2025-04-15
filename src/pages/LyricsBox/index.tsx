@@ -280,7 +280,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         return (
             <li
                 classList={{
-                    "w-fit h-[100px] flex flex-col justify-center items-center select-none ":
+                    "w-fit h-[100px] flex flex-col justify-center items-center select-none":
                         true,
                     "animate-scroll": cursor() === index && scroll(),
                 }}

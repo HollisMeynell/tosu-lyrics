@@ -8,7 +8,6 @@ body,
     height: 100%;
 }
 
-
 .scrollbar-hide {
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE and Edge */
