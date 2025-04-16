@@ -18,7 +18,6 @@ const FFP_BLOB: &[u8] = include_bytes!("../lib/ffprobe");
 
 /// 返回毫秒数
 pub(crate) async fn read_audio_length(file_path: &str) -> Result<i32> {
-    use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
     use tokio::fs::File;
     use tokio::io::AsyncWriteExt;
@@ -29,6 +28,7 @@ pub(crate) async fn read_audio_length(file_path: &str) -> Result<i32> {
         ffprobe.write(FFP_BLOB).await?;
         #[cfg(unix)]
         {
+            use std::os::unix::fs::PermissionsExt;
             let mut perms = ffprobe.metadata().await?.permissions();
             perms.set_mode(0o755);
             ffprobe.set_permissions(perms).await?;

@@ -10,7 +10,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::{RwLock, mpsc};
 use tracing::{error, info};
 
-static ALL_SESSIONS: LazyLock<WebsocketSession> = LazyLock::new(|| WebsocketSession::new());
+pub static ALL_SESSIONS: LazyLock<WebsocketSession> = LazyLock::new(|| WebsocketSession::new());
 
 type LyricWebsocketMessage = String;
 
