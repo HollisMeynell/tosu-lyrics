@@ -8,6 +8,8 @@ pub mod database;
 #[cfg(feature = "new")]
 pub mod lyric;
 #[cfg(feature = "new")]
+pub mod model;
+#[cfg(feature = "new")]
 pub mod osu_source;
 #[cfg(feature = "new")]
 pub mod server;

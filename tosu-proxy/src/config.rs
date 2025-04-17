@@ -28,7 +28,7 @@ impl Default for Settings {
             port: 41280,
             database: "sqlite://lyric.db?mode=rwc".to_string(),
             tosu: Some(TosuConfig {
-                url: "ws://127.0.0.1:24050".to_string(),
+                url: "ws://127.0.0.1:24050/websocket/v2".to_string(),
             }),
         }
     }

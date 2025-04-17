@@ -119,7 +119,7 @@
 
 后端任务列表:
 - [ ] 接入数据源获取当前歌曲
-  - [ ] 接入 [tosu](https://github.com/tosuapp/tosu)
+  - [x] 接入 [tosu](https://github.com/tosuapp/tosu)
   - [ ] 使用 [rosu-memory](https://github.com/486c/rosu-memory) 直接读取数据
   - [ ] 接入 [gosumemory](https://github.com/l3lackShark/gosumemory) (tosu 接口兼容)
 - [ ] 查询歌词
@@ -132,7 +132,7 @@
   - [ ] 样式更新
   - [ ] 拉黑 / 显示
 - [ ] 缓存歌词(增/删, 缓存过期时间)
-- [ ] 持久化配置
+- [x] 持久化配置
 - [ ] 存储字体
 - [ ] 上传歌词
 - [ ] 编写后端文档, 支持自己实现页面

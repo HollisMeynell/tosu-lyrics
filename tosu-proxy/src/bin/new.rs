@@ -5,7 +5,7 @@ use tosu_proxy::*;
 async fn init_logger() {
     use tracing::Level;
     let level = if cfg!(debug_assertions) {
-        Level::TRACE
+        Level::DEBUG
     } else {
         Level::INFO
     };

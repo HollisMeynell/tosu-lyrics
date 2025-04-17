@@ -30,4 +30,5 @@ package-lock.json
 *.sw?
 /public/*.otf
 /tosu-proxy/target
+/tosu-proxy/static
 
