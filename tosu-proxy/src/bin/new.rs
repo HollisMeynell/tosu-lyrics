@@ -23,13 +23,14 @@ async fn init_server() {
 #[cfg(feature = "new")]
 #[tokio::main]
 async fn main() -> error::Result<()> {
+    use tracing::info;
     init_logger().await;
     database::init_database().await;
     lyric::init_lyric().await?;
     osu_source::init_osu_source().await?;
     init_server().await;
     database::close();
-    println!("bye~");
+    info!("bye~");
     Ok(())
 }
 

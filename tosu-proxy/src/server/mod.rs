@@ -1,17 +1,20 @@
+mod audio;
 mod file;
 mod websocket;
 
 use crate::config::GLOBAL_CONFIG;
 use crate::error::*;
+use crate::server::audio::get_audio_route;
 use crate::server::file::get_file_route;
 use crate::server::websocket::get_ws_route;
-use salvo::server::ServerHandle;
-use std::sync::OnceLock;
-use salvo::{handler, Response};
 use salvo::prelude::Redirect;
+use salvo::server::ServerHandle;
+use salvo::{Response, handler};
+use std::sync::OnceLock;
 use tracing::info;
 
 static SERVER_HANDLE: OnceLock<ServerHandle> = OnceLock::new();
+pub use websocket::ALL_SESSIONS;
 
 #[handler]
 async fn root_redirect(res: &mut Response) {
@@ -20,10 +23,12 @@ async fn root_redirect(res: &mut Response) {
 
 pub async fn start_server() {
     use salvo::prelude::*;
+    let api_router = Router::with_path("api").push(get_audio_route());
     let router = Router::new()
         .get(root_redirect)
         .push(get_ws_route())
-        .push(get_file_route());
+        .push(get_file_route())
+        .push(api_router);
     let listener_url = format!("{}:{}", GLOBAL_CONFIG.server, GLOBAL_CONFIG.port);
     info!("server start: http://127.0.0.1:{}", GLOBAL_CONFIG.port);
     let acceptor = TcpListener::new(listener_url).bind().await;

@@ -42,7 +42,7 @@ impl ClientType {
 }
 
 #[derive(Debug)]
-struct WebsocketSession(RwLock<HashMap<String, ClientType>>);
+pub struct WebsocketSession(RwLock<HashMap<String, ClientType>>);
 
 impl Default for WebsocketSession {
     fn default() -> Self {
@@ -73,7 +73,20 @@ impl WebsocketSession {
         }
     }
 
-    async fn send_to_client<T>(&self, key: &T, message: Message)
+    pub async fn send_to_all_client(&self, message: Message) {
+        self.0
+            .read()
+            .await
+            .iter()
+            .filter(|(_, client)| matches!(client, &&ClientType::Client(_)))
+            .for_each(|(_, client)| {
+                let r = client.get_channel().send(message.clone());
+                if let Err(e) = r {
+                    error!("can not send message: {e}")
+                }
+            })
+    }
+    pub async fn send_to_one_client<T>(&self, key: &T, message: Message)
     where
         T: AsRef<str>,
     {
@@ -90,7 +103,7 @@ impl WebsocketSession {
             })
     }
 
-    async fn send_message<T>(&self, key: &T, message: Message)
+    pub async fn send_message<T>(&self, key: &T, message: Message)
     where
         T: AsRef<str>,
     {

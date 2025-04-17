@@ -1,6 +1,6 @@
 use serde_json::Value;
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write, stdin};
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
@@ -11,7 +11,7 @@ pub static CONFIG_ENDPOINT_WEBSOCKET: &str = "ws";
 static CONFIG_PATH: &str = "config.json5";
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TosuConfig {
-    url: String,
+    pub url: String,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Settings {
@@ -41,8 +41,12 @@ pub static GLOBAL_CONFIG: LazyLock<Settings> = LazyLock::new(|| {
     if !config_path.exists() {
         let default_config = Settings::default();
         let default_config_str = serde_json::to_string_pretty(&default_config).unwrap();
-        info!("Config file not found. Generating default configuration. Please edit and restart the program. Exiting.");
+        info!(
+            "Config file not found. Generating default configuration. Please edit and restart the program."
+        );
         fs::write(config_path, default_config_str).expect("can not create config file");
+        info!("Press any key to exit...");
+        wait_for_key_press();
         std::process::exit(0);
     }
     let config = Config::builder()
@@ -60,3 +64,8 @@ pub static GLOBAL_CONFIG: LazyLock<Settings> = LazyLock::new(|| {
     info!("config loaded successfully.");
     config
 });
+
+fn wait_for_key_press() {
+    let mut buffer: [u8; 1] = [0; 1];
+    let _ = stdin().read_exact(&mut buffer);
+}
