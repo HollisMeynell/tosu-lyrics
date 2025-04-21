@@ -1,22 +1,64 @@
 use crate::config::TosuConfig;
 use crate::error::Result;
 use crate::server::ALL_SESSIONS;
+use std::fmt::{Display, Formatter};
+use std::sync::LazyLock;
 
+use crate::model::tosu_types::TosuApi;
 use futures_util::stream::SplitStream;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{Sender, channel};
-use tokio::sync::watch;
+use tokio::sync::{Mutex, watch};
 use tokio::task::JoinHandle;
 use tokio::time::{Duration, sleep, timeout};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tracing::{error, info};
 use tungstenite::handshake::client::Response;
-use crate::model::tosu_types::TosuApi;
+
+static TOSU_STATE: LazyLock<Mutex<TosuState>> =
+    LazyLock::new(|| Mutex::new(TosuState { bid: 0, sid: 0 }));
+
+#[derive(Clone)]
+struct TosuState {
+    sid: i64,
+    bid: i64,
+}
+
+impl Display for TosuState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{sid: {}, bid: {}}}", self.sid, self.bid)?;
+        Ok(())
+    }
+}
+
+async fn on_tosu_data(tosu_data: TosuApi) -> Result<()> {
+    use salvo::websocket::Message;
+    let mut sid_change = false;
+    let mut bid_change = false;
+    let mut tosu_state = TOSU_STATE.lock().await;
+    if tosu_state.sid != tosu_data.beatmap.set {
+        sid_change = true;
+        tosu_state.sid = tosu_data.beatmap.set;
+    }
+    if tosu_state.bid != tosu_data.beatmap.id {
+        bid_change = true;
+        tosu_state.bid = tosu_data.beatmap.id;
+    }
+    let state = tosu_state.clone();
+    drop(tosu_state);
+    if bid_change {
+        info!("beatmap change: {state}");
+    }
+
+    ALL_SESSIONS
+        .send_to_all_client(Message::text(tosu_data.beatmap.title))
+        .await;
+    Ok(())
+}
 
 pub(super) async fn init_tosu_client(config: &TosuConfig) -> Result<()> {
-    use salvo::websocket::Message;
     let (tx, mut rx) = channel(5);
     let tosu_client = TosuWebsocketClient::new(&config.url, tx);
     // 启动 tosu
@@ -24,20 +66,17 @@ pub(super) async fn init_tosu_client(config: &TosuConfig) -> Result<()> {
 
     // 异步接受来自 tosu 的消息
     tokio::spawn(async move {
-        let mut bid_cache = 0;
         while let Some(msg) = rx.recv().await {
             let msg = TosuApi::try_from(&msg as &str);
             match msg {
                 Ok(msg) => {
-                    if bid_cache == msg.beatmap.id {
-                        continue;
+                    let result = on_tosu_data(msg).await;
+                    if result.is_err() {
+                        error!("some error: {}", result.err().unwrap());
                     }
-                    bid_cache = msg.beatmap.id;
-                    info!("beatmap change: {bid_cache}");
-                    ALL_SESSIONS.send_to_all_client(Message::text(msg.beatmap.title)).await;
                 }
                 Err(e) => {
-                    error!("can not trans{}",e);
+                    error!("can not trans {}", e);
                 }
             }
         }
@@ -71,7 +110,7 @@ impl TosuWebsocketClient {
         let result = timeout(Duration::from_secs(1), connect_async(&self.url)).await;
 
         let result = match result {
-            Ok(r) => { r }
+            Ok(r) => r,
             Err(_) => {
                 error!("connect to Tosu time out");
                 return;
@@ -132,7 +171,7 @@ impl TosuWebsocketClient {
                         self.on_tosu_message(text.to_string()).await;
                     }
                     Message::Pong(_) => {
-                        let _ = ping_tx.send(true).await;
+                        let _ = ping_tx.send(true);
                     }
                     Message::Close(_) => {
                         info!("Received close message from Tosu");

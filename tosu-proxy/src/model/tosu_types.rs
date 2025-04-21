@@ -58,6 +58,6 @@ pub struct TosuApi {
 impl TryFrom<&str> for TosuApi {
     type Error = crate::error::Error;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        serde_json::from_str(value).or_else(|e|Err(e.into()))
+        serde_json::from_str(value).or_else(|e| Err(e.into()))
     }
 }
