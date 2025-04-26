@@ -9,8 +9,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 
-const NO_LENGTH:u32 = 0;
-const ALLOW_OFFSET:u32 = 15000;
+const NO_LENGTH: u32 = 0;
+const ALLOW_OFFSET: u32 = 15000;
 
 pub static QQ_LYRIC_SOURCE: LazyLock<QQLyricSource> = LazyLock::new(|| QQLyricSource::default());
 
@@ -50,11 +50,12 @@ pub trait LyricSource {
         length: u32,
         artist: &str,
     ) -> Option<&'a SongInfo> {
-        songs.iter()
-            .filter(|&s|Self::song_filter_length(s, length))
-            .filter(|&s|Self::song_filter_title(s, title))
-            .filter(|&s|Self::song_filter_artist(s, artist))
-            .find(|_|true)
+        songs
+            .iter()
+            .filter(|&s| Self::song_filter_length(s, length))
+            .filter(|&s| Self::song_filter_title(s, title))
+            .filter(|&s| Self::song_filter_artist(s, artist))
+            .find(|_| true)
     }
 
     /// `length` 使用 毫秒数
@@ -81,23 +82,24 @@ pub trait LyricSource {
         }
     }
 
-    fn song_filter_length(song:&SongInfo, length: u32)-> bool {
-        if length == NO_LENGTH{
+    fn song_filter_length(song: &SongInfo, length: u32) -> bool {
+        if length == NO_LENGTH {
             return true;
         }
-        ALLOW_OFFSET < if length > song.length {
-            length - song.length
-        } else {
-            song.length - length
-        }
+        ALLOW_OFFSET
+            < if length > song.length {
+                length - song.length
+            } else {
+                song.length - length
+            }
     }
 
-    fn song_filter_title(song:&SongInfo, title: &str)-> bool {
+    fn song_filter_title(song: &SongInfo, title: &str) -> bool {
         // todo: 要用 nlp 来处理字符串相似度吗?
         true
     }
 
-    fn song_filter_artist(song:&SongInfo, artist: &str)-> bool {
+    fn song_filter_artist(song: &SongInfo, artist: &str) -> bool {
         // todo: 同上
         true
     }

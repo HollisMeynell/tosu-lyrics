@@ -1,5 +1,5 @@
-use std::path::Path;
 use crate::error::Result;
+use std::path::Path;
 
 pub(crate) fn generate_random_string() -> String {
     use rand::Rng;
@@ -18,14 +18,16 @@ const FFP_BLOB: &[u8] = include_bytes!("../lib/ffprobe.exe");
 const FFP_BLOB: &[u8] = include_bytes!("../lib/ffprobe");
 
 /// 返回毫秒数
-pub(crate) async fn read_audio_length<T:AsRef<Path>>(file_path: T) -> Result<i32> {
+pub(crate) async fn read_audio_length<T: AsRef<Path>>(file_path: T) -> Result<i32> {
     use tokio::fs::File;
     use tokio::io::AsyncWriteExt;
     use tokio::process::Command;
 
     let file_path = file_path.as_ref();
     match file_path.try_exists() {
-        Ok(false) | Err(_) => return Err(format!("audio {} not exists", file_path.display()).into()),
+        Ok(false) | Err(_) => {
+            return Err(format!("audio {} not exists", file_path.display()).into());
+        }
         _ => {}
     }
 
