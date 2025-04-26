@@ -1,3 +1,4 @@
+use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -50,9 +51,25 @@ pub struct Files {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct Folders {
+    pub game: String,
+    pub skin: String,
+    pub songs: String,
+    pub beatmap: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct TosuApi {
     pub beatmap: Beatmap,
     pub files: Files,
+    pub folders: Folders,
+}
+
+impl TosuApi{
+    pub fn print_audio_path(&self) -> PathBuf {
+        Path::new(&self.folders.songs).join(&self.files.audio)
+    }
 }
 
 impl TryFrom<&str> for TosuApi {

@@ -1,10 +1,13 @@
 use crate::config::TosuConfig;
 use crate::error::Result;
 use crate::server::ALL_SESSIONS;
+use std::cell::{Cell, RefCell};
 use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;
+use std::sync::atomic::{AtomicI64, Ordering};
 
 use crate::model::tosu_types::TosuApi;
+use crate::osu_source::OsuSource;
 use futures_util::stream::SplitStream;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
@@ -17,92 +20,33 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tracing::{error, info};
 use tungstenite::handshake::client::Response;
 
-static TOSU_STATE: LazyLock<Mutex<TosuState>> =
-    LazyLock::new(|| Mutex::new(TosuState { bid: 0, sid: 0 }));
+type WebsocketRead = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
-#[derive(Clone)]
-struct TosuState {
-    sid: i64,
-    bid: i64,
-}
-
-impl Display for TosuState {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{sid: {}, bid: {}}}", self.sid, self.bid)?;
-        Ok(())
-    }
-}
-
-async fn on_tosu_data(tosu_data: TosuApi) -> Result<()> {
-    use salvo::websocket::Message;
-    let mut sid_change = false;
-    let mut bid_change = false;
-    let mut tosu_state = TOSU_STATE.lock().await;
-    if tosu_state.sid != tosu_data.beatmap.set {
-        sid_change = true;
-        tosu_state.sid = tosu_data.beatmap.set;
-    }
-    if tosu_state.bid != tosu_data.beatmap.id {
-        bid_change = true;
-        tosu_state.bid = tosu_data.beatmap.id;
-    }
-    let state = tosu_state.clone();
-    drop(tosu_state);
-    if bid_change {
-        info!("beatmap change: {state}");
-    }
-
-    ALL_SESSIONS
-        .send_to_all_client(Message::text(tosu_data.beatmap.title))
-        .await;
-    Ok(())
-}
-
-pub(super) async fn init_tosu_client(config: &TosuConfig) -> Result<()> {
-    let (tx, mut rx) = channel(5);
-    let tosu_client = TosuWebsocketClient::new(&config.url, tx);
-    // 启动 tosu
-    tosu_client.start();
-
-    // 异步接受来自 tosu 的消息
-    tokio::spawn(async move {
-        while let Some(msg) = rx.recv().await {
-            let msg = TosuApi::try_from(&msg as &str);
-            match msg {
-                Ok(msg) => {
-                    let result = on_tosu_data(msg).await;
-                    if result.is_err() {
-                        error!("some error: {}", result.err().unwrap());
-                    }
-                }
-                Err(e) => {
-                    error!("can not trans {}", e);
-                }
-            }
-        }
-    });
-    Ok(())
-}
-
-struct TosuWebsocketClient {
+pub(super) struct TosuWebsocketClient {
     url: String,
-    sender: Sender<String>,
+    bid: AtomicI64,
+    sid: AtomicI64,
+    audio_file: Mutex<String>,
 }
 
-impl TosuWebsocketClient {
-    fn new(url: &str, sender: Sender<String>) -> Self {
-        Self {
-            url: url.to_string(),
-            sender,
-        }
-    }
-
-    fn start(self) -> JoinHandle<()> {
+impl OsuSource for TosuWebsocketClient {
+    async fn start(self) {
         tokio::spawn(async move {
             loop {
                 self.on_loop().await;
             }
-        })
+        });
+    }
+}
+
+impl TosuWebsocketClient {
+    pub(super) fn new(url: &str) -> Self {
+        Self {
+            url: url.to_string(),
+            bid: AtomicI64::default(),
+            sid: AtomicI64::default(),
+            audio_file: Mutex::new("".to_string()),
+        }
     }
 
     /// ws 连接循环
@@ -123,13 +67,12 @@ impl TosuWebsocketClient {
             return;
         }
 
-        // 拿到 websocket stream
         let (ws_stream, _) = result.unwrap();
         info!("Tosu connected");
         let (mut ping_write, read) = ws_stream.split();
         // 当 ping 发送后超过一秒未给相应认为网络中断, shutdown_xx 是传递中断信号
         let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
-        // ping_xx 是受到的 pong 信号
+        // pong 信号
         let (ping_tx, mut ping_rx) = watch::channel(false);
         // 启动 ws 检查循环
         tokio::spawn(async move {
@@ -159,11 +102,7 @@ impl TosuWebsocketClient {
     }
 
     // ws 消息处理循环
-    async fn ws_receive_loop(
-        &self,
-        mut read: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
-        mut ping_tx: watch::Sender<bool>,
-    ) {
+    async fn ws_receive_loop(&self, mut read: WebsocketRead, mut ping_tx: watch::Sender<bool>) {
         while let Some(msg) = read.next().await {
             match msg {
                 Ok(msg) => match msg {
@@ -191,8 +130,55 @@ impl TosuWebsocketClient {
 
     // 收到 tosu 消息处理
     async fn on_tosu_message(&self, msg: String) {
-        if let Err(e) = &self.sender.send(msg.to_string()).await {
-            error!("Failed to send message to channel: {}", e);
+        let msg = TosuApi::try_from(&msg as &str);
+        if let Err(e) = msg {
+            error!("can not deserialization {}", e);
+            return;
         }
+        let tosu_data = msg.unwrap();
+
+        let bid = tosu_data.beatmap.id;
+        let sid = tosu_data.beatmap.set;
+        let now = tosu_data.beatmap.time.live;
+
+        let old_bid = self.bid.load(Ordering::SeqCst);
+        let old_sid = self.sid.load(Ordering::SeqCst);
+        let old_audio_file: &str;
+        {
+            old_audio_file = self.audio_file.lock().await.as_str();
+        }
+        if old_sid != sid
+            || (old_bid != bid && *self.audio_file.lock().await != tosu_data.files.audio)
+        {
+            self.sid.store(sid, Ordering::SeqCst);
+            self.bid.store(bid, Ordering::SeqCst);
+            {
+                *self.audio_file.lock().await = tosu_data.files.audio.clone();
+            }
+            let length = crate::util::read_audio_length(tosu_data.print_audio_path())
+                .await
+                .unwrap_or_else(|e| {
+                    error!("can not get audio length: {}", e);
+                    -1
+                });
+            let artist = &tosu_data.beatmap.artist;
+            let artist_unicode = &tosu_data.beatmap.artist_unicode;
+            let title = &tosu_data.beatmap.title;
+            let title_unicode = &tosu_data.beatmap.title_unicode;
+            let info = super::SongInfo {
+                bid,
+                sid,
+                length,
+                now,
+                artist,
+                artist_unicode,
+                title,
+                title_unicode,
+            };
+            self.on_osu_state_change(super::OsuState::Song(info)).await;
+            return;
+        }
+
+        self.on_osu_state_change(super::OsuState::Time(now)).await;
     }
 }

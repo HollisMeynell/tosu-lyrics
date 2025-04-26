@@ -1,7 +1,6 @@
 mod lyric;
 mod source;
 
-use crate::config::Settings;
 use crate::error::Result;
 pub use lyric::*;
 pub use source::*;

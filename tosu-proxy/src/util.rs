@@ -1,3 +1,4 @@
+use std::path::Path;
 use crate::error::Result;
 
 pub(crate) fn generate_random_string() -> String {
@@ -17,11 +18,17 @@ const FFP_BLOB: &[u8] = include_bytes!("../lib/ffprobe.exe");
 const FFP_BLOB: &[u8] = include_bytes!("../lib/ffprobe");
 
 /// 返回毫秒数
-pub(crate) async fn read_audio_length(file_path: &str) -> Result<i32> {
-    use std::path::Path;
+pub(crate) async fn read_audio_length<T:AsRef<Path>>(file_path: T) -> Result<i32> {
     use tokio::fs::File;
     use tokio::io::AsyncWriteExt;
     use tokio::process::Command;
+
+    let file_path = file_path.as_ref();
+    match file_path.try_exists() {
+        Ok(false) | Err(_) => return Err(format!("audio {} not exists", file_path.display()).into()),
+        _ => {}
+    }
+
     let ffprobe_path = Path::new("ffprobe");
     if !ffprobe_path.exists() {
         let mut ffprobe = File::create(ffprobe_path).await?;
@@ -42,7 +49,7 @@ pub(crate) async fn read_audio_length(file_path: &str) -> Result<i32> {
             "format=duration",
             "-of",
             "default=noprint_wrappers=1:nokey=1",
-            file_path,
+            &*file_path.to_string_lossy(),
         ])
         .output()
         .await?;

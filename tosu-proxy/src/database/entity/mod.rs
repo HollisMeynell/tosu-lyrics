@@ -1,5 +1,6 @@
 mod config;
 mod lyric_cache;
+mod offset_cache;
 
 use crate::database::table_exists;
 use crate::error::Result;
@@ -8,6 +9,7 @@ use sea_orm::{ActiveModelTrait, ConnectionTrait, EntityName, EntityTrait, QueryT
 use super::database;
 pub use config::Entity as ConfigEntity;
 pub use lyric_cache::Entity as LyricCacheEntity;
+pub use offset_cache::Entity as OffsetCacheEntity;
 
 macro_rules! init_entity {
     ($($fn_name:ident($entity:ident),)*) => {
@@ -34,4 +36,5 @@ macro_rules! init_entity {
 init_entity! {
     init_config(ConfigEntity),
     init_lyric_cache(LyricCacheEntity),
+    init_offset_cache(OffsetCacheEntity),
 }
