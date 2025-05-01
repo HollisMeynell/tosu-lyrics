@@ -3,13 +3,16 @@
         "Displayer",
         "ffprobe",
         "klyric",
+        "Lazer",
         "msvc",
         "netease",
         "singlefile",
         "solidjs",
         "textstyle",
+        "thiserror",
         "tlyric",
         "tosu",
+        "tungstenite",
         "webbrowser"
     ]
 }
