@@ -17,168 +17,267 @@ use tokio::task::JoinHandle;
 use tokio::time::{Duration, sleep, timeout};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
-use tracing::{error, info};
+use tracing::{debug, error, info, warn};
 use tungstenite::handshake::client::Response;
 
 type WebsocketRead = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
+/// Tosu WebSocket 客户端
+/// 用于连接 Tosu 并接收歌曲状态信息
 pub(super) struct TosuWebsocketClient {
+    /// WebSocket 连接地址
     url: String,
+    /// 当前谱面 ID
     bid: AtomicI64,
+    /// 当前谱面集 ID
     sid: AtomicI64,
+    /// 当前音频文件
     audio_file: Mutex<String>,
+    /// 重连延迟（毫秒）
+    reconnect_delay_ms: u64,
+    /// 连接超时（毫秒）
+    connection_timeout_ms: u64,
+    /// 心跳超时（毫秒）
+    heartbeat_timeout_ms: u64,
 }
 
 impl OsuSource for TosuWebsocketClient {
     async fn start(self) {
         tokio::spawn(async move {
             loop {
-                self.on_loop().await;
+                self.connect_and_process().await;
+                // 连接断开后等待一段时间再重连
+                sleep(Duration::from_millis(self.reconnect_delay_ms)).await;
             }
         });
     }
 }
 
 impl TosuWebsocketClient {
+    /// 创建新的 Tosu WebSocket 客户端
     pub(super) fn new(url: &str) -> Self {
         Self {
             url: url.to_string(),
             bid: AtomicI64::default(),
             sid: AtomicI64::default(),
-            audio_file: Mutex::new("".to_string()),
+            audio_file: Mutex::new(String::new()),
+            reconnect_delay_ms: 1000,
+            connection_timeout_ms: 5000,
+            heartbeat_timeout_ms: 3000,
         }
     }
 
-    /// ws 连接循环
-    async fn on_loop(&self) {
-        let result = timeout(Duration::from_secs(1), connect_async(&self.url)).await;
+    /// 使用自定义配置创建 Tosu WebSocket 客户端
+    pub(super) fn with_config(
+        url: &str,
+        reconnect_delay_ms: u64,
+        connection_timeout_ms: u64,
+        heartbeat_timeout_ms: u64,
+    ) -> Self {
+        Self {
+            url: url.to_string(),
+            bid: AtomicI64::default(),
+            sid: AtomicI64::default(),
+            audio_file: Mutex::new(String::new()),
+            reconnect_delay_ms,
+            connection_timeout_ms,
+            heartbeat_timeout_ms,
+        }
+    }
 
-        let result = match result {
-            Ok(r) => r,
+    /// 连接到 WebSocket 并处理消息
+    async fn connect_and_process(&self) {
+        debug!("正在连接到 Tosu WebSocket: {}", self.url);
+
+        // 尝试连接，带超时
+        let connection_result = timeout(
+            Duration::from_millis(self.connection_timeout_ms),
+            connect_async(&self.url),
+        )
+        .await;
+
+        // 处理连接超时
+        let ws_result = match connection_result {
+            Ok(result) => result,
             Err(_) => {
-                error!("connect to Tosu time out");
+                error!("连接到 Tosu 超时 ({}ms)", self.connection_timeout_ms);
                 return;
             }
         };
 
-        if result.is_err() {
-            error!("Failed to connect to Tosu: {}", result.err().unwrap());
-            sleep(Duration::from_secs(1)).await;
+        // 处理连接错误
+        if let Err(err) = ws_result {
+            error!("连接到 Tosu 失败: {}", err);
             return;
         }
 
-        let (ws_stream, _) = result.unwrap();
-        info!("Tosu connected");
-        let (mut ping_write, read) = ws_stream.split();
-        // 当 ping 发送后超过一秒未给相应认为网络中断, shutdown_xx 是传递中断信号
+        // 连接成功，设置流
+        let (ws_stream, _) = ws_result.unwrap();
+        info!("已成功连接到 Tosu");
+
+        let (mut sender, receiver) = ws_stream.split();
+
+        // 设置心跳检测
         let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
-        // pong 信号
-        let (ping_tx, mut ping_rx) = watch::channel(false);
-        // 启动 ws 检查循环
+        let (heartbeat_tx, mut heartbeat_rx) = watch::channel(false);
+
+        // 克隆心跳超时时间用于心跳任务
+        let heartbeat_timeout_ms = self.heartbeat_timeout_ms;
+
+        // 启动心跳检测任务
         tokio::spawn(async move {
             loop {
-                // 等待一秒发送 ping, 如果无法发送认为网络出错, 发送 shutdown 信号
-                tokio::time::sleep(Duration::from_secs(1)).await;
-                if let Err(_) = ping_write.send(Message::Ping(vec![].into())).await {
+                sleep(Duration::from_millis(1000)).await;
+
+                // 发送心跳
+                if sender.send(Message::Ping(vec![].into())).await.is_err() {
+                    warn!("无法发送心跳，连接可能已断开");
                     let _ = shutdown_tx.send(true);
                     break;
                 }
-                // ping 响应超过一秒, 发送 shutdown 信号
-                match timeout(Duration::from_secs(1), ping_rx.changed()).await {
-                    Ok(Ok(_)) => continue,
+
+                // 等待心跳响应
+                match timeout(
+                    Duration::from_millis(heartbeat_timeout_ms),
+                    heartbeat_rx.changed(),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        debug!("收到心跳响应");
+                        continue;
+                    }
                     _ => {
+                        warn!("心跳超时 ({}ms)，断开连接", heartbeat_timeout_ms);
                         let _ = shutdown_tx.send(true);
                         break;
                     }
                 }
             }
         });
-        // 启动事件处理循环, 同时监听 shutdown 信号
+
+        // 处理主消息循环或关闭信号
         tokio::select! {
-            _ = self.ws_receive_loop(read, ping_tx) =>  {}
-            _ = shutdown_rx.changed() => {}
+            _ = self.process_messages(receiver, heartbeat_tx) => {
+                debug!("消息处理循环已结束");
+            }
+            _ = shutdown_rx.changed() => {
+                debug!("收到关闭信号");
+            }
         }
-        info!("WebSocket disconnected. Reconnecting...");
+
+        info!(
+            "WebSocket 连接断开，将在 {}ms 后重连",
+            self.reconnect_delay_ms
+        );
     }
 
-    // ws 消息处理循环
-    async fn ws_receive_loop(&self, mut read: WebsocketRead, mut ping_tx: watch::Sender<bool>) {
-        while let Some(msg) = read.next().await {
-            match msg {
-                Ok(msg) => match msg {
+    /// 处理 WebSocket 消息
+    async fn process_messages(
+        &self,
+        mut receiver: WebsocketRead,
+        heartbeat_tx: watch::Sender<bool>,
+    ) {
+        while let Some(message_result) = receiver.next().await {
+            match message_result {
+                Ok(message) => match message {
                     Message::Text(text) => {
-                        self.on_tosu_message(text.to_string()).await;
+                        debug!("收到文本消息");
+                        self.handle_tosu_message(text.to_string()).await;
                     }
                     Message::Pong(_) => {
-                        let _ = ping_tx.send(true);
+                        debug!("收到 Pong 消息");
+                        let _ = heartbeat_tx.send(true);
                     }
-                    Message::Close(_) => {
-                        info!("Received close message from Tosu");
+                    Message::Close(frame) => {
+                        if let Some(frame) = frame {
+                            info!("收到关闭消息: {} ({})", frame.reason, frame.code);
+                        } else {
+                            info!("收到关闭消息");
+                        }
                         break;
                     }
-                    _ => {
-                        error!("Received non-text message from Tosu");
-                    }
+                    _ => debug!("收到其他类型消息"),
                 },
-                Err(e) => {
-                    error!("WebSocket read error: {}", e);
+                Err(err) => {
+                    error!("WebSocket 读取错误: {}", err);
                     break;
                 }
             }
         }
     }
 
-    // 收到 tosu 消息处理
-    async fn on_tosu_message(&self, msg: String) {
-        let msg = TosuApi::try_from(&msg as &str);
-        if let Err(e) = msg {
-            error!("can not deserialization {}", e);
-            return;
-        }
-        let tosu_data = msg.unwrap();
+    /// 处理 Tosu 消息
+    async fn handle_tosu_message(&self, message: String) {
+        // 解析消息
+        match TosuApi::try_from(message.as_str()) {
+            Ok(tosu_data) => {
+                let bid = tosu_data.beatmap.id;
+                let sid = tosu_data.beatmap.set;
+                let now = tosu_data.beatmap.time.live;
 
-        let bid = tosu_data.beatmap.id;
-        let sid = tosu_data.beatmap.set;
-        let now = tosu_data.beatmap.time.live;
+                let old_bid = self.bid.load(Ordering::SeqCst);
+                let old_sid = self.sid.load(Ordering::SeqCst);
 
-        let old_bid = self.bid.load(Ordering::SeqCst);
-        let old_sid = self.sid.load(Ordering::SeqCst);
-        let old_audio_file: &str;
-        {
-            old_audio_file = self.audio_file.lock().await.as_str();
-        }
-        if old_sid != sid
-            || (old_bid != bid && *self.audio_file.lock().await != tosu_data.files.audio)
-        {
-            self.sid.store(sid, Ordering::SeqCst);
-            self.bid.store(bid, Ordering::SeqCst);
-            {
-                *self.audio_file.lock().await = tosu_data.files.audio.clone();
+                // 检查是否需要更新歌曲信息
+                let update_song_info = {
+                    let current_audio = self.audio_file.lock().await;
+                    old_sid != sid || (old_bid != bid && *current_audio != tosu_data.files.audio)
+                };
+
+                if update_song_info {
+                    self.update_song_info(&tosu_data, bid, sid, now).await;
+                } else {
+                    // 仅更新时间
+                    self.on_osu_state_change(super::OsuState::Time(now)).await;
+                }
             }
-            let length = crate::util::read_audio_length(tosu_data.print_audio_path())
-                .await
-                .unwrap_or_else(|e| {
-                    error!("can not get audio length: {}", e);
-                    -1
-                });
-            let artist = &tosu_data.beatmap.artist;
-            let artist_unicode = &tosu_data.beatmap.artist_unicode;
-            let title = &tosu_data.beatmap.title;
-            let title_unicode = &tosu_data.beatmap.title_unicode;
-            let info = super::SongInfo {
-                bid,
-                sid,
-                length,
-                now,
-                artist,
-                artist_unicode,
-                title,
-                title_unicode,
-            };
-            self.on_osu_state_change(super::OsuState::Song(info)).await;
-            return;
+            Err(err) => {
+                error!("无法解析 Tosu 消息: {}", err);
+            }
+        }
+    }
+
+    /// 更新歌曲信息
+    async fn update_song_info(&self, tosu_data: &TosuApi, bid: i64, sid: i64, now: i64) {
+        // 更新状态
+        self.sid.store(sid, Ordering::SeqCst);
+        self.bid.store(bid, Ordering::SeqCst);
+
+        // 更新音频文件
+        {
+            let mut audio_file = self.audio_file.lock().await;
+            *audio_file = tosu_data.files.audio.clone();
         }
 
-        self.on_osu_state_change(super::OsuState::Time(now)).await;
+        // 获取音频长度
+        let length = crate::util::read_audio_length(tosu_data.audio_path())
+            .await
+            .unwrap_or_else(|e| {
+                error!("无法获取音频长度: {}", e);
+                -1
+            });
+
+        // 创建歌曲信息并通知状态变化
+        let info = super::SongInfo {
+            bid,
+            sid,
+            length,
+            now,
+            artist: &tosu_data.beatmap.artist,
+            artist_unicode: &tosu_data.beatmap.artist_unicode,
+            title: &tosu_data.beatmap.title,
+            title_unicode: &tosu_data.beatmap.title_unicode,
+        };
+
+        debug!(
+            "歌曲已更改: {} - {}, BID: {}, SID: {}",
+            tosu_data.display_artist(),
+            tosu_data.display_title(),
+            bid,
+            sid
+        );
+
+        self.on_osu_state_change(super::OsuState::Song(info)).await;
     }
 }
