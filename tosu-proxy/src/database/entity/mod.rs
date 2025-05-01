@@ -4,7 +4,7 @@ mod offset_cache;
 
 use crate::database::table_exists;
 use crate::error::Result;
-use sea_orm::{ActiveModelTrait, ConnectionTrait, EntityName, EntityTrait, QueryTrait, Schema};
+use sea_orm::{ConnectionTrait, EntityName, Schema};
 
 use super::database;
 pub use config::Entity as ConfigEntity;

@@ -1,7 +1,7 @@
 use crate::database::database;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
-use sea_orm::{ActiveValue, ColumnTrait, Condition, QueryFilter, QuerySelect};
+use sea_orm::{ActiveValue, ColumnTrait, QueryFilter};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "offset_cache")]

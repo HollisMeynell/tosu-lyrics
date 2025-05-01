@@ -2,7 +2,6 @@ mod tosu;
 
 use crate::error::Result;
 use crate::lyric::LyricService;
-use crate::model::tosu_types::Beatmap;
 use std::sync::OnceLock;
 use tokio::sync::Mutex;
 use tracing::{error, info};

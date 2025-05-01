@@ -1,9 +1,3 @@
-use crate::config::TosuConfig;
-use crate::error::Result;
-use crate::server::ALL_SESSIONS;
-use std::cell::{Cell, RefCell};
-use std::fmt::{Display, Formatter};
-use std::sync::LazyLock;
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use crate::model::tosu_types::TosuApi;
@@ -11,14 +5,11 @@ use crate::osu_source::OsuSource;
 use futures_util::stream::SplitStream;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::{Sender, channel};
 use tokio::sync::{Mutex, watch};
-use tokio::task::JoinHandle;
 use tokio::time::{Duration, sleep, timeout};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tracing::{debug, error, info, warn};
-use tungstenite::handshake::client::Response;
 
 type WebsocketRead = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 

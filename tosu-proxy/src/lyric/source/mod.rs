@@ -1,7 +1,7 @@
 mod netease;
 mod qq;
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 use async_trait::async_trait;
 pub use netease::NeteaseLyricSource;
 pub use qq::QQLyricSource;
@@ -112,7 +112,7 @@ mod tests {
     #[tokio::test]
     async fn test_qq_lyric_source() -> Result<()> {
         let song_info = QQ_LYRIC_SOURCE.search_music("Clair de lune").await?;
-        let song = song_info.first().ok_or::<Error>("not found song".into())?;
+        let song = song_info.first().ok_or("not found song")?;
         let song_name = &song.title;
         let key = &song.key;
         let lyric = QQ_LYRIC_SOURCE.fetch_lyrics(key).await?;
@@ -123,7 +123,7 @@ mod tests {
     #[tokio::test]
     async fn test_netease_lyric_source() -> Result<()> {
         let song_info = NETEASE_LYRIC_SOURCE.search_music("Clair de lune").await?;
-        let song = song_info.first().ok_or::<Error>("not found song".into())?;
+        let song = song_info.first().ok_or("not found song")?;
         let song_name = &song.title;
         let key = &song.key;
         let lyric = NETEASE_LYRIC_SOURCE.fetch_lyrics(key).await?;
