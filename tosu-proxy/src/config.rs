@@ -45,24 +45,17 @@ fn load_config() -> Settings {
         return create_default_config(config_path);
     }
 
-    match Config::builder()
+    let config = Config::builder()
         .add_source(config::File::new(CONFIG_PATH, FileFormat::Json5))
         .set_default("server", "0.0.0.0")
         .and_then(|b| b.set_default("port", 41280))
         .and_then(|b| b.set_default("database", "sqlite://lyric.db?mode=rwc"))
         .and_then(|b| b.build())
         .and_then(|c| c.try_deserialize::<Settings>())
-    {
-        Ok(config) => {
-            info!("配置加载成功");
-            config
-        }
-        Err(err) => {
-            error!("配置加载失败: {}", err);
-            info!("使用默认配置");
-            Settings::default()
-        }
-    }
+        .expect("配置加载失败");
+
+    info!("配置加载成功");
+    config
 }
 
 fn create_default_config(config_path: &Path) -> Settings {
