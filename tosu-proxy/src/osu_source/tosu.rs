@@ -10,6 +10,7 @@ use tokio::time::{Duration, sleep, timeout};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tracing::{debug, error, info, warn};
+use crate::error::Error;
 
 type WebsocketRead = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
@@ -85,7 +86,7 @@ impl TosuWebsocketClient {
             Duration::from_millis(self.connection_timeout_ms),
             connect_async(&self.url),
         )
-        .await;
+            .await;
 
         // 处理连接超时
         let ws_result = match connection_result {
@@ -132,7 +133,7 @@ impl TosuWebsocketClient {
                     Duration::from_millis(heartbeat_timeout_ms),
                     heartbeat_rx.changed(),
                 )
-                .await
+                    .await
                 {
                     Ok(Ok(_)) => {
                         debug!("收到心跳响应");
@@ -170,62 +171,64 @@ impl TosuWebsocketClient {
         heartbeat_tx: watch::Sender<bool>,
     ) {
         while let Some(message_result) = receiver.next().await {
-            match message_result {
-                Ok(message) => match message {
-                    Message::Text(text) => {
-                        debug!("收到文本消息");
-                        self.handle_tosu_message(text.to_string()).await;
-                    }
-                    Message::Pong(_) => {
-                        debug!("收到 Pong 消息");
-                        let _ = heartbeat_tx.send(true);
-                    }
-                    Message::Close(frame) => {
-                        if let Some(frame) = frame {
-                            info!("收到关闭消息: {} ({})", frame.reason, frame.code);
-                        } else {
-                            info!("收到关闭消息");
-                        }
-                        break;
-                    }
-                    _ => debug!("收到其他类型消息"),
-                },
-                Err(err) => {
-                    error!("WebSocket 读取错误: {}", err);
-                    break;
-                }
+            if message_result.is_err() {
+                let err = message_result.err().unwrap();
+                error!("WebSocket 读取错误: {}", err);
+                break;
+            }
+            let message = message_result.unwrap();
+
+            if !self.on_message(message, &heartbeat_tx).await {
+                break;
             }
         }
     }
 
-    /// 处理 Tosu 消息
-    async fn handle_tosu_message(&self, message: String) {
-        // 解析消息
-        match TosuApi::try_from(message.as_str()) {
-            Ok(tosu_data) => {
-                let bid = tosu_data.beatmap.id;
-                let sid = tosu_data.beatmap.set;
-                let now = tosu_data.beatmap.time.live;
-
-                let old_bid = self.bid.load(Ordering::SeqCst);
-                let old_sid = self.sid.load(Ordering::SeqCst);
-
-                // 检查是否需要更新歌曲信息
-                let update_song_info = {
-                    let current_audio = self.audio_file.lock().await;
-                    old_sid != sid || (old_bid != bid && *current_audio != tosu_data.files.audio)
-                };
-
-                if update_song_info {
-                    self.update_song_info(&tosu_data, bid, sid, now).await;
-                } else {
-                    // 仅更新时间
-                    self.on_osu_state_change(super::OsuState::Time(now)).await;
+    /// return 是否继续下次监听
+    async fn on_message(&self, message: Message, heartbeat_tx: &watch::Sender<bool>) -> bool {
+        match message {
+            Message::Text(text) => {
+                let tosu_data = TosuApi::try_from(text.as_str());
+                match tosu_data {
+                    Ok(data) => { self.handle_tosu_message(data).await; }
+                    Err(err) => {
+                        error!("无法解析 Tosu 消息: {}", err);
+                        debug!("异常原始信息: \n{}", text.as_str())
+                    }
                 }
             }
-            Err(err) => {
-                error!("无法解析 Tosu 消息: {}", err);
+            Message::Pong(_) => {
+                let _ = heartbeat_tx.send(true);
             }
+            Message::Close(_) => {
+                info!("websocket 对方关闭");
+                return true;
+            }
+            _ => error!("websocket 收到无法处理的类型消息"),
+        }
+        true
+    }
+
+    /// 处理 Tosu 消息
+    async fn handle_tosu_message(&self, tosu_data: TosuApi) {
+        let bid = tosu_data.beatmap.id;
+        let sid = tosu_data.beatmap.set;
+        let now = tosu_data.beatmap.time.live;
+
+        let old_bid = self.bid.load(Ordering::SeqCst);
+        let old_sid = self.sid.load(Ordering::SeqCst);
+
+        // 检查是否需要更新歌曲信息
+        let update_song_info = {
+            let current_audio = self.audio_file.lock().await;
+            old_sid != sid || (old_bid != bid && *current_audio != tosu_data.files.audio)
+        };
+
+        if update_song_info {
+            self.update_song_info(&tosu_data, bid, sid, now).await;
+        } else {
+            // 仅更新时间
+            self.on_osu_state_change(super::OsuState::Time(now)).await;
         }
     }
 
@@ -260,14 +263,6 @@ impl TosuWebsocketClient {
             title: &tosu_data.beatmap.title,
             title_unicode: &tosu_data.beatmap.title_unicode,
         };
-
-        debug!(
-            "歌曲已更改: {} - {}, BID: {}, SID: {}",
-            tosu_data.display_artist(),
-            tosu_data.display_title(),
-            bid,
-            sid
-        );
 
         self.on_osu_state_change(super::OsuState::Song(info)).await;
     }

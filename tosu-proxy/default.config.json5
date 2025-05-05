@@ -1,0 +1,19 @@
+{
+  // 示例配置, 实际配置文件名为 config.json5 (P.S. 注意使用 .json5 后缀, 支持在 json 中注释
+
+  // 必选配置:
+  // 监听ip (如果你不懂此项的含义, 请保持 '0.0.0.0')
+  "server": "0.0.0.0",
+  // 监听端口
+  "port": 41280,
+  // 数据库, 默认使用 sqlite, 同时支持 postgres 与 mysql (如果你不懂此项的含义, 请勿修改)
+  "database": "sqlite://lyric.db?mode=rwc",
+  // 对接 tosu 的配置, 如果没有必要请不要修改默认设置
+  "tosu": {
+    "url": "ws://127.0.0.1:24050/websocket/v2"
+  },
+
+  // 可选配置:
+  // 日志输出级别, 支持 error, warn, info, debug, trace
+  "log": "info",
+}

@@ -4,7 +4,7 @@ use crate::error::Result;
 use crate::lyric::LyricService;
 use std::sync::OnceLock;
 use tokio::sync::Mutex;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 pub static LYRIC_SERVICE: OnceLock<Mutex<LyricService>> = OnceLock::new();
 
@@ -48,10 +48,10 @@ impl<'i> OsuState<'i> {
     }
 
     async fn on_time_update(time: i64) {
-        info!("time: {time}");
+        debug!("time: {time}");
     }
     async fn on_song_update(song: SongInfo<'i>) {
-        info!("song: {song:?}");
+        debug!("song: {song:?}");
     }
 }
 
@@ -67,9 +67,9 @@ trait OsuSource {
 pub async fn init_osu_source() -> Result<()> {
     use crate::config::GLOBAL_CONFIG;
     if let Some(tosu_config) = &GLOBAL_CONFIG.tosu {
+        info!("use tosu: {}", tosu_config.url);
         let tosu = tosu::TosuWebsocketClient::new(&tosu_config.url);
         tosu.start().await;
     }
-    info!("use tosu: {}", GLOBAL_CONFIG.tosu.is_some());
     Ok(())
 }

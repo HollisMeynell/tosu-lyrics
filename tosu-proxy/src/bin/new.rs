@@ -1,10 +1,14 @@
+use std::str::FromStr;
+use tracing::log::Level;
 #[cfg(feature = "new")]
 use tosu_proxy::*;
 
 #[cfg(feature = "new")]
 async fn init_logger() {
     use tracing::Level;
-    let level = if cfg!(debug_assertions) {
+    let level = if let Some(level) = &config::GLOBAL_CONFIG.log_level {
+        Level::from_str(level).expect("无法处理的配置 `log`, 仅支持 error, warn, info, debug, trace")
+    } else if cfg!(debug_assertions) {
         Level::DEBUG
     } else {
         Level::INFO

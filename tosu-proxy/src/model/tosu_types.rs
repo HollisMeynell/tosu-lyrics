@@ -99,21 +99,9 @@ pub struct TosuApi {
 }
 
 impl TosuApi {
-    // TODO: 已完成 Lazer 而未考虑 stb 的拼接
-
     /// 获取音频文件的完整路径
     pub fn audio_path(&self) -> PathBuf {
-        Path::new(&self.folders.songs).join(&self.files.audio)
-    }
-
-    /// 获取背景图片的完整路径
-    pub fn background_path(&self) -> PathBuf {
-        Path::new(&self.folders.songs).join(&self.files.background)
-    }
-
-    /// 获取谱面文件的完整路径
-    pub fn beatmap_path(&self) -> PathBuf {
-        Path::new(&self.folders.songs).join(&self.files.beatmap)
+        Path::new(&self.folders.songs).join(&self.folders.beatmap).join(&self.files.audio)
     }
 
     /// 获取歌曲标题，优先使用Unicode版本

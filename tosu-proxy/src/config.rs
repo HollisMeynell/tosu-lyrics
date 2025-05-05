@@ -15,6 +15,8 @@ pub struct TosuConfig {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Settings {
     pub server: String,
+    #[serde(rename = "log", skip_serializing_if = "Option::is_none")]
+    pub log_level: Option<String>,
     pub port: u16,
     pub database: String,
     pub tosu: Option<TosuConfig>,
@@ -24,6 +26,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             server: "0.0.0.0".to_string(),
+            log_level: None,
             port: 41280,
             database: "sqlite://lyric.db?mode=rwc".to_string(),
             tosu: Some(TosuConfig {
@@ -67,7 +70,7 @@ fn create_default_config(config_path: &Path) -> Settings {
 
     match serde_json::to_string_pretty(&default_config) {
         Ok(config_str) => {
-            info!("未找到配置文件，正在生成默认配置。生成后请重启程序。（你可以编辑它）");
+            info!("未找到配置文件, 正在生成默认配置, 请查看编辑后, 重启程序.");
 
             if let Err(err) = fs::write(config_path, config_str) {
                 error!("无法创建配置文件: {}", err);

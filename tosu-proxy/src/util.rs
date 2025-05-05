@@ -20,7 +20,7 @@ pub(crate) async fn read_audio_length<P: AsRef<Path>>(file_path: P) -> Result<i3
 
     let file_path = file_path.as_ref();
 
-    if !file_path.try_exists().unwrap_or(false) {
+    if !file_path.try_exists().unwrap_or(false) || file_path.is_dir() {
         return Err(format!("音频文件不存在: {}", file_path.display()).into());
     }
 
