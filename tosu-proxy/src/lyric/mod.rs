@@ -11,8 +11,11 @@ use tokio::task::JoinSet;
 use tracing::info;
 
 pub struct LyricService {
+    // 当前歌词的下标
     now_index: usize,
     now_lyric: Option<Lyric>,
+    // 偏移值, 毫秒
+    offset: i32,
     music_cache: Arc<Mutex<HashMap<&'static str, Vec<SongInfo>>>>,
     wait_tasks: Mutex<Option<JoinSet<&'static str>>>,
 }
@@ -25,6 +28,7 @@ impl LyricService {
         Self {
             now_index: 0,
             now_lyric: None,
+            offset: 0,
             // 使用 Arc 和 Mutex 包装缓存
             music_cache: Arc::new(Mutex::new(cache)),
             wait_tasks: Mutex::new(None),
@@ -32,6 +36,7 @@ impl LyricService {
     }
 
     pub async fn song_change(&mut self, title: &str, artist: &str, length: i32) -> Result<()> {
+        // todo: 实现 offset 偏移, 从数据库中 存储/读取 缓存
         self.clear_cache().await;
 
         let length = if length < 0 { 0u32 } else { length as u32 };
@@ -100,8 +105,9 @@ impl LyricService {
     /// 时间单位为毫秒
     pub async fn time_next(&mut self, t: i32) -> Result<()> {
         if let Some(lyric) = &mut self.now_lyric {
-            let t = if t < 0 { 0f32 } else { t as f32 };
-            if let Some((index, lyric_line)) = lyric.find_line(t / 1000f32) {
+            let mut t = if t < 0 { 0 } else { t };
+            t += self.offset;
+            if let Some((index, lyric_line)) = lyric.find_line(t as f32 / 1000f32) {
                 if self.now_index == index {
                     return Ok(());
                 }
