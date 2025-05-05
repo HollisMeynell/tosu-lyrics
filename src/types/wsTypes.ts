@@ -13,11 +13,6 @@ export interface WebSocketMessage {
     echo: string | null;
 }
 
-export interface SettingHandle {
-    key: string;
-    handle: (v: unknown) => void;
-}
-
 // 设置方面的 ws 消息
 export interface SettingMessage extends CommandMessage {
     type: "setting";
