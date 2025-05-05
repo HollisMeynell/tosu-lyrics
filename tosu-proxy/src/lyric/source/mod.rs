@@ -60,7 +60,7 @@ impl TryInto<Lyric> for LyricResult {
 
     fn try_into(self) -> Result<Lyric> {
         match (self.lyric, self.trans) {
-            (Some(lyric), Some(trans)) => Lyric::parse(&lyric, Some(&trans), None),
+            (Some(lyric), Some(trans)) => Lyric::parse(&trans, Some(&lyric), None),
             (Some(lyric), None) => Lyric::parse(&lyric, None, None),
             (None, Some(trans)) => Lyric::parse(&trans, None, None),
             (None, None) => Err(Error::from("no lyric")),
