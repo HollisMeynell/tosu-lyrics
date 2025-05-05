@@ -4,7 +4,7 @@ use std::path::Path;
 use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
-use tracing::{info, error};
+use tracing::{error, info};
 
 pub static CONFIG_ENDPOINT_WEBSOCKET: &str = "ws";
 static CONFIG_PATH: &str = "config.json5";

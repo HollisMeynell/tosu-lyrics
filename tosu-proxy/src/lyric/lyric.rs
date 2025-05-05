@@ -1,4 +1,5 @@
 use crate::error::{Error, Result};
+use std::ops::Index;
 
 use serde::{Deserialize, Serialize};
 
@@ -249,6 +250,14 @@ impl Lyric {
                 .unwrap_or((self.lyrics.len() - 1, self.lyrics.last()?));
             Some((index, line))
         }
+    }
+
+    pub fn get_line_by_index(&self, index: usize) -> Option<&LyricLine> {
+        if index > self.lyrics.len() {
+            return None;
+        }
+
+        Some(self.lyrics.index(index))
     }
 
     pub fn get_lyrics(&self) -> &[LyricLine] {

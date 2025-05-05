@@ -2,15 +2,12 @@ mod tosu;
 
 use crate::error::Result;
 use crate::lyric::LyricService;
-use std::sync::OnceLock;
+use std::sync::{LazyLock, OnceLock};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info};
 
-pub static LYRIC_SERVICE: OnceLock<Mutex<LyricService>> = OnceLock::new();
-
-fn get_lyric_service() -> &'static Mutex<LyricService> {
-    LYRIC_SERVICE.get().expect("can not get LyricService")
-}
+pub static LYRIC_SERVICE: LazyLock<Mutex<LyricService>> =
+    LazyLock::new(|| Mutex::new(LyricService::new()));
 
 #[derive(Debug)]
 struct SongInfo<'i> {
@@ -19,7 +16,7 @@ struct SongInfo<'i> {
     /// 毫秒
     length: i32,
     /// 毫秒
-    now: i64,
+    now: i32,
 
     artist: &'i str,
     artist_unicode: &'i str,
@@ -28,7 +25,7 @@ struct SongInfo<'i> {
 }
 
 enum OsuState<'i> {
-    Time(i64),
+    Time(i32),
     Song(SongInfo<'i>),
     Clean,
 }
@@ -47,11 +44,24 @@ impl<'i> OsuState<'i> {
         Ok(())
     }
 
-    async fn on_time_update(time: i64) {
-        debug!("time: {time}");
+    async fn on_time_update(time: i32) {
+        let mut lyric_service = LYRIC_SERVICE.lock().await;
+        if let Err(e) = lyric_service.time_next(time).await {
+            error!("time update error: {}", e);
+        }
     }
     async fn on_song_update(song: SongInfo<'i>) {
-        debug!("song: {song:?}");
+        if song.sid < 0 && song.title == "welcome to osu!" && song.artist == "nekodex" {
+            // 忽略掉首页音乐
+            return;
+        }
+        let mut lyric_service = LYRIC_SERVICE.lock().await;
+        if let Err(e) = lyric_service
+            .song_change(song.title_unicode, song.artist_unicode, song.length)
+            .await
+        {
+            error!("song update error: {}", e);
+        }
     }
 }
 

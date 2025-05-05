@@ -3,8 +3,8 @@ pub mod setting;
 
 use crate::error::Result;
 
-use std::fmt::{Display, Formatter};
 use serde::{Deserialize, Serialize, Serializer};
+use std::fmt::{Display, Formatter};
 
 use lyric::*;
 use setting::*;
@@ -34,8 +34,8 @@ impl Display for WebSocketMessage {
 impl WebSocketMessage {
     fn get_mut_setting(&mut self) -> Result<&mut SettingPayload> {
         match self {
-            WebSocketMessage::Lyric(_) => { Err("type `lyric` can not get setting".into()) }
-            WebSocketMessage::Setting(setting) => { Ok(setting) }
+            WebSocketMessage::Lyric(_) => Err("type `lyric` can not get setting".into()),
+            WebSocketMessage::Setting(setting) => Ok(setting),
         }
     }
 }

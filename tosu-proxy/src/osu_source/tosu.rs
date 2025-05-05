@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicI64, Ordering};
 
+use crate::error::Error;
 use crate::model::tosu_types::TosuApi;
 use crate::osu_source::OsuSource;
 use futures_util::stream::SplitStream;
@@ -10,7 +11,6 @@ use tokio::time::{Duration, sleep, timeout};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tracing::{debug, error, info, warn};
-use crate::error::Error;
 
 type WebsocketRead = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
@@ -86,7 +86,7 @@ impl TosuWebsocketClient {
             Duration::from_millis(self.connection_timeout_ms),
             connect_async(&self.url),
         )
-            .await;
+        .await;
 
         // 处理连接超时
         let ws_result = match connection_result {
@@ -133,7 +133,7 @@ impl TosuWebsocketClient {
                     Duration::from_millis(heartbeat_timeout_ms),
                     heartbeat_rx.changed(),
                 )
-                    .await
+                .await
                 {
                     Ok(Ok(_)) => {
                         debug!("收到心跳响应");
@@ -190,7 +190,9 @@ impl TosuWebsocketClient {
             Message::Text(text) => {
                 let tosu_data = TosuApi::try_from(text.as_str());
                 match tosu_data {
-                    Ok(data) => { self.handle_tosu_message(data).await; }
+                    Ok(data) => {
+                        self.handle_tosu_message(data).await;
+                    }
                     Err(err) => {
                         error!("无法解析 Tosu 消息: {}", err);
                         debug!("异常原始信息: \n{}", text.as_str())
@@ -233,7 +235,7 @@ impl TosuWebsocketClient {
     }
 
     /// 更新歌曲信息
-    async fn update_song_info(&self, tosu_data: &TosuApi, bid: i64, sid: i64, now: i64) {
+    async fn update_song_info(&self, tosu_data: &TosuApi, bid: i64, sid: i64, now: i32) {
         // 更新状态
         self.sid.store(sid, Ordering::SeqCst);
         self.bid.store(bid, Ordering::SeqCst);

@@ -13,7 +13,7 @@ pub struct NumberName {
 #[serde(rename_all = "camelCase")]
 pub struct BeatmapTime {
     /// 实时位置
-    pub live: i64,
+    pub live: i32,
     /// 第一个物件的时间
     #[serde(rename = "firstObject")]
     pub first_object: i64,
@@ -101,7 +101,9 @@ pub struct TosuApi {
 impl TosuApi {
     /// 获取音频文件的完整路径
     pub fn audio_path(&self) -> PathBuf {
-        Path::new(&self.folders.songs).join(&self.folders.beatmap).join(&self.files.audio)
+        Path::new(&self.folders.songs)
+            .join(&self.folders.beatmap)
+            .join(&self.files.audio)
     }
 
     /// 获取歌曲标题，优先使用Unicode版本

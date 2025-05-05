@@ -52,7 +52,7 @@ impl Default for QQLyricSource {
 impl QQLyricSource {
     fn search_url(title: &str) -> String {
         format!(
-            "https://c.y.qq.com/soso/fcgi-bin/client_search_cp?p=1&n=10&format=json&w={}",
+            "https://c.y.qq.com/soso/fcgi-bin/client_search_cp?p=1&n=5&format=json&w={}",
             title
         )
     }
@@ -67,7 +67,7 @@ impl QQLyricSource {
 
 #[async_trait]
 impl LyricSource for QQLyricSource {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "QQ"
     }
 

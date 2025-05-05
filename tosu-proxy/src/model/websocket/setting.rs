@@ -13,7 +13,6 @@ pub struct SettingPayload {
     pub echo: Option<String>,
 }
 
-
 impl SettingPayload {
     pub fn set_replay<T: Serialize>(&mut self, value: T) -> crate::error::Result<()> {
         self.value = Some(serde_json::to_value(value)?);

@@ -60,9 +60,6 @@ impl Default for NeteaseLyricSource {
 impl NeteaseLyricSource {
     /// 构建根据标题搜索歌曲的 URL。
     fn search_url(title: &str) -> String {
-        // TODO: 标题可能包含特殊字符（如 &、? 等），应进行 URL 编码
-        // use url::form_urlencoded;
-        // let encoded_title = form_urlencoded::byte_serialize(title.as_bytes()).collect::<String>();
         format!(
             "{}/search/get?s={}&type=1&limit=5",
             NETEASE_API_BASE,
@@ -81,7 +78,7 @@ impl NeteaseLyricSource {
 
 #[async_trait]
 impl LyricSource for NeteaseLyricSource {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Netease"
     }
 
