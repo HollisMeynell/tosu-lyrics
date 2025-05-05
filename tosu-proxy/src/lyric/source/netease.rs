@@ -63,7 +63,7 @@ impl NeteaseLyricSource {
         format!(
             "{}/search/get?s={}&type=1&limit=5",
             NETEASE_API_BASE,
-            title // 如果编码就要用 encoded_title
+            title
         )
     }
 

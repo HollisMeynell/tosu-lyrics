@@ -74,12 +74,20 @@ mod test {
 
     #[tokio::test]
     async fn test_get_audio_length() {
-        match read_audio_length("/home/spring/Documents/match/osu/2041495/audio.mp3").await {
-            Ok(len) => {
-                println!("audio len: {len}");
-            }
-            Err(err) => {
-                println!("has error: {err}");
+        let test_path =
+            "C:/Users/benwa/AppData/Local/osu!/Songs/[DT1] 687493 Toyama Nao - Ima Koko/audio.mp3";
+        // /home/spring/Documents/match/osu/2041495/audio.mp3
+        match read_audio_length(test_path).await {
+            Ok(len) => println!("音频长度: {}ms", len),
+            Err(e) => {
+                // 打印完整错误链
+                println!("错误详情: {:#}", e);
+                // 检查临时文件权限
+                #[cfg(unix)]
+                println!(
+                    "ffprobe 权限: {:?}",
+                    std::fs::metadata(&*FFPROBE_PATH).unwrap().permissions()
+                );
             }
         }
     }
