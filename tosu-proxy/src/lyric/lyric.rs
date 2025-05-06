@@ -62,8 +62,8 @@ mod parse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LyricLine {
     pub time: f32,
-    pub first: Option<String>,
-    pub second: Option<String>,
+    pub origin: Option<String>,
+    pub translation: Option<String>,
 }
 
 #[derive(Debug)]
@@ -106,7 +106,7 @@ impl Lyric {
         let mut lyric = Self::default();
         for lr in lyric_lines {
             let lyric = lyric.get_line_mut(lr.time)?;
-            lyric.first = Some(lr.into())
+            lyric.origin = Some(lr.into())
         }
         lyric.cursor = 0;
 
@@ -118,10 +118,10 @@ impl Lyric {
         for tr in trans_lines {
             let lyric = lyric.get_line_mut(tr.time)?;
             let line = Some(tr.into());
-            if lyric.first.is_none() {
-                lyric.first = line
+            if lyric.origin.is_none() {
+                lyric.origin = line
             } else {
-                lyric.second = line
+                lyric.translation = line
             }
         }
         lyric.cursor = 0;
@@ -132,8 +132,8 @@ impl Lyric {
         if time > self.end_time || self.lyrics.is_empty() {
             self.lyrics.push(LyricLine {
                 time,
-                first: None,
-                second: None,
+                origin: None,
+                translation: None,
             });
             self.end_time = time;
             return self.lyrics.last_mut().ok_or(Error::Impossible);
@@ -162,8 +162,8 @@ impl Lyric {
                     index,
                     LyricLine {
                         time,
-                        first: None,
-                        second: None,
+                        origin: None,
+                        translation: None,
                     },
                 );
                 self.lyrics.get_mut(index).ok_or(Error::Impossible)
@@ -192,8 +192,8 @@ impl Lyric {
                     index,
                     LyricLine {
                         time,
-                        first: None,
-                        second: None,
+                        origin: None,
+                        translation: None,
                     },
                 );
                 self.lyrics.get_mut(index).ok_or(Error::Impossible)
@@ -219,8 +219,8 @@ impl Lyric {
                     index,
                     LyricLine {
                         time,
-                        first: None,
-                        second: None,
+                        origin: None,
+                        translation: None,
                     },
                 );
                 self.lyrics.get_mut(index).ok_or(Error::Impossible)
