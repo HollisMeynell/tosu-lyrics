@@ -1,14 +1,15 @@
 mod lyric;
 mod source;
 
-use crate::error::Result;
+use crate::error::{Error, Result};
+use crate::model::websocket::lyric::{LyricPayload, SequenceType};
 pub use lyric::*;
 pub use source::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
-use tracing::info;
+use crate::server::ALL_SESSIONS;
 
 pub struct LyricService {
     // 当前歌词的下标
@@ -104,18 +105,61 @@ impl LyricService {
 
     /// 时间单位为毫秒
     pub async fn time_next(&mut self, t: i32) -> Result<()> {
-        if let Some(lyric) = &mut self.now_lyric {
-            let mut t = if t < 0 { 0 } else { t };
-            t += self.offset;
-            if let Some((index, lyric_line)) = lyric.find_line(t as f32 / 1000f32) {
-                if self.now_index == index {
-                    return Ok(());
-                }
-
-                self.now_index = index;
-                info!("lyric change({}): {:?}", index, lyric_line);
-            }
+        if self.now_lyric.is_none() {
+            return Ok(());
         }
+
+        let lyric = self.now_lyric.as_mut().ok_or(Error::Impossible)?;
+
+        let mut t = if t < 0 { 0 } else { t };
+        t += self.offset;
+        let mut ws_lyric = LyricPayload::default();
+        {
+            let current = lyric.find_line(t as f32 / 1000f32);
+
+            if current.is_none() {
+                return Ok(());
+            }
+
+            let (index, lyric_line) = current.ok_or(Error::Impossible)?;
+
+            if self.now_index == index {
+                return Ok(());
+            }
+
+            self.now_index = index;
+
+            ws_lyric.sequence = if self.now_index < index {
+                SequenceType::Down
+            } else {
+                SequenceType::Up
+            };
+            ws_lyric.next_time = (lyric_line.time * 1000f32) as i32;
+            ws_lyric.set_current_lyric(lyric_line);
+        }
+
+        'previous: {
+            if self.now_index == 0 {
+                break 'previous;
+            }
+            let previous = lyric.get_line_by_index(self.now_index - 1);
+            if previous.is_none() {
+                break 'previous;
+            }
+            ws_lyric.set_previous_lyric(previous.ok_or(Error::Impossible)?);
+        }
+
+        'next: {
+            let next = lyric.get_line_by_index(self.now_index - 1);
+            if next.is_none() {
+                break 'next;
+            }
+            let next = next.ok_or(Error::Impossible)?;
+            let new_time = (next.time * 1000f32) as i32;
+            ws_lyric.next_time = new_time - ws_lyric.next_time;
+            ws_lyric.set_next_lyric(next);
+        }
+        ALL_SESSIONS.send_to_all_client(ws_lyric.into()).await;
         Ok(())
     }
 

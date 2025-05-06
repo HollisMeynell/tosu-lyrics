@@ -1,4 +1,6 @@
+use salvo::websocket::Message;
 use serde::{Deserialize, Serialize};
+use crate::lyric::LyricLine;
 
 /// 表示歌词的序列方向。
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -42,15 +44,21 @@ impl Default for LyricPayload {
     }
 }
 
+impl Into<Message> for LyricPayload {
+    fn into(self) -> Message {
+        Message::text(serde_json::to_string(&self).unwrap())
+    }
+}
+
 impl LyricPayload {
-    pub fn set_previous_lyric(&mut self, origin: Option<&str>, translation: Option<&str>) {
-        self.previous = Self::gen_lyric_line(origin, translation)
+    pub fn set_previous_lyric(&mut self, line:&LyricLine) {
+        self.previous = Self::gen_lyric_line(line.origin.as_deref(), line.translation.as_deref())
     }
-    pub fn set_current_lyric(&mut self, origin: Option<&str>, translation: Option<&str>) {
-        self.current = Self::gen_lyric_line(origin, translation)
+    pub fn set_current_lyric(&mut self, line:&LyricLine) {
+        self.current = Self::gen_lyric_line(line.origin.as_deref(), line.translation.as_deref())
     }
-    pub fn set_next_lyric(&mut self, origin: Option<&str>, translation: Option<&str>) {
-        self.next = Self::gen_lyric_line(origin, translation)
+    pub fn set_next_lyric(&mut self, line:&LyricLine) {
+        self.next = Self::gen_lyric_line(line.origin.as_deref(), line.translation.as_deref())
     }
 
     fn gen_lyric_line(origin: Option<&str>, translation: Option<&str>) -> Option<LyricLinePayload> {
