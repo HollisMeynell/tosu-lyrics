@@ -44,7 +44,7 @@ tungstenite = { version = "0.26.2", optional = true }
 futures = { version = "0.3.31", optional = true }
 futures-util = { version = "0.3.31", optional = true }
 salvo = { version = "0.78.0", features = ["default", "serve-static", "websocket"], optional = true }
-sea-orm = { version = "1.1.10", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"], optional = true }
+sea-orm = { version = "1.1.11", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"], optional = true }
 sea-schema = { version = "0.16.1", features = ["writer"], optional = true }
 
 # old
