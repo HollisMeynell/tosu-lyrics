@@ -1,9 +1,9 @@
-use std::sync::{OnceLock};
+use super::model::setting::LyricSetting;
+use std::sync::OnceLock;
 use tokio::sync::RwLock;
 use tracing::info;
-use super::model::setting::LyricSetting;
 
-pub static GLOBAL_SETTINGS:OnceLock<RwLock<LyricSetting>> = OnceLock::new();
+pub static GLOBAL_SETTINGS: OnceLock<RwLock<LyricSetting>> = OnceLock::new();
 
 //加载需要数据库, 务必在数据库初始化完毕后再调用
 pub async fn init_setting() {

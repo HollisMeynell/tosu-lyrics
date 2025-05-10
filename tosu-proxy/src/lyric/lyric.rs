@@ -94,9 +94,7 @@ impl Lyric {
             None => {
                 return Err(Error::from("缓存无效"));
             }
-            Some(l) => {
-                end_time = l.time
-            }
+            Some(l) => end_time = l.time,
         }
 
         let result = Self {

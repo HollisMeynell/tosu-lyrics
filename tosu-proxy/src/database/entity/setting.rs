@@ -17,7 +17,7 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Entity {
-    pub async fn get_config(key:&str) -> Option<String> {
+    pub async fn get_config(key: &str) -> Option<String> {
         let query = Self::find_by_id(key);
         let result = query
             .one(database())
@@ -26,7 +26,7 @@ impl Entity {
         Some(result.setting)
     }
 
-    pub async fn save_config(key:String, setting: String) {
+    pub async fn save_config(key: String, setting: String) {
         let model = ActiveModel {
             key: ActiveValue::set(key),
             setting: ActiveValue::set(setting),

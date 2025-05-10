@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
 use crate::database::SettingEntity;
 use lyric_macro::gen_setting;
+use serde::{Deserialize, Serialize};
 
 // 成员的类型要满足 Serialize + Default + Clone
 #[gen_setting]
@@ -27,9 +27,9 @@ pub struct LyricSetting {
 
 #[cfg(test)]
 mod test {
+    use super::LyricSettingType;
     use crate::error::Result;
     use crate::model::websocket::setting::SettingPayload;
-    use super::LyricSettingType;
 
     #[tokio::test]
     async fn test_serialize() -> Result<()> {
@@ -44,7 +44,7 @@ mod test {
     #[tokio::test]
     async fn test_replay() -> Result<()> {
         let v = LyricSettingType::Align(String::from("left"));
-        let mut payload = SettingPayload{
+        let mut payload = SettingPayload {
             key: "align".to_string(),
             value: None,
             error: None,

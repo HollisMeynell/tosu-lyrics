@@ -1,19 +1,19 @@
 mod lyric;
 mod source;
 
+use crate::database::{LyricCacheEntity, LyricConfigEntity};
 use crate::error::{Error, Result};
 use crate::model::websocket::lyric::{LyricPayload, SequenceType};
+use crate::osu_source::OsuSongInfo;
+use crate::server::ALL_SESSIONS;
 pub use lyric::*;
+use sea_orm::EntityTrait;
 pub use source::*;
 use std::collections::HashMap;
 use std::sync::Arc;
-use sea_orm::EntityTrait;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tracing::{debug, error, info};
-use crate::database::{LyricCacheEntity, LyricConfigEntity};
-use crate::osu_source::OsuSongInfo;
-use crate::server::ALL_SESSIONS;
 
 pub struct LyricService {
     // 当前歌词的下标
@@ -43,14 +43,17 @@ impl LyricService {
     pub async fn song_change(&mut self, song: &OsuSongInfo<'_>) -> Result<()> {
         self.clear_cache().await;
 
-
         let title = song.title_unicode;
         let artist = song.artist_unicode;
         let bid = song.bid as i32;
         let sid = song.sid as i32;
-        let length = if song.length < 0 { 0u32 } else { song.length as u32 };
+        let length = if song.length < 0 {
+            0u32
+        } else {
+            song.length as u32
+        };
 
-        let (disable, offset) = LyricConfigEntity::find_setting(bid, sid,title).await;
+        let (disable, offset) = LyricConfigEntity::find_setting(bid, sid, title).await;
 
         if disable {
             return Ok(());

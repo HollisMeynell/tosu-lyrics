@@ -1,8 +1,8 @@
 use crate::database::database;
+use crate::lyric::Lyric;
 use sea_orm::ActiveValue;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
-use crate::lyric::Lyric;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "lyric_cache")]
@@ -52,7 +52,13 @@ impl Entity {
     /// - `title`：title
     /// - `audio_length`：毫秒
     /// - `lyric`：歌词
-    pub async fn save(sid: i32, bid: i32, title: &str, audio_length: i32, lyric: &Lyric) -> crate::error::Result<()> {
+    pub async fn save(
+        sid: i32,
+        bid: i32,
+        title: &str,
+        audio_length: i32,
+        lyric: &Lyric,
+    ) -> crate::error::Result<()> {
         let model = ActiveModel {
             sid: ActiveValue::Set(sid),
             bid: ActiveValue::Set(bid),

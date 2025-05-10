@@ -1,15 +1,15 @@
-mod setting;
 mod lyric_cache;
 mod lyric_config;
+mod setting;
 
 use crate::database::table_exists;
 use crate::error::Result;
 use sea_orm::{ConnectionTrait, EntityName, Schema};
 
 use super::database;
-pub use setting::Entity as SettingEntity;
 pub use lyric_cache::Entity as LyricCacheEntity;
 pub use lyric_config::Entity as LyricConfigEntity;
+pub use setting::Entity as SettingEntity;
 
 macro_rules! init_entity {
     ($($fn_name:ident($entity:ident),)*) => {

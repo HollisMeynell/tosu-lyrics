@@ -1,11 +1,11 @@
 mod tosu;
 
+use crate::database::LyricCacheEntity;
 use crate::error::Result;
 use crate::lyric::LyricService;
 use std::sync::{LazyLock, OnceLock};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info};
-use crate::database::LyricCacheEntity;
 
 pub static LYRIC_SERVICE: LazyLock<Mutex<LyricService>> =
     LazyLock::new(|| Mutex::new(LyricService::new()));
@@ -59,10 +59,7 @@ impl<'i> OsuState<'i> {
         // todo: 添加调用去抖, 切换添加 100ms 延迟以减少快速切歌导致的大量 api 请求
         // todo: 使用 CancellationToken 实现 fn 打断效果, 后面请求到达时前面请求即使未执行完也结束
         let mut lyric_service = LYRIC_SERVICE.lock().await;
-        if let Err(e) = lyric_service
-            .song_change(&song)
-            .await
-        {
+        if let Err(e) = lyric_service.song_change(&song).await {
             error!("song update error: {}", e);
         }
     }

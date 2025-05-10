@@ -60,11 +60,7 @@ impl Default for NeteaseLyricSource {
 impl NeteaseLyricSource {
     /// 构建根据标题搜索歌曲的 URL。
     fn search_url(title: &str) -> String {
-        format!(
-            "{}/search/get?s={}&type=1&limit=5",
-            NETEASE_API_BASE,
-            title
-        )
+        format!("{}/search/get?s={}&type=1&limit=5", NETEASE_API_BASE, title)
     }
 
     /// 构建根据歌曲 ID 获取歌词的 URL。
