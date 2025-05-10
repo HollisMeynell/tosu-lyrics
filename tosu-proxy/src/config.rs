@@ -13,7 +13,7 @@ pub struct TosuConfig {
     pub url: String,
 }
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Settings {
+pub struct Config {
     pub server: String,
     #[serde(rename = "log", skip_serializing_if = "Option::is_none")]
     pub log_level: Option<String>,
@@ -22,7 +22,7 @@ pub struct Settings {
     pub tosu: Option<TosuConfig>,
 }
 
-impl Default for Settings {
+impl Default for Config {
     fn default() -> Self {
         Self {
             server: "0.0.0.0".to_string(),
@@ -36,30 +36,30 @@ impl Default for Settings {
     }
 }
 
-pub static GLOBAL_CONFIG: LazyLock<Settings> = LazyLock::new(|| load_config());
+pub static GLOBAL_CONFIG: LazyLock<Config> = LazyLock::new(|| load_config());
 
-fn load_config() -> Settings {
-    use config::{Config, FileFormat};
+fn load_config() -> Config {
+    use config::FileFormat;
     let config_path = Path::new(CONFIG_PATH);
     if !config_path.exists() {
         return create_default_config(config_path);
     }
 
-    let config = Config::builder()
+    let config = config::Config::builder()
         .add_source(config::File::new(CONFIG_PATH, FileFormat::Json5))
         .set_default("server", "0.0.0.0")
         .and_then(|b| b.set_default("port", 41280))
         .and_then(|b| b.set_default("database", "sqlite://lyric.db?mode=rwc"))
         .and_then(|b| b.build())
-        .and_then(|c| c.try_deserialize::<Settings>())
+        .and_then(|c| c.try_deserialize::<Config>())
         .expect("配置加载失败");
 
     info!("配置加载成功");
     config
 }
 
-fn create_default_config(config_path: &Path) -> Settings {
-    let default_config = Settings::default();
+fn create_default_config(config_path: &Path) -> Config {
+    let default_config = Config::default();
 
     match serde_json::to_string_pretty(&default_config) {
         Ok(config_str) => {

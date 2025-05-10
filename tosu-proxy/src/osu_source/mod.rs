@@ -5,28 +5,29 @@ use crate::lyric::LyricService;
 use std::sync::{LazyLock, OnceLock};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info};
+use crate::database::LyricCacheEntity;
 
 pub static LYRIC_SERVICE: LazyLock<Mutex<LyricService>> =
     LazyLock::new(|| Mutex::new(LyricService::new()));
 
 #[derive(Debug)]
-struct SongInfo<'i> {
-    bid: i64,
-    sid: i64,
+pub struct OsuSongInfo<'i> {
+    pub bid: i64,
+    pub sid: i64,
     /// 毫秒
-    length: i32,
+    pub length: i32,
     /// 毫秒
-    now: i32,
+    pub now: i32,
 
-    artist: &'i str,
-    artist_unicode: &'i str,
-    title: &'i str,
-    title_unicode: &'i str,
+    pub artist: &'i str,
+    pub artist_unicode: &'i str,
+    pub title: &'i str,
+    pub title_unicode: &'i str,
 }
 
 enum OsuState<'i> {
     Time(i32),
-    Song(SongInfo<'i>),
+    Song(OsuSongInfo<'i>),
     Clean,
 }
 
@@ -50,7 +51,7 @@ impl<'i> OsuState<'i> {
             error!("time update error: {}", e);
         }
     }
-    async fn on_song_update(song: SongInfo<'i>) {
+    async fn on_song_update(song: OsuSongInfo<'i>) {
         if song.sid < 0 && song.title == "welcome to osu!" && song.artist == "nekodex" {
             // 忽略掉首页音乐
             return;
@@ -59,7 +60,7 @@ impl<'i> OsuState<'i> {
         // todo: 使用 CancellationToken 实现 fn 打断效果, 后面请求到达时前面请求即使未执行完也结束
         let mut lyric_service = LYRIC_SERVICE.lock().await;
         if let Err(e) = lyric_service
-            .song_change(song.title_unicode, song.artist_unicode, song.length)
+            .song_change(&song)
             .await
         {
             error!("song update error: {}", e);
@@ -83,5 +84,6 @@ pub async fn init_osu_source() -> Result<()> {
         let tosu = tosu::TosuWebsocketClient::new(&tosu_config.url);
         tosu.start().await;
     }
+    info!("osu 数据源初始化完成");
     Ok(())
 }

@@ -2,6 +2,7 @@ use crate::database::database;
 use sea_orm::ActiveValue;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
+use crate::lyric::Lyric;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "lyric_cache")]
@@ -9,8 +10,8 @@ pub struct Model {
     pub sid: i32,
     #[sea_orm(primary_key, auto_increment = false)]
     pub bid: i32,
-    #[sea_orm(column_type = "Blob", nullable)]
-    pub cache: Option<Vec<u8>>,
+    #[sea_orm(column_type = "Blob")]
+    pub cache: Vec<u8>,
     pub title: String,
     /// ms
     pub audio_length: i32,
@@ -46,21 +47,24 @@ impl Entity {
             .expect("无法查询数据库")
     }
 
-    pub async fn save(
-        sid: i32,
-        bid: i32,
-        cache: Option<Vec<u8>>,
-        title: String,
-        audio_length: i32,
-    ) -> crate::error::Result<()> {
+    /// - `sid`：sid
+    /// - `bid`：bid
+    /// - `title`：title
+    /// - `audio_length`：毫秒
+    /// - `lyric`：歌词
+    pub async fn save(sid: i32, bid: i32, title: &str, audio_length: i32, lyric: &Lyric) -> crate::error::Result<()> {
         let model = ActiveModel {
             sid: ActiveValue::Set(sid),
             bid: ActiveValue::Set(bid),
-            cache: ActiveValue::Set(cache),
-            title: ActiveValue::Set(title),
+            title: ActiveValue::Set(title.to_string()),
             audio_length: ActiveValue::Set(audio_length),
+            cache: ActiveValue::Set(lyric.to_json_cache()?),
         };
 
+        Self::save_model(model).await
+    }
+
+    pub async fn save_model(model: ActiveModel) -> crate::error::Result<()> {
         // 如果存在相同的 bid，则更新记录
         let mut on_conflict = OnConflict::column(Column::Bid);
         on_conflict
@@ -74,5 +78,13 @@ impl Entity {
             .exec(database())
             .await?;
         Ok(())
+    }
+}
+
+impl TryInto<Lyric> for &Model {
+    type Error = crate::error::Error;
+
+    fn try_into(self) -> crate::error::Result<Lyric> {
+        Lyric::from_json_cache(self.cache.as_slice())
     }
 }

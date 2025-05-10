@@ -255,7 +255,7 @@ impl TosuWebsocketClient {
             });
 
         // 创建歌曲信息并通知状态变化
-        let info = super::SongInfo {
+        let info = super::OsuSongInfo {
             bid,
             sid,
             length,

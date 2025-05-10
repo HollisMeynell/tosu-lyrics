@@ -6,9 +6,9 @@ use sea_orm::sea_query::OnConflict;
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "config")]
 pub struct Model {
-    #[sea_orm(primary_key)]
-    pub id: i32,
-    pub config: String,
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub key: String,
+    pub setting: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -17,22 +17,22 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Entity {
-    pub async fn get_config() -> Option<String> {
-        let query = Self::find_by_id(0);
+    pub async fn get_config(key:&str) -> Option<String> {
+        let query = Self::find_by_id(key);
         let result = query
             .one(database())
             .await
             .expect("can not read database")?;
-        Some(result.config)
+        Some(result.setting)
     }
 
-    pub async fn save_config<T: ToString>(config: T) {
+    pub async fn save_config(key:String, setting: String) {
         let model = ActiveModel {
-            id: ActiveValue::set(0),
-            config: ActiveValue::set(config.to_string()),
+            key: ActiveValue::set(key),
+            setting: ActiveValue::set(setting),
         };
-        let mut on_conflict = OnConflict::column(Column::Id);
-        on_conflict.update_column(Column::Config);
+        let mut on_conflict = OnConflict::column(Column::Key);
+        on_conflict.update_column(Column::Setting);
         Self::insert(model)
             .on_conflict(on_conflict)
             .exec(database())

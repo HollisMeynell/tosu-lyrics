@@ -7,8 +7,12 @@ pub use lyric::*;
 pub use source::*;
 use std::collections::HashMap;
 use std::sync::Arc;
+use sea_orm::EntityTrait;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
+use tracing::{error, info};
+use crate::database::{LyricCacheEntity, LyricConfigEntity};
+use crate::osu_source::OsuSongInfo;
 use crate::server::ALL_SESSIONS;
 
 pub struct LyricService {
@@ -36,12 +40,45 @@ impl LyricService {
         }
     }
 
-    pub async fn song_change(&mut self, title: &str, artist: &str, length: i32) -> Result<()> {
-        // todo: 实现 offset 偏移, 从数据库中 存储/读取 缓存
+    pub async fn song_change(&mut self, song: &OsuSongInfo<'_>) -> Result<()> {
         self.clear_cache().await;
 
-        let length = if length < 0 { 0u32 } else { length as u32 };
 
+        let title = song.title_unicode;
+        let artist = song.artist_unicode;
+        let bid = song.bid as i32;
+        let sid = song.sid as i32;
+        let length = if song.length < 0 { 0u32 } else { song.length as u32 };
+
+        let (disable, offset) = LyricConfigEntity::find_setting(bid, sid,title).await;
+
+        if disable {
+            return Ok(());
+        } else {
+            self.offset = offset;
+        }
+
+        // 先查询缓存
+        let cache = match LyricCacheEntity::find_by_bid(bid).await {
+            Some(v) => Some(v),
+            None => LyricCacheEntity::find_by_sid(sid).await,
+        };
+
+        if let Some(cache) = cache {
+            match Lyric::from_json_cache(cache.cache.as_slice()) {
+                Ok(lyric) => {
+                    self.now_lyric = Some(lyric);
+                    info!("通过缓存加载 {title}");
+                    return Ok(());
+                }
+                Err(err) => {
+                    LyricCacheEntity::delete_by_id(bid);
+                    error!("缓存失效(已移除): {}", err);
+                }
+            }
+        }
+
+        // 后台任务: 同时查询 网易云 | QQ, 用于当其中一个查到结果, 另一个还在进行时允许另一个在后台继续执行
         let mut join_set = JoinSet::new();
         Self::spawn_search_task(
             &mut join_set,
@@ -58,13 +95,23 @@ impl LyricService {
             artist,
             Arc::clone(&self.music_cache),
         );
-
         macro_rules! search_and_set {
             (>$t:ident) => {
                 if self
                     .search_and_set_lyric(&*$t, title, length, artist)
                     .await?
                 {
+                    info!("通过网络加载 {title}");
+                    if let Some(lyric) = &self.now_lyric {
+                        match LyricCacheEntity::save(sid, bid, title, length as i32, lyric).await {
+                            Ok(_) | Err(Error::LyricParse(_)) => {
+                                info!("记录到缓存 {title}");
+                            }
+                            Err(err) => {
+                                error!("存储缓存异常: {}", err);
+                            }
+                        };
+                    }
                     return Ok(());
                 }
             };

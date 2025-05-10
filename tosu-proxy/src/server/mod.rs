@@ -38,6 +38,7 @@ pub async fn start_server() {
         .set(handle)
         .map_err(|_| Error::Impossible)
         .expect("?");
+    info!("web 服务器初始化完成");
     server.serve(router).await;
 }
 

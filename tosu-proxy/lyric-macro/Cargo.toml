@@ -1,0 +1,13 @@
+[package]
+name = "lyric-macro"
+version = "0.0.1"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2.0.101", features = ["full"] }
+proc-macro2 = "1.0.95"
+quote = "1.0.40"
+convert_case = "0.8.0"

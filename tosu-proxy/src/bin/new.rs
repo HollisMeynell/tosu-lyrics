@@ -31,6 +31,7 @@ async fn main() -> error::Result<()> {
     use tracing::info;
     init_logger().await;
     database::init_database().await;
+    setting::init_setting().await;
     osu_source::init_osu_source().await?;
     init_server().await;
     database::close();

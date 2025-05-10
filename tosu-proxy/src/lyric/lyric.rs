@@ -12,6 +12,7 @@ mod parse {
         LazyLock::new(|| Regex::new(r"\[(\d+):(\d+\.\d+)](.+)").unwrap());
 
     pub(super) struct LyricRawLine {
+        // 秒
         pub(super) time: f32,
         pub(super) line: String,
     }
@@ -61,6 +62,7 @@ mod parse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LyricLine {
+    // 秒
     pub time: f32,
     pub origin: Option<String>,
     pub translation: Option<String>,
@@ -69,6 +71,7 @@ pub struct LyricLine {
 #[derive(Debug)]
 pub struct Lyric {
     lyrics: Vec<LyricLine>,
+    // 秒
     end_time: f32,
     cursor: usize,
 }
@@ -82,16 +85,45 @@ impl Default for Lyric {
         }
     }
 }
+
 impl Lyric {
+    pub fn from_json_cache(json: &[u8]) -> Result<Self> {
+        let lyrics: Vec<LyricLine> = serde_json::from_slice(json)?;
+        let end_time: f32;
+        match lyrics.last() {
+            None => {
+                return Err(Error::from("缓存无效"));
+            }
+            Some(l) => {
+                end_time = l.time
+            }
+        }
+
+        let result = Self {
+            lyrics,
+            end_time,
+            cursor: 0,
+        };
+        Ok(result)
+    }
+
+    pub fn to_json_cache(&self) -> Result<Vec<u8>> {
+        if self.lyrics.len() == 0 {
+            return Err(Error::LyricParse("can not serialize empty lyric"));
+        }
+        let cache = serde_json::to_string(self.get_lyrics())?;
+        Ok(cache.into_bytes())
+    }
+
     pub fn parse(lyric: &str, trans: Option<&str>, title: Option<&str>) -> Result<Self> {
         use parse::*;
         if lyric.trim().is_empty() {
-            return Err(Error::LyricParse("empty lyric".to_string()));
+            return Err(Error::LyricParse("empty lyric"));
         }
         // parse origin lyric
         let mut lyric_lines = parse_lyric_text_raw(lyric);
         if lyric_lines.is_empty() {
-            return Err(Error::LyricParse("lyric is empty".to_string()));
+            return Err(Error::LyricParse("lyric is empty"));
         }
         if let Some(title) = title {
             lyric_lines.insert(

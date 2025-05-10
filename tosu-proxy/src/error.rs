@@ -14,9 +14,10 @@ pub enum Error {
 
     #[error("{0}")]
     Runtime(String),
+
     #[cfg(feature = "new")]
     #[error("parse lyric error: {0}")]
-    LyricParse(String),
+    LyricParse(&'static str),
 
     #[error(transparent)]
     Io(#[from] std::io::Error),
@@ -27,6 +28,9 @@ pub enum Error {
     #[cfg(feature = "new")]
     #[error(transparent)]
     WebSB1(#[from] salvo::http::StatusError),
+
+    #[error(transparent)]
+    ToString(#[from] std::string::FromUtf8Error),
 
     #[error(transparent)]
     Json(#[from] serde_json::Error),
