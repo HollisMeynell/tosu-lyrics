@@ -10,7 +10,7 @@ use std::sync::Arc;
 use sea_orm::EntityTrait;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use crate::database::{LyricCacheEntity, LyricConfigEntity};
 use crate::osu_source::OsuSongInfo;
 use crate::server::ALL_SESSIONS;
@@ -68,7 +68,7 @@ impl LyricService {
             match Lyric::from_json_cache(cache.cache.as_slice()) {
                 Ok(lyric) => {
                     self.now_lyric = Some(lyric);
-                    info!("通过缓存加载 {title}");
+                    debug!("通过缓存加载 {title}");
                     return Ok(());
                 }
                 Err(err) => {
@@ -101,11 +101,11 @@ impl LyricService {
                     .search_and_set_lyric(&*$t, title, length, artist)
                     .await?
                 {
-                    info!("通过网络加载 {title}");
+                    debug!("通过网络加载 {title}");
                     if let Some(lyric) = &self.now_lyric {
                         match LyricCacheEntity::save(sid, bid, title, length as i32, lyric).await {
                             Ok(_) | Err(Error::LyricParse(_)) => {
-                                info!("记录到缓存 {title}");
+                                debug!("记录到缓存 {title}");
                             }
                             Err(err) => {
                                 error!("存储缓存异常: {}", err);
