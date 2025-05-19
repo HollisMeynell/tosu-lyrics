@@ -185,7 +185,7 @@ impl LyricService {
                 SequenceType::Up
             };
             ws_lyric.next_time = (lyric_line.time * 1000f32) as i32;
-            ws_lyric.set_current_lyric(lyric_line);
+            ws_lyric.set_current_lyric(lyric_line).await;
         }
 
         'previous: {
@@ -196,7 +196,9 @@ impl LyricService {
             if previous.is_none() {
                 break 'previous;
             }
-            ws_lyric.set_previous_lyric(previous.ok_or(Error::Impossible)?);
+            ws_lyric
+                .set_previous_lyric(previous.ok_or(Error::Impossible)?)
+                .await;
         }
 
         'next: {
@@ -207,7 +209,7 @@ impl LyricService {
             let next = next.ok_or(Error::Impossible)?;
             let new_time = (next.time * 1000f32) as i32;
             ws_lyric.next_time = new_time - ws_lyric.next_time;
-            ws_lyric.set_next_lyric(next);
+            ws_lyric.set_next_lyric(next).await;
         }
         ALL_SESSIONS.send_to_all_client(ws_lyric.into()).await;
         Ok(())

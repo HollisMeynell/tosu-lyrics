@@ -1,10 +1,12 @@
 use crate::database::SettingEntity;
-use lyric_macro::gen_setting;
+use lyric_macro::Setting;
 use serde::{Deserialize, Serialize};
 
 // 成员的类型要满足 Serialize + Default + Clone
-#[gen_setting]
+#[derive(Setting, Debug)]
 pub struct LyricSetting {
+    #[default(true)]
+    pub trans_main: bool,
     pub align: String,
     pub show_second: bool,
 }
@@ -27,9 +29,11 @@ pub struct LyricSetting {
 
 #[cfg(test)]
 mod test {
-    use super::LyricSettingType;
+    use super::{LyricSetting, LyricSettingType};
+    use crate::database::init_database;
     use crate::error::Result;
     use crate::model::websocket::setting::SettingPayload;
+    use tracing_subscriber::fmt::init;
 
     #[tokio::test]
     async fn test_serialize() -> Result<()> {
@@ -53,6 +57,14 @@ mod test {
         payload.set_replay(v)?;
         let json = serde_json::to_string(&payload)?;
         println!("{json}");
+        Ok(())
+    }
+    #[tokio::test]
+    async fn test_default() -> Result<()> {
+        init();
+        init_database().await;
+        let setting = LyricSetting::init().await;
+        println!("{setting:?}");
         Ok(())
     }
 }

@@ -1,4 +1,5 @@
 use crate::lyric::LyricLine;
+use crate::setting::{GLOBAL_SETTINGS, global_setting};
 use salvo::websocket::Message;
 use serde::{Deserialize, Serialize};
 
@@ -51,26 +52,33 @@ impl Into<Message> for LyricPayload {
 }
 
 impl LyricPayload {
-    pub fn set_previous_lyric(&mut self, line: &LyricLine) {
-        self.previous = Self::gen_lyric_line(line.origin.as_deref(), line.translation.as_deref())
+    pub async fn set_previous_lyric(&mut self, line: &LyricLine) {
+        self.previous =
+            Self::gen_lyric_line(line.origin.as_deref(), line.translation.as_deref()).await
     }
-    pub fn set_current_lyric(&mut self, line: &LyricLine) {
-        self.current = Self::gen_lyric_line(line.origin.as_deref(), line.translation.as_deref())
+    pub async fn set_current_lyric(&mut self, line: &LyricLine) {
+        self.current =
+            Self::gen_lyric_line(line.origin.as_deref(), line.translation.as_deref()).await
     }
-    pub fn set_next_lyric(&mut self, line: &LyricLine) {
-        self.next = Self::gen_lyric_line(line.origin.as_deref(), line.translation.as_deref())
+    pub async fn set_next_lyric(&mut self, line: &LyricLine) {
+        self.next = Self::gen_lyric_line(line.origin.as_deref(), line.translation.as_deref()).await
     }
 
-    fn gen_lyric_line(origin: Option<&str>, translation: Option<&str>) -> Option<LyricLinePayload> {
+    async fn gen_lyric_line(
+        origin: Option<&str>,
+        translation: Option<&str>,
+    ) -> Option<LyricLinePayload> {
         match (origin, translation) {
             (Some(origin), Some(translation)) => {
-                // true 翻译为主, false 原文为主
-                if true {
+                let trans_main = { global_setting().await.read().await.trans_main };
+                if trans_main {
+                    // 中文翻译为主
                     Some(LyricLinePayload {
                         first: Some(translation.to_string()),
                         second: Some(origin.to_string()),
                     })
                 } else {
+                    // 原文为主
                     Some(LyricLinePayload {
                         first: Some(origin.to_string()),
                         second: Some(translation.to_string()),

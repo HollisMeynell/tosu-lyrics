@@ -5,6 +5,9 @@ use tracing::info;
 
 pub static GLOBAL_SETTINGS: OnceLock<RwLock<LyricSetting>> = OnceLock::new();
 
+pub async fn global_setting() -> &'static RwLock<LyricSetting> {
+    GLOBAL_SETTINGS.get().expect("cannot get global config")
+}
 //加载需要数据库, 务必在数据库初始化完毕后再调用
 pub async fn init_setting() {
     let lyric_setting = LyricSetting::init().await;

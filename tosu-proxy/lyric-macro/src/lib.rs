@@ -1,12 +1,12 @@
 extern crate proc_macro;
 
+use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, Fields, Ident};
-use convert_case::{Case, Casing};
+use syn::{Data, DeriveInput, Fields, Ident, Lit, parse_macro_input};
 
-#[proc_macro_attribute]
-pub fn gen_setting(_: TokenStream, item: TokenStream) -> TokenStream {
+#[proc_macro_derive(Setting, attributes(default))]
+pub fn setting_derive(item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as DeriveInput);
     let struct_name = &input.ident;
     let vis = &input.vis;
@@ -24,7 +24,10 @@ pub fn gen_setting(_: TokenStream, item: TokenStream) -> TokenStream {
     let enum_variants = fields.iter().map(|f| {
         let field_name = f.ident.as_ref().unwrap();
         let field_type = &f.ty;
-        let variant_name = Ident::new(&field_name.to_string().to_case(Case::UpperCamel), field_name.span());
+        let variant_name = Ident::new(
+            &field_name.to_string().to_case(Case::UpperCamel),
+            field_name.span(),
+        );
         quote! {
             #variant_name(#field_type)
         }
@@ -34,9 +37,12 @@ pub fn gen_setting(_: TokenStream, item: TokenStream) -> TokenStream {
         let field_name = f.ident.as_ref().unwrap();
         let field_type = &f.ty;
         let field_name_str = field_name.to_string();
+        let default_expr = get_default_attr(f).unwrap_or_else(|| {
+            quote! { #field_type::default() }
+        });
         quote! {
             let #field_name = match SettingEntity::get_config(#field_name_str).await {
-                None => { #field_type::default() }
+                None => { #default_expr }
                 Some(value) => { serde_json::from_str(&value).unwrap_or_default() }
             };
         }
@@ -72,15 +78,16 @@ pub fn gen_setting(_: TokenStream, item: TokenStream) -> TokenStream {
     let get_method_match_arms = fields.iter().map(|f| {
         let field_name = f.ident.as_ref().unwrap();
         let field_name_str = field_name.to_string();
-        let variant_name = Ident::new(&field_name.to_string().to_case(Case::UpperCamel), field_name.span());
+        let variant_name = Ident::new(
+            &field_name.to_string().to_case(Case::UpperCamel),
+            field_name.span(),
+        );
         quote! {
             #field_name_str => Some(#enum_name::#variant_name(self.#field_name.clone())),
         }
     });
 
     let expanded = quote! {
-        #input
-
         #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
         #[serde(rename_all = "camelCase")]
         #vis enum #enum_name {
@@ -108,4 +115,47 @@ pub fn gen_setting(_: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+fn get_default_attr(field: &syn::Field) -> Option<proc_macro2::TokenStream> {
+    for attr in &field.attrs {
+        if !attr.path().is_ident("default") {
+            continue;
+        }
+
+        let lit = match attr.parse_args::<Lit>() {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        match lit {
+            Lit::Str(s) => {
+                return Some(quote! { #s.to_string() });
+            }
+            Lit::ByteStr(s) => {
+                return Some(quote! { #s });
+            }
+            Lit::Byte(b) => {
+                return Some(quote! { #b });
+            }
+            Lit::Char(c) => {
+                return Some(quote! { #c });
+            }
+            Lit::Bool(b) => {
+                let value = b.value;
+                return Some(quote! { #value });
+            }
+            Lit::Int(i) => {
+                return Some(quote! { #i });
+            }
+            Lit::Float(f) => {
+                return Some(quote! { #f });
+            }
+            Lit::Verbatim(v) => {
+                return Some(quote! { #v });
+            }
+            _ => {}
+        }
+    }
+    None
 }
