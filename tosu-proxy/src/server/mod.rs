@@ -1,9 +1,11 @@
 mod audio;
 mod file;
 mod websocket;
+mod font;
 
 use crate::config::GLOBAL_CONFIG;
 use crate::error::*;
+use crate::server::font::get_font_route;
 use crate::server::audio::get_audio_route;
 use crate::server::file::get_file_route;
 use crate::server::websocket::get_ws_route;
@@ -23,7 +25,9 @@ async fn root_redirect(res: &mut Response) {
 
 pub async fn start_server() {
     use salvo::prelude::*;
-    let api_router = Router::with_path("api").push(get_audio_route());
+    let api_router = Router::with_path("api")
+        .push(get_font_route())
+        .push(get_audio_route());
     let router = Router::new()
         .get(root_redirect)
         .push(get_ws_route())
