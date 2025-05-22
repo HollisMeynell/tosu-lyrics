@@ -1,13 +1,13 @@
 mod audio;
 mod file;
-mod websocket;
 mod font;
+mod websocket;
 
 use crate::config::GLOBAL_CONFIG;
 use crate::error::*;
-use crate::server::font::get_font_route;
 use crate::server::audio::get_audio_route;
 use crate::server::file::get_file_route;
+use crate::server::font::get_font_route;
 use crate::server::websocket::get_ws_route;
 use salvo::prelude::Redirect;
 use salvo::server::ServerHandle;

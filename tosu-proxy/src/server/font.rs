@@ -5,11 +5,10 @@ use std::env;
 use std::path::PathBuf;
 use tokio::fs::File;
 
-const FONT_FILE:&str = "font";
+const FONT_FILE: &str = "font";
 
 fn get_font_path() -> PathBuf {
-    let directory = env::current_dir()
-        .expect("cannot get current directory");
+    let directory = env::current_dir().expect("cannot get current directory");
     directory.join(FONT_FILE)
 }
 
@@ -29,11 +28,13 @@ async fn upload_font(req: &mut Request, res: &mut Response) {
         None => {
             res.render(StatusCode::BAD_REQUEST);
             return;
-        },
+        }
     };
     let mut origin = File::open(file.path()).await.expect("cannot open font");
     let mut target = get_font_file().await;
-    tokio::io::copy(&mut origin, &mut target).await.expect("cannot copy");
+    tokio::io::copy(&mut origin, &mut target)
+        .await
+        .expect("cannot copy");
     res.render(StatusCode::OK);
 }
 
@@ -51,7 +52,6 @@ async fn download_font(req: &mut Request, res: &mut Response) {
     } else {
         res.render(StatusCode::NOT_FOUND);
     }
-
 }
 
 pub fn get_font_route() -> Router {
