@@ -120,23 +120,25 @@
 
 ## 设置事件 子列表
 
-| key                | type                      | description | done |
-|:-------------------|---------------------------|:------------|:----:|
-| setClear           | null                      | 清空当前显示的歌词   |  N   |
-| setFont            | [base](#BaseLyricSetter)  | 字体          |  N   |
-| setFontSize        | [base](#BaseLyricSetter)  | 字体大小        |  N   |
-| setAlignment       | [base](#BaseLyricSetter)  | 对齐方式        |  N   |
-| setColor           | [base](#BaseLyricSetter)  | 字体颜色        |  N   |
-| setTranslationMain | bool                      | 翻译为主歌词      |  N   |
-| setSecondShow      | bool                      | 显示副歌词       |  N   |
-| setLyricSource     | string                    | 切换指定`key`歌词 |  N   |
-| getLyricList       | [json](#SongInfoList)     | 获取搜索结果      |  N   |
-| getAllLyric        | [LyricLine[]](#LyricLine) | 获取当前曲子完整歌词  |  N   |
-| setBlock           | [BlockItem](#BlockItem)   | 获取当前曲子完整歌词  |  N   |
-| getBlockList       | [BlockItem[]](#BlockItem) | 获取当前曲子完整歌词  |  N   |
-| setUnblock         | [BlockItem](#BlockItem)   | 获取当前曲子完整歌词  |  N   |
-| getClearCount      | number                    | 已缓存歌词的数量    |  N   |
-| setClearCache      | null                      | 清空缓存        |  N   |
+| key                | type                                | description | done |
+|:-------------------|-------------------------------------|:------------|:----:|
+| setClear           | null                                | 清空当前显示的歌词   |  N   |
+| setFont            | [BaseLyricSetter](#BaseLyricSetter) | 字体          |  N   |
+| setFontSize        | [BaseLyricSetter](#BaseLyricSetter) | 字体大小        |  N   |
+| setAlignment       | [BaseLyricSetter](#BaseLyricSetter) | 对齐方式        |  N   |
+| setColor           | [BaseLyricSetter](#BaseLyricSetter) | 字体颜色        |  N   |
+| setTranslationMain | bool                                | 翻译为主歌词      |  N   |
+| setSecondShow      | bool                                | 显示副歌词       |  N   |
+| setLyricSource     | string                              | 切换指定`key`歌词 |  N   |
+| getLyricList       | [SongInfoList](#SongInfoList)       | 获取搜索结果      |  N   |
+| getAllLyric        | [LyricLine[]](#LyricLine)           | 获取当前曲子完整歌词  |  N   |
+| setBlock           | [BlockItem](#BlockItem)             | 获取当前曲子完整歌词  |  N   |
+| getBlockList       | [BlockItem[]](#BlockItem)           | 获取当前曲子完整歌词  |  N   |
+| setUnblock         | [BlockItem](#BlockItem)             | 获取当前曲子完整歌词  |  N   |
+| getClearCount      | number                              | 已缓存歌词的数量    |  N   |
+| setClearCache      | null                                | 清空缓存        |  N   |
+| getLyricOffset     | number                              | 查看当前歌词的偏移   |  N   |
+| setLyricOffset     | number                              | 修改当前歌词的偏移   |  N   |
 
 ### BaseLyricSetter
 
@@ -162,10 +164,10 @@
 
 歌曲信息列表
 
-| name    | type                | description | required |
-|:--------|:--------------------|:------------|:--------:|
-| QQ      | [info[]](#SongInfo) | qq 歌词源      |    Y     |
-| Netease | [info[]](#SongInfo) | 网易源         |    Y     |
+| name    | type                    | description | required |
+|:--------|:------------------------|:------------|:--------:|
+| QQ      | [SongInfo[]](#SongInfo) | qq 歌词源      |    Y     |
+| Netease | [SongInfo[]](#SongInfo) | 网易源         |    Y     |
 
 ### BlockItem
 

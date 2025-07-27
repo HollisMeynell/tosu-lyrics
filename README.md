@@ -120,8 +120,8 @@
 后端任务列表:
 - [ ] 接入数据源获取当前歌曲
   - [x] 接入 [tosu](https://github.com/tosuapp/tosu)
-  - [ ] 使用 [rosu-memory](https://github.com/486c/rosu-memory) 直接读取数据
-  - [ ] 接入 [gosumemory](https://github.com/l3lackShark/gosumemory) (tosu 接口兼容)
+  - [ ] ~~使用 [rosu-memory](https://github.com/486c/rosu-memory) 直接读取数据~~(不好做, 寄)
+  - [ ] ~~接入 [gosumemory](https://github.com/l3lackShark/gosumemory) (tosu 接口兼容)~~
 - [ ] 查询歌词
   - [x] qq 歌词数据源
   - [x] 网易云歌词数据源
