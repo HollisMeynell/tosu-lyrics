@@ -1,5 +1,5 @@
 use crate::lyric::LyricLine;
-use crate::setting::{GLOBAL_SETTINGS, global_setting};
+use crate::setting::global_setting;
 use salvo::websocket::Message;
 use serde::{Deserialize, Serialize};
 

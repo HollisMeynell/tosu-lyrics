@@ -3,11 +3,10 @@ pub mod setting;
 
 use crate::error::Result;
 
-use serde::{Deserialize, Serialize, Serializer};
-use std::fmt::{Display, Formatter};
-
 use lyric::*;
+use serde::{Deserialize, Serialize, Serializer};
 use setting::*;
+use std::fmt::{Display, Formatter};
 
 /// 表示 WebSocket 消息的类型。
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
