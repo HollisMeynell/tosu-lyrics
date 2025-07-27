@@ -44,7 +44,7 @@ tracing-subscriber = { version = "0.3", optional = true }
 tungstenite = { version = "0.27.0", optional = true }
 futures = { version = "0.3.31", optional = true }
 futures-util = { version = "0.3.31", optional = true }
-salvo = { version = "0.79.0", features = ["default", "serve-static", "websocket"], optional = true }
+salvo = { version = "0.81.0", features = ["default", "serve-static", "websocket"], optional = true }
 sea-orm = { version = "1.1.13", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"], optional = true }
 sea-schema = { version = "0.16.2", features = ["writer"], optional = true }
 
