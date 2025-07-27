@@ -32,13 +32,14 @@ mod test {
     use super::{LyricSetting, LyricSettingType};
     use crate::database::init_database;
     use crate::error::Result;
+    use crate::model::JsonStruct;
     use crate::model::websocket::setting::SettingPayload;
     use tracing_subscriber::fmt::init;
 
     #[tokio::test]
     async fn test_serialize() -> Result<()> {
         let v = LyricSettingType::Align(String::from("center"));
-        let json = serde_json::to_string(&v)?;
+        let json = v.to_json_string()?;
         println!("{json}");
         let json = serde_json::from_str::<LyricSettingType>(&json)?;
         println!("{json:?}");
@@ -55,7 +56,7 @@ mod test {
             echo: None,
         };
         payload.set_replay(v)?;
-        let json = serde_json::to_string(&payload)?;
+        let json = payload.to_json_string()?;
         println!("{json}");
         Ok(())
     }

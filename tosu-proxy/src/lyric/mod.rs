@@ -3,6 +3,7 @@ mod source;
 
 use crate::database::{LyricCacheEntity, LyricConfigEntity};
 use crate::error::{Error, Result};
+use crate::model::websocket::WebSocketMessage;
 use crate::model::websocket::lyric::{LyricPayload, SequenceType};
 use crate::osu_source::OsuSongInfo;
 use crate::server::ALL_SESSIONS;
@@ -211,7 +212,8 @@ impl LyricService {
             ws_lyric.next_time = new_time - ws_lyric.next_time;
             ws_lyric.set_next_lyric(next).await;
         }
-        ALL_SESSIONS.send_to_all_client(ws_lyric.into()).await;
+        let message: WebSocketMessage = ws_lyric.into();
+        ALL_SESSIONS.send_to_all_client(message.into()).await;
         Ok(())
     }
 

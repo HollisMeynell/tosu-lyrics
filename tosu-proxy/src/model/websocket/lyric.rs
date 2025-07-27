@@ -1,6 +1,5 @@
 use crate::lyric::LyricLine;
 use crate::setting::global_setting;
-use salvo::websocket::Message;
 use serde::{Deserialize, Serialize};
 
 /// 表示歌词的序列方向。
@@ -42,12 +41,6 @@ impl Default for LyricPayload {
             next_time: 0,
             sequence: SequenceType::Up,
         }
-    }
-}
-
-impl Into<Message> for LyricPayload {
-    fn into(self) -> Message {
-        Message::text(serde_json::to_string(&self).unwrap())
     }
 }
 

@@ -1,4 +1,9 @@
+mod base;
+mod block;
+mod song_info;
+
 use crate::error::{Error, Result};
+use crate::model::JsonStruct;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
@@ -17,7 +22,7 @@ pub struct SettingPayload {
 
 impl SettingPayload {
     pub fn set_replay<T: Serialize>(&mut self, value: T) -> Result<&mut Self> {
-        self.value = Some(serde_json::to_value(value)?);
+        self.value = Some(value.to_value()?);
         Ok(self)
     }
 
@@ -49,10 +54,9 @@ impl SettingPayload {
         } else {
             Err(Error::Static("Cannot get value, because it is null"))
         }
-
     }
 
-    fn translate_json<T: DeserializeOwned>(json_value:Value) -> Result<T> {
+    fn translate_json<T: DeserializeOwned>(json_value: Value) -> Result<T> {
         Ok(serde_json::from_value(json_value)?)
     }
 }
