@@ -33,7 +33,7 @@ rand = "0.9.1"
 # rust-embed="8.6.0"
 
 # new
-lyric-macro = {version = "0.0.1", path = "lyric-macro"}
+lyric-macro = { version = "0.0.1", path = "lyric-macro" }
 async-trait = { version = "0.1.88", optional = true }
 bincode = { version = "2.0.1", optional = true }
 regex = { version = "1.11.1", optional = true }

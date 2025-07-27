@@ -1,10 +1,14 @@
 use std::fs;
 use std::io::{Read, stdin};
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::LazyLock;
-
+use sea_orm::sqlx::types::chrono;
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
+use tracing::{Event, Level, error, info};
+use tracing_subscriber::fmt::format::Writer;
+use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
+use tracing_subscriber::registry::LookupSpan;
 
 pub static CONFIG_ENDPOINT_WEBSOCKET: &str = "ws";
 static CONFIG_PATH: &str = "config.json5";
@@ -33,6 +37,27 @@ impl Default for Config {
                 url: "ws://127.0.0.1:24050/websocket/v2".to_string(),
             }),
         }
+    }
+}
+
+impl Config {
+    pub fn init_logger(&self) {
+        let level = if let Some(level) = &self.log_level {
+            Level::from_str(level)
+                .expect("无法处理的配置 `log`, 仅支持 error, warn, info, debug, trace")
+        } else if cfg!(debug_assertions) {
+            Level::DEBUG
+        } else {
+            Level::INFO
+        };
+
+        tracing_subscriber::fmt()
+            .with_ansi(true)
+            .with_file(true)
+            .with_line_number(true)
+            .with_max_level(level)
+            .with_test_writer()
+            .init();
     }
 }
 
