@@ -37,7 +37,7 @@ lyric-macro = { version = "0.0.1", path = "lyric-macro" }
 async-trait = { version = "0.1.88", optional = true }
 bincode = { version = "2.0.1", optional = true }
 regex = { version = "1.11.1", optional = true }
-config = { version = "0.15.11", optional = true }
+config = { version = "0.15.13", optional = true }
 tokio-tungstenite = { version = "0.27.0", optional = true }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", optional = true }
