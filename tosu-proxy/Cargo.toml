@@ -25,7 +25,7 @@ unused = "allow"
 [dependencies]
 thiserror = "2.0.12"
 reqwest = { version = "0.12.22", features = ["rustls-tls", "charset", "json"] }
-tokio = { version = "1.46.1", features = ["fs", "rt-multi-thread", "process", "sync", "macros"] }
+tokio = { version = "1.47.1", features = ["fs", "rt-multi-thread", "process", "sync", "macros"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.141"
 rand = "0.9.1"
