@@ -16,7 +16,7 @@ type WebsocketRead = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
 /// Tosu WebSocket 客户端
 /// 用于连接 Tosu 并接收歌曲状态信息
-pub(super) struct TosuWebsocketClient {
+pub struct TosuWebsocketClient {
     /// WebSocket 连接地址
     url: String,
     /// 当前谱面 ID
@@ -47,7 +47,7 @@ impl OsuSource for TosuWebsocketClient {
 
 impl TosuWebsocketClient {
     /// 创建新的 Tosu WebSocket 客户端
-    pub(super) fn new(url: &str) -> Self {
+    pub fn new(url: &str) -> Self {
         Self {
             url: url.to_string(),
             bid: AtomicI64::default(),
@@ -227,7 +227,7 @@ impl TosuWebsocketClient {
         };
 
         if update_song_info {
-            self.update_song_info(&tosu_data, bid, sid, now).await;
+            self.update_song_info(tosu_data, bid, sid, now).await;
         } else {
             // 仅更新时间
             self.on_osu_state_change(super::OsuState::Time(now)).await;
@@ -235,7 +235,7 @@ impl TosuWebsocketClient {
     }
 
     /// 更新歌曲信息
-    async fn update_song_info(&self, tosu_data: &TosuApi, bid: i64, sid: i64, now: i32) {
+    async fn update_song_info(&self, mut tosu_data: TosuApi, bid: i64, sid: i64, now: i32) {
         // 更新状态
         self.sid.store(sid, Ordering::SeqCst);
         self.bid.store(bid, Ordering::SeqCst);
@@ -260,10 +260,10 @@ impl TosuWebsocketClient {
             sid,
             length,
             now,
-            artist: &tosu_data.beatmap.artist,
-            artist_unicode: &tosu_data.beatmap.artist_unicode,
-            title: &tosu_data.beatmap.title,
-            title_unicode: &tosu_data.beatmap.title_unicode,
+            artist: tosu_data.beatmap.artist.take().unwrap_or_default(),
+            artist_unicode: tosu_data.beatmap.artist_unicode.take().unwrap_or_default(),
+            title: tosu_data.beatmap.title.take().unwrap_or_default(),
+            title_unicode: tosu_data.beatmap.title_unicode.take().unwrap_or_default(),
         };
 
         self.on_osu_state_change(super::OsuState::Song(info)).await;

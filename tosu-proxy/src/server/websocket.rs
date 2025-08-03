@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::config::CONFIG_ENDPOINT_WEBSOCKET;
+use crate::config::{CONFIG_ENDPOINT_WEBSOCKET, CONFIG_ENDPOINT_WEBSOCKET_NO_LYRIC_POINT};
 use crate::error::Result;
 use crate::util::generate_random_string;
 use salvo::websocket::{Message, WebSocket};
@@ -8,7 +8,7 @@ use salvo::{Request, Response, Router, handler};
 use std::sync::LazyLock;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::{RwLock, mpsc};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 pub static ALL_SESSIONS: LazyLock<WebsocketSession> = LazyLock::new(|| WebsocketSession::new());
 
@@ -73,34 +73,34 @@ impl WebsocketSession {
         }
     }
 
-    pub async fn send_to_all_client(&self, message: Message) {
+    async fn find_clients<F: Fn(&String, &ClientType) -> bool>(&self, message: Message, f: F) {
         self.0
             .read()
             .await
             .iter()
-            .filter(|(_, client)| matches!(client, &&ClientType::Client(_)))
+            .filter(|(key, client)| f(key, client))
             .for_each(|(_, client)| {
                 let r = client.get_channel().send(message.clone());
                 if let Err(e) = r {
                     error!("can not send message: {e}")
                 }
-            })
+            });
+    }
+
+    pub async fn send_to_all_client(&self, message: Message) {
+        self.find_clients(message, |_, client| {
+            matches!(*client, ClientType::Client(_))
+        })
+        .await;
     }
     pub async fn send_to_one_client<T>(&self, key: &T, message: Message)
     where
         T: AsRef<str>,
     {
-        self.0
-            .read()
-            .await
-            .iter()
-            .filter(|(k, client)| key.as_ref() != *k && matches!(client, &&ClientType::Client(_)))
-            .for_each(|(_, client)| {
-                let r = client.get_channel().send(message.clone());
-                if let Err(e) = r {
-                    error!("can not send message: {e}")
-                }
-            })
+        self.find_clients(message, |k, client| {
+            key.as_ref() != k && matches!(*client, ClientType::Client(_))
+        })
+        .await;
     }
 
     pub async fn send_message<T>(&self, key: &T, message: Message)
@@ -113,18 +113,42 @@ impl WebsocketSession {
             }
         }
     }
+    pub async fn send_pong<T>(&self, key: &T, message: Message)
+    where
+        T: AsRef<str>,
+    {
+        let sessions = self.0.read().await;
+        let channel = sessions.get(key.as_ref());
+        let channel = match channel {
+            Some(ch) => ch,
+            _ => return,
+        };
+        let pong = Message::pong(message.as_bytes().to_vec());
+        if let Err(e) = channel.get_channel().send(pong) {
+            error!("can not send message: {e}")
+        }
+    }
 }
 
 async fn on_ws_message(key: &str, msg: Message) {
-    // todo: 实现处理 setter 发出的指令
-
-    if msg.is_close() {
-        ALL_SESSIONS.remove_client(&key).await;
-    } else if msg.is_text() {
-        let t = msg.as_str().unwrap();
-        ALL_SESSIONS.send_message(&key, msg.clone()).await;
-        info!("text: {t}");
+    if msg.is_ping() {
+        ALL_SESSIONS.send_pong(&key, msg).await;
+        return;
     }
+
+    if !msg.is_text() {
+        debug!("receive not text message");
+        return;
+    }
+
+    // todo: 实现处理 setter 发出的指令
+    let t = match msg.as_str() {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+
+    ALL_SESSIONS.send_message(&key, msg.clone()).await;
+    debug!("text: {t}");
 }
 
 async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message>) {
@@ -138,19 +162,27 @@ async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message
             }
         }
     });
+
     while let Some(data) = ws_receiver.next().await {
         let key = key.clone();
         match data {
             Ok(message) => {
+                // 提前处理关闭消息
+                if message.is_close() {
+                    break;
+                }
                 tokio::spawn(async move {
                     on_ws_message(&key, message).await;
                 });
             }
             Err(e) => {
                 error!("websocket err(id={key}): {e}");
+                break;
             }
         }
     }
+
+    ALL_SESSIONS.remove_client(&key).await;
 }
 
 /// is setter client if url "ws://(ip:port)?setter=true"
@@ -158,7 +190,9 @@ async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message
 async fn connect(req: &mut Request, res: &mut Response) -> Result<()> {
     use salvo::websocket::WebSocketUpgrade;
     // 因为要忽略向设置端发送歌词, 需要通过 ws 连接的参数 setter 来判断是否为设置器 "ws://127.0.0.1:41280?setter=true"
-    let is_client = req.query::<bool>("setter").is_none();
+    let is_client = req
+        .query::<bool>(CONFIG_ENDPOINT_WEBSOCKET_NO_LYRIC_POINT)
+        .is_none();
     WebSocketUpgrade::new()
         .upgrade(req, res, async move |ws| {
             let (tx, rx) = mpsc::unbounded_channel::<Message>();

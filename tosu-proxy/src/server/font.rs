@@ -1,3 +1,6 @@
+use crate::config::{
+    CONFIG_ENDPOINT_FONT, CONFIG_ENDPOINT_FONT_DOWNLOAD, CONFIG_ENDPOINT_FONT_UPLOAD,
+};
 use salvo::fs::NamedFile;
 use salvo::http::header::CONTENT_TYPE;
 use salvo::prelude::*;
@@ -55,7 +58,7 @@ async fn download_font(req: &mut Request, res: &mut Response) {
 }
 
 pub fn get_font_route() -> Router {
-    Router::with_path("font")
-        .push(Router::with_path("upload").post(upload_font))
-        .push(Router::with_path("download").post(upload_font))
+    Router::with_path(CONFIG_ENDPOINT_FONT)
+        .push(Router::with_path(CONFIG_ENDPOINT_FONT_UPLOAD).post(upload_font))
+        .push(Router::with_path(CONFIG_ENDPOINT_FONT_DOWNLOAD).post(upload_font))
 }

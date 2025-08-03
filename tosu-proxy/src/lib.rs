@@ -14,6 +14,8 @@ pub mod osu_source;
 #[cfg(feature = "new")]
 pub mod server;
 #[cfg(feature = "new")]
+pub mod service;
+#[cfg(feature = "new")]
 pub mod setting;
 
 #[cfg(feature = "old")]

@@ -32,15 +32,15 @@ impl Display for WebSocketMessage {
     }
 }
 
-impl Into<WebSocketMessage> for LyricPayload {
-    fn into(self) -> WebSocketMessage {
-        WebSocketMessage::Lyric(self)
+impl From<LyricPayload> for WebSocketMessage {
+    fn from(value: LyricPayload) -> Self {
+        WebSocketMessage::Lyric(value)
     }
 }
 
-impl Into<WebSocketMessage> for SettingPayload {
-    fn into(self) -> WebSocketMessage {
-        WebSocketMessage::Setting(self)
+impl From<SettingPayload> for WebSocketMessage {
+    fn from(value: SettingPayload) -> Self {
+        WebSocketMessage::Setting(value)
     }
 }
 

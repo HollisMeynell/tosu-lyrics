@@ -10,7 +10,14 @@ use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::registry::LookupSpan;
 
+pub static CONFIG_FRONTEND: &str = "lyrics/{**path}";
 pub static CONFIG_ENDPOINT_WEBSOCKET: &str = "ws";
+pub static CONFIG_ENDPOINT_WEBSOCKET_NO_LYRIC_POINT: &str = "setter";
+pub static CONFIG_ENDPOINT_FONT: &str = "font";
+pub static CONFIG_ENDPOINT_FONT_UPLOAD: &str = "upload";
+pub static CONFIG_ENDPOINT_FONT_DOWNLOAD: &str = "download";
+pub static CONFIG_ENDPOINT_AUDIO_LEN: &str = "audio/len";
+
 static CONFIG_PATH: &str = "config.json5";
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TosuConfig {

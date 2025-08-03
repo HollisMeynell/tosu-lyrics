@@ -1,7 +1,7 @@
+use crate::config::CONFIG_ENDPOINT_AUDIO_LEN;
+use crate::util::read_audio_length;
 use salvo::http::StatusCode;
 use salvo::prelude::*;
-
-use crate::util::read_audio_length;
 
 #[handler]
 async fn get_audio_length(req: &mut Request, res: &mut Response) {
@@ -25,5 +25,5 @@ async fn get_audio_length(req: &mut Request, res: &mut Response) {
 }
 
 pub fn get_audio_route() -> Router {
-    Router::with_path("audio/len").get(get_audio_length)
+    Router::with_path(CONFIG_ENDPOINT_AUDIO_LEN).get(get_audio_length)
 }

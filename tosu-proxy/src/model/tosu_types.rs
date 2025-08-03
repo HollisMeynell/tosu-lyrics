@@ -21,7 +21,7 @@ pub struct BeatmapTime {
     #[serde(rename = "lastObject")]
     pub last_object: i64,
     /// MP3 文件长度
-    #[serde(rename = "mp3Length")]
+    #[serde(rename = "mp3Length", default)]
     pub mp3_length: i64,
 }
 
@@ -37,6 +37,7 @@ pub struct Beatmap {
     /// Rank 状态
     pub status: NumberName,
     /// 谱面校验和
+    #[serde(default)]
     pub checksum: String,
     /// 谱面ID
     pub id: i64,
@@ -45,15 +46,15 @@ pub struct Beatmap {
     /// 游戏模式
     pub mode: NumberName,
     /// 艺术家名
-    pub artist: String,
+    pub artist: Option<String>,
     /// Unicode格式的艺术家名
     #[serde(rename = "artistUnicode")]
-    pub artist_unicode: String,
+    pub artist_unicode: Option<String>,
     /// 歌曲标题
-    pub title: String,
+    pub title: Option<String>,
     /// Unicode格式的歌曲标题
     #[serde(rename = "titleUnicode")]
-    pub title_unicode: String,
+    pub title_unicode: Option<String>,
     /// 谱面作者
     pub mapper: String,
     /// 难度名称
@@ -104,24 +105,6 @@ impl TosuApi {
         Path::new(&self.folders.songs)
             .join(&self.folders.beatmap)
             .join(&self.files.audio)
-    }
-
-    /// 获取歌曲标题，优先使用Unicode版本
-    pub fn display_title(&self) -> &str {
-        if !self.beatmap.title_unicode.is_empty() {
-            &self.beatmap.title_unicode
-        } else {
-            &self.beatmap.title
-        }
-    }
-
-    /// 获取艺术家名称，优先使用Unicode版本
-    pub fn display_artist(&self) -> &str {
-        if !self.beatmap.artist_unicode.is_empty() {
-            &self.beatmap.artist_unicode
-        } else {
-            &self.beatmap.artist
-        }
     }
 }
 

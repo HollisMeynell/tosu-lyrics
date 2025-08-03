@@ -21,6 +21,15 @@ pub struct SettingPayload {
 }
 
 impl SettingPayload {
+    pub fn new(key: String) -> Self {
+        Self {
+            key,
+            value: None,
+            error: None,
+            echo: None,
+        }
+    }
+
     pub fn set_replay<T: Serialize>(&mut self, value: T) -> Result<&mut Self> {
         self.value = Some(value.to_value()?);
         Ok(self)

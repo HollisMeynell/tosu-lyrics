@@ -1,3 +1,4 @@
+use crate::config::CONFIG_FRONTEND;
 use salvo::prelude::*;
 use salvo::serve_static::StaticDir;
 
@@ -10,5 +11,5 @@ pub fn get_file_route() -> Router {
         .include_dot_files(false)
         .auto_list(false);
 
-    Router::new().push(Router::with_path("lyrics/{**path}").goal(static_handler))
+    Router::new().push(Router::with_path(CONFIG_FRONTEND).goal(static_handler))
 }
