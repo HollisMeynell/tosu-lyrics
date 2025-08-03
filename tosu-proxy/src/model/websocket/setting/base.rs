@@ -1,6 +1,6 @@
 // 直接一个 type alias
 
-type BaseLyricSetter = super::super::LyricLinePayload;
+pub type BaseLyricSetter = super::super::LyricLinePayload;
 
 impl BaseLyricSetter {
     pub fn new(first: &str, second: &str) -> BaseLyricSetter {

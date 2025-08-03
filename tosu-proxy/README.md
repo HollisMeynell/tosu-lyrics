@@ -2,6 +2,12 @@
 
 消息通过 WebSocket, 使用 json 格式进行传输
 
+目前websocket连接分为两类, 如果ws连接带有参数 `?setter=true` 则分配为配置发送端,
+避免无用的消息发送
+
+- 歌词接收端, 会收到 歌词变更事件, 设置配置事件
+- 配置发送端, 不会收到广播消息, 但是发送消息后会收到响应结果
+
 目前消息分为两种, 一个是歌词事件, 一个是配置事件
 
 其中歌词事件仅后端发送
@@ -61,6 +67,8 @@
 > 约定字段 `key` 使用小驼峰命名
 >
 > `key` 命名时, 提交设置与广播通常使用 `set` 开头, 查询使用 `get` 开头, 响应使用 `rep` 开头
+> 
+> `get` 事件发送不需要 `value`, `value`作为响应出现
 >
 > 提交设置与设置广播通常不会出现 `error` 以及 `echo`
 
@@ -120,25 +128,31 @@
 
 ## 设置事件 子列表
 
-| key                | type                                | description | done |
-|:-------------------|-------------------------------------|:------------|:----:|
-| setClear           | null                                | 清空当前显示的歌词   |  N   |
-| setFont            | [BaseLyricSetter](#BaseLyricSetter) | 字体          |  N   |
-| setFontSize        | [BaseLyricSetter](#BaseLyricSetter) | 字体大小        |  N   |
-| setAlignment       | [BaseLyricSetter](#BaseLyricSetter) | 对齐方式        |  N   |
-| setColor           | [BaseLyricSetter](#BaseLyricSetter) | 字体颜色        |  N   |
-| setTranslationMain | bool                                | 翻译为主歌词      |  N   |
-| setSecondShow      | bool                                | 显示副歌词       |  N   |
-| setLyricSource     | string                              | 切换指定`key`歌词 |  N   |
-| getLyricList       | [SongInfoList](#SongInfoList)       | 获取搜索结果      |  N   |
-| getAllLyric        | [LyricLine[]](#LyricLine)           | 获取当前曲子完整歌词  |  N   |
-| setBlock           | [BlockItem](#BlockItem)             | 获取当前曲子完整歌词  |  N   |
-| getBlockList       | [BlockItem[]](#BlockItem)           | 获取当前曲子完整歌词  |  N   |
-| setUnblock         | [BlockItem](#BlockItem)             | 获取当前曲子完整歌词  |  N   |
-| getClearCount      | number                              | 已缓存歌词的数量    |  N   |
-| setClearCache      | null                                | 清空缓存        |  N   |
-| getLyricOffset     | number                              | 查看当前歌词的偏移   |  N   |
-| setLyricOffset     | number                              | 修改当前歌词的偏移   |  N   |
+| key                | type                                | description                    | done |
+|:-------------------|-------------------------------------|:-------------------------------|:----:|
+| setClear           | null                                | 清空当前显示的歌词, 控制端发送会向歌词页 ws 广播此消息 |  Y   |
+| setFont            | [BaseLyricSetter](#BaseLyricSetter) | 字体                             |  Y   |
+| getFont            | [BaseLyricSetter](#BaseLyricSetter) | 字体(获取)                         |  Y   |
+| setFontSize        | [BaseLyricSetter](#BaseLyricSetter) | 字体大小                           |  Y   |
+| getFontSize        | [BaseLyricSetter](#BaseLyricSetter) | 字体大小(获取)                       |  Y   |
+| setAlignment       | [BaseLyricSetter](#BaseLyricSetter) | 对齐方式                           |  Y   |
+| getAlignment       | [BaseLyricSetter](#BaseLyricSetter) | 对齐方式(获取)                       |  Y   |
+| setColor           | [BaseLyricSetter](#BaseLyricSetter) | 字体颜色                           |  Y   |
+| getColor           | [BaseLyricSetter](#BaseLyricSetter) | 字体颜色(获取)                       |  Y   |
+| setTranslationMain | bool                                | 翻译为主歌词                         |  Y   |
+| getTranslationMain | bool                                | 翻译为主歌词(获取)                     |  Y   |
+| setSecondShow      | bool                                | 显示副歌词                          |  Y   |
+| getSecondShow      | bool                                | 显示副歌词(获取)                      |  Y   |
+| setLyricSource     | string                              | 切换指定`key`歌词                    |  N   |
+| getLyricList       | [SongInfoList](#SongInfoList)       | 获取搜索结果                         |  N   |
+| getAllLyric        | [LyricLine[]](#LyricLine)           | 获取当前曲子完整歌词                     |  N   |
+| setBlock           | [BlockItem](#BlockItem)             | 获取当前曲子完整歌词                     |  N   |
+| getBlockList       | [BlockItem[]](#BlockItem)           | 获取当前曲子完整歌词                     |  N   |
+| setUnblock         | [BlockItem](#BlockItem)             | 获取当前曲子完整歌词                     |  N   |
+| getClearCount      | number                              | 已缓存歌词的数量                       |  N   |
+| setClearCache      | null                                | 清空缓存                           |  N   |
+| getLyricOffset     | number                              | 查看当前歌词的偏移                      |  N   |
+| setLyricOffset     | number                              | 修改当前歌词的偏移                      |  N   |
 
 ### BaseLyricSetter
 

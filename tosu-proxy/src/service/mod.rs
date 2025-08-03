@@ -6,6 +6,7 @@ use crate::error::Result;
 
 pub use lyric_service::*;
 pub use song_source_service::on_osu_state_change;
+pub use websocket_service::on_setting;
 
 pub async fn init_service() -> Result<()> {
     song_source_service::init_song_service().await?;

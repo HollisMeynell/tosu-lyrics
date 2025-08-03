@@ -67,10 +67,7 @@ impl WebsocketSession {
     where
         T: AsRef<str>,
     {
-        let old = self.0.write().await.remove(key.as_ref());
-        if let Some(old) = old {
-            old.get_channel().closed().await;
-        }
+        self.0.write().await.remove(key.as_ref());
     }
 
     async fn find_clients<F: Fn(&String, &ClientType) -> bool>(&self, message: Message, f: F) {
@@ -130,25 +127,21 @@ impl WebsocketSession {
     }
 }
 
-async fn on_ws_message(key: &str, msg: Message) {
-    if msg.is_ping() {
-        ALL_SESSIONS.send_pong(&key, msg).await;
+async fn on_ws_message(key: &str, message: Message) {
+    if message.is_ping() {
+        ALL_SESSIONS.send_pong(&key, message).await;
         return;
     }
 
-    if !msg.is_text() {
+    if !message.is_text() {
         debug!("receive not text message");
         return;
     }
 
-    // todo: 实现处理 setter 发出的指令
-    let t = match msg.as_str() {
-        Ok(s) => s,
+    match message.as_str() {
+        Ok(message) => crate::service::on_setting(key, message).await,
         Err(_) => return,
     };
-
-    ALL_SESSIONS.send_message(&key, msg.clone()).await;
-    debug!("text: {t}");
 }
 
 async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message>) {
@@ -161,6 +154,7 @@ async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message
                 break;
             }
         }
+        _ = ws_sender.close().await;
     });
 
     while let Some(data) = ws_receiver.next().await {
@@ -181,7 +175,6 @@ async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message
             }
         }
     }
-
     ALL_SESSIONS.remove_client(&key).await;
 }
 

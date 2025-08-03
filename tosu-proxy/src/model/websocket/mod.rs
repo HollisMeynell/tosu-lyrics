@@ -56,6 +56,15 @@ impl Into<Message> for WebSocketMessage {
 }
 
 impl WebSocketMessage {
+    pub fn new_error<T: AsRef<str>>(err: T) -> Self {
+        Self::new_error_has_type("unknown", err)
+    }
+    pub fn new_error_has_type<T: AsRef<str>, E: AsRef<str>>(key: T, err: E) -> Self {
+        let mut message = SettingPayload::new(key.as_ref().to_string());
+        message.error.replace(err.as_ref().to_string());
+        WebSocketMessage::Setting(message)
+    }
+
     fn get_mut_setting(&mut self) -> Result<&mut SettingPayload> {
         match self {
             WebSocketMessage::Lyric(_) => Err("type `lyric` can not get setting".into()),
