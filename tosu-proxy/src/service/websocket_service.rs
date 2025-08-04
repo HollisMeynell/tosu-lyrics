@@ -4,9 +4,8 @@ use crate::model::websocket::WebSocketMessage;
 use crate::model::websocket::setting::SettingPayload;
 use crate::osu_source::OsuState;
 use crate::server::ALL_SESSIONS;
-use std::fmt::Display;
-use crate::lyric::{LyricSource, QQ_LYRIC_SOURCE};
 use crate::service::LYRIC_SERVICE;
+use std::fmt::Display;
 
 #[derive(Debug)]
 enum WebsocketResult {
