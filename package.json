@@ -16,7 +16,7 @@
         "@types/node": "24.1.0",
         "@typescript-eslint/eslint-plugin": "8.38.0",
         "@typescript-eslint/parser": "8.38.0",
-        "eslint": "9.26.0",
+        "eslint": "9.32.0",
         "globals": "16.3.0",
         "prettier": "3.5.3",
         "rollup-plugin-visualizer": "^6.0.3",
