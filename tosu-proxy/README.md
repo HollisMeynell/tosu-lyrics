@@ -146,9 +146,9 @@
 | setLyricSource     | [SongInfoKey](#SongInfoKey)         | 切换指定`key`歌词                    |  N   |
 | getLyricList       | [SongInfoList](#SongInfoList)       | 获取搜索结果                         |  Y   |
 | getAllLyric        | [LyricLine[]](#LyricLine)           | 获取当前曲子完整歌词                     |  N   |
-| setBlock           | [BlockItem](#BlockItem)             | 获取当前曲子完整歌词                     |  N   |
-| getBlockList       | [BlockItem[]](#BlockItem)           | 获取当前曲子完整歌词                     |  N   |
-| setUnblock         | [BlockItem](#BlockItem)             | 获取当前曲子完整歌词                     |  N   |
+| setBlock           | [BlockItem](#BlockItem)             | 将当前曲子添加到黑名单中                   |  N   |
+| getBlockList       | [BlockItem[]](#BlockItem)           | 获取黑名单列表                        |  N   |
+| setUnblock         | [BlockItem](#BlockItem)             | 将当前曲子从黑名单中移除                   |  N   |
 | getClearCount      | number                              | 已缓存歌词的数量                       |  N   |
 | setClearCache      | null                                | 清空缓存                           |  N   |
 | getLyricOffset     | number                              | 查看当前歌词的偏移                      |  N   |
