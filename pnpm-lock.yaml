@@ -18,8 +18,8 @@ importers:
         specifier: 1.9.6
         version: 1.9.6
       tailwindcss:
-        specifier: 4.1.5
-        version: 4.1.5
+        specifier: 4.1.11
+        version: 4.1.11
     devDependencies:
       '@eslint/js':
         specifier: 9.32.0
@@ -1709,9 +1709,6 @@ packages:
 
   tailwindcss@4.1.11:
     resolution: {integrity: sha512-2E9TBm6MDD/xKYe+dvJZAmg3yxIEDNRc0jwlNyDg/4Fil2QcSLjFKGVff0lAf1jjeaArlG/M75Ey/EYr/OJtBA==}
-
-  tailwindcss@4.1.5:
-    resolution: {integrity: sha512-nYtSPfWGDiWgCkwQG/m+aX83XCwf62sBgg3bIlNiiOcggnS1x3uVRDAuyelBFL+vJdOPPCGElxv9DjHJjRHiVA==}
 
   tapable@2.2.2:
     resolution: {integrity: sha512-Re10+NauLTMCudc7T5WLFLAwDhQ0JWdrMK+9B2M8zR5hRExKmsRDCBA7/aV/pNJFltmBFO5BAMlQFi/vq3nKOg==}
@@ -3464,8 +3461,6 @@ snapshots:
       has-flag: 4.0.0
 
   tailwindcss@4.1.11: {}
-
-  tailwindcss@4.1.5: {}
 
   tapable@2.2.2: {}
 
