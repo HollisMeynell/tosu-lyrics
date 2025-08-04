@@ -143,8 +143,8 @@
 | getTranslationMain | bool                                | 翻译为主歌词(获取)                     |  Y   |
 | setSecondShow      | bool                                | 显示副歌词                          |  Y   |
 | getSecondShow      | bool                                | 显示副歌词(获取)                      |  Y   |
-| setLyricSource     | string                              | 切换指定`key`歌词                    |  N   |
-| getLyricList       | [SongInfoList](#SongInfoList)       | 获取搜索结果                         |  N   |
+| setLyricSource     | [SongInfoKey](#SongInfoKey)         | 切换指定`key`歌词                    |  N   |
+| getLyricList       | [SongInfoList](#SongInfoList)       | 获取搜索结果                         |  Y   |
 | getAllLyric        | [LyricLine[]](#LyricLine)           | 获取当前曲子完整歌词                     |  N   |
 | setBlock           | [BlockItem](#BlockItem)             | 获取当前曲子完整歌词                     |  N   |
 | getBlockList       | [BlockItem[]](#BlockItem)           | 获取当前曲子完整歌词                     |  N   |
@@ -162,6 +162,15 @@
 |:-------|:-------|:------------|:--------:|
 | first  | string | 主要歌词的配置     |    N     |
 | second | string | 次要歌词的配置     |    N     |
+
+### SongInfoKey
+
+歌曲 key
+
+| name   | type   | description    | required |
+|:-------|:-------|:---------------|:--------:|
+| type   | string | `QQ`/`Netease` |    Y     |
+| key    | string | 歌曲ID           |    Y     |
 
 ### SongInfo
 

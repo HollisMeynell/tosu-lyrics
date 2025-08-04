@@ -6,6 +6,7 @@ use crate::model::websocket::lyric::{LyricPayload, SequenceType};
 use crate::osu_source::OsuSongInfo;
 use crate::server::ALL_SESSIONS;
 use sea_orm::EntityTrait;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 use tokio::sync::Mutex;
@@ -278,5 +279,36 @@ impl LyricService {
             }
             source.name()
         });
+    }
+
+    pub async fn get_search_result(&self) -> Value {
+        use serde_json::map::Map;
+        let mut result: Map<String, Value> = Map::new();
+        let cache = Arc::clone(&self.music_cache);
+        let cache_map = cache.lock().await;
+
+        let qq_key = QQ_LYRIC_SOURCE.name().to_string();
+        let netease_key = NETEASE_LYRIC_SOURCE.name().to_string();
+        Self::search_result_to_json(&*cache_map, qq_key, &mut result).await;
+        Self::search_result_to_json(&*cache_map, netease_key, &mut result).await;
+        Value::Object(result)
+    }
+
+    async fn search_result_to_json(
+        data: &HashMap<&'static str, Vec<SongInfo>>,
+        key: String,
+        result: &mut serde_json::map::Map<String, Value>,
+    ) {
+        let data_vec = if let Some(result) = data.get(key.as_str()) {
+            result
+        } else {
+            return;
+        };
+        let data_vec = data_vec
+            .iter()
+            .map(serde_json::to_value)
+            .filter_map(Result::ok)
+            .collect::<Vec<Value>>();
+        result.insert(key, Value::Array(data_vec));
     }
 }

@@ -5,6 +5,8 @@ use crate::model::websocket::setting::SettingPayload;
 use crate::osu_source::OsuState;
 use crate::server::ALL_SESSIONS;
 use std::fmt::Display;
+use crate::lyric::{LyricSource, QQ_LYRIC_SOURCE};
+use crate::service::LYRIC_SERVICE;
 
 #[derive(Debug)]
 enum WebsocketResult {
@@ -65,6 +67,7 @@ async fn handle_setting(mut setting: SettingPayload) -> WebsocketResult {
         "getTranslationMain" => get_translation_main(setting).await,
         "setSecondShow" => set_second_show(setting).await,
         "getSecondShow" => get_second_show(setting).await,
+        "getLyricList" => get_second_show(setting).await,
         _ => {
             let err = format!("unknown key: {}", key);
             setting.error.replace(err);
@@ -163,4 +166,11 @@ impl LyricSettingDatabaseKey {
             LyricSettingDatabaseKey::SecondShow => "second-show",
         }
     }
+}
+
+async fn get_lyric_list(mut setting: SettingPayload) -> Result<WebsocketResult> {
+    let lyric_service = LYRIC_SERVICE.lock().await;
+    let data = lyric_service.get_search_result().await;
+    setting.set_replay(data)?;
+    Ok(WebsocketResult::Return(setting))
 }
