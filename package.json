@@ -27,7 +27,7 @@
     "dependencies": {
         "@solidjs/router": "^0.15.3",
         "reconnecting-websocket": "^4.4.0",
-        "solid-js": "1.9.6",
+        "solid-js": "1.9.8",
         "tailwindcss": "4.1.11"
     }
 }
