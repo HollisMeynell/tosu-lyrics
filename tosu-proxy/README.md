@@ -31,14 +31,14 @@
 
 ### Lyric
 
-| name     | type      | description | required |
-|:---------|:----------|:------------|:--------:|
-| type     | string    | "lyric"     |    Y     |
-| previous | LyricLine | 上一条         |    N     |
-| current  | LyricLine | 当前条         |    N     |
-| next     | LyricLine | 下一条         |    N     |
-| nextTime | number    | 持续时间(ms)    |    Y     |
-| sequence | enum      | "up"/"down" |    Y     |
+| name     | type      | description                   | required |
+|:---------|:----------|:------------------------------|:--------:|
+| type     | string    | "lyric"                       |    Y     |
+| previous | LyricLine | 上一条                           |    N     |
+| current  | LyricLine | 当前条                           |    N     |
+| next     | LyricLine | 下一条                           |    N     |
+| nextTime | number    | 持续时间(ms)**如果是`-1`则表示为最后一行歌词** |    Y     |
+| sequence | enum      | "up"/"down"                   |    Y     |
 
 示例:
 
@@ -143,9 +143,9 @@
 | getTranslationMain | bool                                | 翻译为主歌词(获取)                     |  Y   |
 | setSecondShow      | bool                                | 显示副歌词                          |  Y   |
 | getSecondShow      | bool                                | 显示副歌词(获取)                      |  Y   |
-| setLyricSource     | [SongInfoKey](#SongInfoKey)         | 切换指定`key`歌词                    |  N   |
+| setLyricSource     | [SongInfoKey](#SongInfoKey)         | 切换指定`key`歌词                    |  Y   |
 | getLyricList       | [SongInfoList](#SongInfoList)       | 获取搜索结果                         |  Y   |
-| getAllLyric        | [LyricLine[]](#LyricLine)           | 获取当前曲子完整歌词                     |  N   |
+| getAllLyric        | [LyricLine[]](#LyricLine)           | 获取当前曲子完整歌词                     |  Y   |
 | setBlock           | [BlockItem](#BlockItem)             | 将当前曲子添加到黑名单中                   |  N   |
 | getBlockList       | [BlockItem[]](#BlockItem)           | 获取黑名单列表                        |  N   |
 | setUnblock         | [BlockItem](#BlockItem)             | 将当前曲子从黑名单中移除                   |  N   |

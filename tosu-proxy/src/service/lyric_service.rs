@@ -1,6 +1,9 @@
 use crate::database::{LyricCacheEntity, LyricConfigEntity};
-use crate::error::Error;
-use crate::lyric::{Lyric, LyricSource, NETEASE_LYRIC_SOURCE, QQ_LYRIC_SOURCE, SongInfo};
+use crate::error::{Error, Result};
+use crate::lyric::{
+    Lyric, LyricLine, LyricResult, LyricSource, LyricSourceEnum, NETEASE_LYRIC_SOURCE,
+    QQ_LYRIC_SOURCE, SongInfo, SongInfoKey,
+};
 use crate::model::websocket::WebSocketMessage;
 use crate::model::websocket::lyric::{LyricPayload, SequenceType};
 use crate::osu_source::OsuSongInfo;
@@ -8,6 +11,7 @@ use crate::server::ALL_SESSIONS;
 use sea_orm::EntityTrait;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::{Arc, LazyLock};
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
@@ -20,8 +24,14 @@ pub struct LyricService {
     // 当前歌词的下标
     now_index: usize,
     now_lyric: Option<Lyric>,
+    now_save_cache: Option<SearchCache>,
     // 偏移值, 毫秒
     offset: i32,
+
+    // 当前歌词的起始/终止时间 毫秒
+    current_lyric_start_time: i32,
+    current_lyric_end_time: i32,
+
     music_cache: Arc<Mutex<HashMap<&'static str, Vec<SongInfo>>>>,
     wait_tasks: Mutex<Option<JoinSet<&'static str>>>,
 }
@@ -34,14 +44,17 @@ impl LyricService {
         Self {
             now_index: 0,
             now_lyric: None,
+            now_save_cache: None,
             offset: 0,
+            current_lyric_start_time: -1,
+            current_lyric_end_time: -1,
             // 使用 Arc 和 Mutex 包装缓存
             music_cache: Arc::new(Mutex::new(cache)),
             wait_tasks: Mutex::new(None),
         }
     }
 
-    pub async fn song_change(&mut self, song: OsuSongInfo) -> crate::error::Result<()> {
+    pub async fn song_change(&mut self, song: OsuSongInfo) -> Result<()> {
         self.clear_cache().await;
 
         let title = &song.title_unicode;
@@ -53,6 +66,8 @@ impl LyricService {
         } else {
             song.length as u32
         };
+
+        self.now_save_cache = Some(SearchCache::new(sid, bid, title.to_string(), length));
 
         let (disable, offset) = LyricConfigEntity::find_setting(bid, sid, title).await;
 
@@ -101,21 +116,20 @@ impl LyricService {
         );
         macro_rules! search_and_set {
             (>$t:ident) => {
-                if self
-                    .search_and_set_lyric(&*$t, title, length, artist)
-                    .await?
+                let search_success = self.search_and_set_lyric(&*$t, title, length, artist).await?;
+                if search_success
                 {
                     debug!("通过网络加载 {title}");
-                    if let Some(lyric) = &self.now_lyric {
-                        match LyricCacheEntity::save(sid, bid, title, length as i32, lyric).await {
-                            Ok(_) | Err(Error::LyricParse(_)) => {
-                                debug!("记录到缓存 {title}");
-                            }
-                            Err(err) => {
-                                error!("存储缓存异常: {}", err);
-                            }
-                        };
-                    }
+                    let Some(lyric) = &self.now_lyric else { return Ok(()); };
+                    let Some(save_key) = &self.now_save_cache else { return Ok(()); };
+                    match save_key.save_lyric(lyric).await {
+                        Ok(_) | Err(Error::LyricParse(_)) => {
+                            debug!("记录到缓存 {title}");
+                        }
+                        Err(err) => {
+                            error!("存储缓存异常: {}", err);
+                        }
+                    };
                     return Ok(());
                 }
             };
@@ -138,10 +152,9 @@ impl LyricService {
         }
 
         while let Some(source_name) = join_set.join_next().await {
-            if source_name.is_err() {
+            let Ok(source_name) = source_name else {
                 continue;
-            }
-            let source_name = source_name.unwrap();
+            };
             search_and_set!(source_name:NETEASE_LYRIC_SOURCE);
             search_and_set!(source_name:QQ_LYRIC_SOURCE);
         }
@@ -155,15 +168,23 @@ impl LyricService {
     }
 
     /// 时间单位为毫秒
-    pub async fn time_next(&mut self, t: i32) -> crate::error::Result<()> {
+    pub async fn time_next(&mut self, t: i32) -> Result<()> {
         if self.now_lyric.is_none() {
             return Ok(());
         }
 
-        let lyric = self.now_lyric.as_mut().ok_or(Error::Impossible)?;
+        let Some(lyric) = &mut self.now_lyric else {
+            return Ok(());
+        };
 
         let mut t = if t < 0 { 0 } else { t };
         t += self.offset;
+
+        if t >= self.current_lyric_start_time && t <= self.current_lyric_end_time {
+            // 时间没变
+            return Ok(());
+        }
+
         let mut ws_lyric = LyricPayload::default();
         {
             let current = lyric.find_line(t as f32 / 1000f32);
@@ -173,6 +194,13 @@ impl LyricService {
             }
 
             let (index, lyric_line) = current.ok_or(Error::Impossible)?;
+
+            // 记录, 将秒转为毫秒
+            self.current_lyric_start_time = (lyric_line.time * 1000f32) as i32;
+            match lyric.get_line_by_index(index + 1) {
+                None => self.current_lyric_end_time = i32::MAX,
+                Some(l) => self.current_lyric_end_time = (l.time * 1000f32) as i32,
+            };
 
             if self.now_index == index {
                 return Ok(());
@@ -185,7 +213,13 @@ impl LyricService {
             } else {
                 SequenceType::Up
             };
-            ws_lyric.next_time = (lyric_line.time * 1000f32) as i32;
+
+            ws_lyric.next_time = if self.current_lyric_end_time == i32::MAX {
+                0
+            } else {
+                self.current_lyric_end_time - self.current_lyric_start_time
+            };
+
             ws_lyric.set_current_lyric(lyric_line).await;
         }
 
@@ -239,7 +273,7 @@ impl LyricService {
         title: &str,
         length: u32,
         artist: &str,
-    ) -> crate::error::Result<bool> {
+    ) -> Result<bool> {
         let cache = self.music_cache.lock().await;
         let cache_vec = cache.get(source.name());
 
@@ -307,8 +341,57 @@ impl LyricService {
         let data_vec = data_vec
             .iter()
             .map(serde_json::to_value)
-            .filter_map(Result::ok)
+            .filter_map(std::result::Result::ok)
             .collect::<Vec<Value>>();
         result.insert(key, Value::Array(data_vec));
+    }
+
+    pub async fn set_song_by_key(&mut self, key_info: &SongInfoKey) -> Result<()> {
+        let Some(source) = LyricSourceEnum::get_by_name(key_info.source_type.as_ref()) else {
+            return Err(format!("no source type is {}", key_info.source_type).into());
+        };
+        let lyric = source.fetch_lyrics(key_info.key.as_ref()).await?;
+        let lyric = TryInto::<Lyric>::try_into(lyric)?;
+        if let Some(save_key) = &self.now_save_cache {
+            save_key
+                .save_lyric(&lyric)
+                .await
+                .inspect_err(|err| error!("存储缓存异常: {}", err))?;
+        }
+        self.now_lyric = Some(lyric);
+        _ = self.time_next(0);
+        Ok(())
+    }
+    pub fn get_now_all_lyrics(&self) -> Option<&[LyricLine]> {
+        self.now_lyric.as_ref().map(Lyric::get_lyrics)
+    }
+}
+
+struct SearchCache {
+    sid: i32,
+    bid: i32,
+    title: String,
+    audio_length: u32,
+}
+
+impl SearchCache {
+    fn new(sid: i32, bid: i32, title: String, audio_length: u32) -> Self {
+        Self {
+            sid,
+            bid,
+            title,
+            audio_length,
+        }
+    }
+
+    async fn save_lyric(&self, lyric: &Lyric) -> Result<()> {
+        LyricCacheEntity::save(
+            self.sid,
+            self.bid,
+            self.title.as_ref(),
+            self.audio_length as i32,
+            lyric,
+        )
+        .await
     }
 }

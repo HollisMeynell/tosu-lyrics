@@ -15,10 +15,45 @@ const NO_LENGTH: u32 = 0;
 const ALLOW_OFFSET: u32 = 15000;
 
 macro_rules! static_source {
-    ($($name:ident : $t:ty),* $(,)?) => {
+    ($($name:ident : $t:ident),* $(,)?) => {
         $(
             pub static $name: LazyLock<$t> = LazyLock::new(<$t>::default);
         )*
+
+        pub enum LyricSourceEnum {
+            $($t(&'static $t)),*
+        }
+
+        #[async_trait]
+        impl LyricSource for LyricSourceEnum {
+            fn name(&self) -> &str {
+                match self {
+                    $(Self::$t(source) => source.name()),*
+                }
+            }
+
+            async fn search_music(&self, title: &str) -> Result<Vec<SongInfo>> {
+                match self {
+                    $(Self::$t(source) => source.search_music(title).await),*
+                }
+            }
+
+            async fn fetch_lyrics(&self, song_id: &str) -> Result<LyricResult> {
+                match self {
+                    $(Self::$t(source) => source.fetch_lyrics(song_id).await),*
+                }
+            }
+        }
+
+        impl LyricSourceEnum {
+            pub fn get_by_name(name: &str) -> Option<Self> {
+                let result = match name {
+                    $(name if name == $name.name() => Self::$t(&*$name),)*
+                    _ => return None,
+                };
+                Some(result)
+            }
+        }
     };
 }
 
@@ -33,6 +68,13 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
         .build()
         .unwrap()
 });
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SongInfoKey {
+    #[serde(rename = "type")]
+    pub source_type: String,
+    pub key: String,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SongInfo {

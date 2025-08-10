@@ -1,10 +1,12 @@
 use crate::database::SettingEntity;
 use crate::error::{Error, Result};
+use crate::lyric::SongInfoKey;
 use crate::model::websocket::WebSocketMessage;
 use crate::model::websocket::setting::SettingPayload;
 use crate::osu_source::OsuState;
 use crate::server::ALL_SESSIONS;
 use crate::service::LYRIC_SERVICE;
+use paste::paste;
 use std::fmt::Display;
 
 #[derive(Debug)]
@@ -51,27 +53,37 @@ async fn handle_setting(mut setting: SettingPayload) -> WebsocketResult {
     let key = setting.key.clone();
     let echo = setting.echo.take();
     println!("echo is {echo:?}");
-
-    let result = match key.as_str() {
-        "setClear" => set_clear(setting).await,
-        "setFont" => set_fount(setting).await,
-        "getFont" => get_fount(setting).await,
-        "setFontSize" => set_fount_size(setting).await,
-        "getFontSize" => get_fount_size(setting).await,
-        "setAlignment" => set_alignment(setting).await,
-        "getAlignment" => get_alignment(setting).await,
-        "setColor" => set_color(setting).await,
-        "getColor" => get_color(setting).await,
-        "setTranslationMain" => set_translation_main(setting).await,
-        "getTranslationMain" => get_translation_main(setting).await,
-        "setSecondShow" => set_second_show(setting).await,
-        "getSecondShow" => get_second_show(setting).await,
-        "getLyricList" => get_second_show(setting).await,
-        _ => {
-            let err = format!("unknown key: {}", key);
-            setting.error.replace(err);
-            return WebsocketResult::Return(setting);
-        }
+    macro_rules! key_matcher {
+        ($($name:ident),* $(,)?) => {
+            match key.as_str() {
+                $(
+                stringify!($name) => paste!{[<$name:snake>]}(setting).await,
+                )*
+                _ => {
+                    let err = format!("unknown key: {}", key);
+                    setting.error.replace(err);
+                    return WebsocketResult::Return(setting);
+                }
+            }
+        };
+    }
+    let result = key_matcher! {
+        setClear,
+        setFont,
+        getFont,
+        setFontSize,
+        getFontSize,
+        setAlignment,
+        getAlignment,
+        setColor,
+        getColor,
+        setTranslationMain,
+        getTranslationMain,
+        setSecondShow,
+        getSecondShow,
+        getLyricList,
+        setLyricSource,
+        getAllLyric,
     };
     let mut result = match result {
         Ok(result) => result,
@@ -119,10 +131,10 @@ macro_rules! base_getter {
     };
 }
 
-base_setter!(set_fount, LyricSettingDatabaseKey::Font);
-base_getter!(get_fount, LyricSettingDatabaseKey::Font);
-base_setter!(set_fount_size, LyricSettingDatabaseKey::FontSize);
-base_getter!(get_fount_size, LyricSettingDatabaseKey::FontSize);
+base_setter!(set_font, LyricSettingDatabaseKey::Font);
+base_getter!(get_font, LyricSettingDatabaseKey::Font);
+base_setter!(set_font_size, LyricSettingDatabaseKey::FontSize);
+base_getter!(get_font_size, LyricSettingDatabaseKey::FontSize);
 base_setter!(set_alignment, LyricSettingDatabaseKey::Alignment);
 base_getter!(get_alignment, LyricSettingDatabaseKey::Alignment);
 base_setter!(set_color, LyricSettingDatabaseKey::Color);
@@ -171,5 +183,21 @@ async fn get_lyric_list(mut setting: SettingPayload) -> Result<WebsocketResult> 
     let lyric_service = LYRIC_SERVICE.lock().await;
     let data = lyric_service.get_search_result().await;
     setting.set_replay(data)?;
+    Ok(WebsocketResult::Return(setting))
+}
+
+async fn set_lyric_source(setting: SettingPayload) -> Result<WebsocketResult> {
+    let key_data = setting.get_value::<SongInfoKey>()?;
+    let mut lyric_service = LYRIC_SERVICE.lock().await;
+    lyric_service.set_song_by_key(&key_data).await?;
+    Ok(WebsocketResult::Return(setting))
+}
+
+async fn get_all_lyric(mut setting: SettingPayload) -> Result<WebsocketResult> {
+    let lyric_service = LYRIC_SERVICE.lock().await;
+    let lyrics = lyric_service
+        .get_now_all_lyrics()
+        .ok_or(Error::Static("no lyrics found"))?;
+    setting.set_replay(lyrics)?;
     Ok(WebsocketResult::Return(setting))
 }

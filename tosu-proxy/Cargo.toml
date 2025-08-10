@@ -23,30 +23,31 @@ required-features = ["new"]
 unused = "allow"
 
 [dependencies]
-thiserror = "2.0.12"
+lyric-macro = { version = "0.0.1", path = "lyric-macro" }
 reqwest = { version = "0.12.22", features = ["rustls-tls", "charset", "json"] }
-tokio = { version = "1.47.1", features = ["fs", "rt-multi-thread", "process", "sync", "macros"] }
+rand = "0.9.2"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.142"
-rand = "0.9.2"
+thiserror = "2.0.12"
+tokio = { version = "1.47.1", features = ["fs", "rt-multi-thread", "process", "sync", "macros"] }
 # 后续将文件打包进二进制文件?
 # rust-embed="8.6.0"
 
 # new
-lyric-macro = { version = "0.0.1", path = "lyric-macro" }
 async-trait = { version = "0.1.88", optional = true }
 bincode = { version = "2.0.1", optional = true }
-regex = { version = "1.11.1", optional = true }
 config = { version = "0.15.13", optional = true }
+futures = { version = "0.3.31", optional = true }
+futures-util = { version = "0.3.31", optional = true }
+paste = { version = "1.0.15", optional = true}
+regex = { version = "1.11.1", optional = true }
+salvo = { version = "0.81.0", features = ["default", "serve-static", "websocket"], optional = true }
+sea-orm = { version = "1.1.14", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"], optional = true }
+sea-schema = { version = "0.16.2", features = ["writer"], optional = true }
 tokio-tungstenite = { version = "0.27.0", optional = true }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", optional = true }
 tungstenite = { version = "0.27.0", optional = true }
-futures = { version = "0.3.31", optional = true }
-futures-util = { version = "0.3.31", optional = true }
-salvo = { version = "0.81.0", features = ["default", "serve-static", "websocket"], optional = true }
-sea-orm = { version = "1.1.14", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"], optional = true }
-sea-schema = { version = "0.16.2", features = ["writer"], optional = true }
 
 # old
 actix-web = { version = "4.11.0", optional = true }
@@ -60,10 +61,11 @@ default = ["new"]
 new = [
     "async-trait",
     "bincode",
-    "regex",
     "config",
-    "tracing",
+    "regex",
+    "paste",
     "salvo",
+    "tracing",
     "tokio-tungstenite",
     "tracing-subscriber",
     "tungstenite",

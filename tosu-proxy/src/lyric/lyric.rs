@@ -64,7 +64,9 @@ mod parse {
 pub struct LyricLine {
     // 秒
     pub time: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub origin: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub translation: Option<String>,
 }
 
@@ -258,7 +260,8 @@ impl Lyric {
         }
     }
 
-    pub fn find_line(&mut self, time: f32) -> Option<(usize, &LyricLine)> {
+    /// `time` 时间, 秒
+    pub fn find_line(&self, time: f32) -> Option<(usize, &LyricLine)> {
         let cursor_time = self.lyrics.get(self.cursor)?.time;
         if eq_f32(cursor_time, time) {
             let ly = self.lyrics.get(self.cursor)?;
