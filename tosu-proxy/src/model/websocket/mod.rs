@@ -44,13 +44,13 @@ impl From<SettingPayload> for WebSocketMessage {
     }
 }
 
-impl Into<Message> for WebSocketMessage {
-    fn into(self) -> Message {
-        if let Ok(txt) = self.to_json_string() {
-            Message::text(txt)
+impl From<WebSocketMessage>  for Message {
+    fn from(value: WebSocketMessage) -> Self {
+        if let Ok(txt) = value.to_json_string() {
+            Self::text(txt)
         } else {
-            error!("Failed to serialize `WebSocketMessage` {self:?}");
-            Message::text("")
+            error!("Failed to serialize `WebSocketMessage` {value:?}");
+            Self::text("")
         }
     }
 }

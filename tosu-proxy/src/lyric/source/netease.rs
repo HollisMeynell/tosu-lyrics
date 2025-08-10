@@ -141,12 +141,12 @@ impl LyricSource for NeteaseLyricSource {
 
         let lyric = result
             .lrc
-            .and_then(|item| Some(item.lyric))
+            .map(|item| item.lyric)
             .filter(|s| !s.is_empty());
 
         let trans = result
             .tlyric
-            .and_then(|item| Some(item.lyric))
+            .map(|item| item.lyric)
             .filter(|s| !s.is_empty());
         Ok(LyricResult { lyric, trans })
     }

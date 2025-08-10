@@ -10,7 +10,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::{RwLock, mpsc};
 use tracing::{debug, error, info};
 
-pub static ALL_SESSIONS: LazyLock<WebsocketSession> = LazyLock::new(|| WebsocketSession::new());
+pub static ALL_SESSIONS: LazyLock<WebsocketSession> = LazyLock::new(WebsocketSession::new);
 
 type LyricWebsocketMessage = String;
 
@@ -138,10 +138,7 @@ async fn on_ws_message(key: &str, message: Message) {
         return;
     }
 
-    match message.as_str() {
-        Ok(message) => crate::service::on_setting(key, message).await,
-        Err(_) => return,
-    };
+    if let Ok(message) = message.as_str() { crate::service::on_setting(key, message).await }
 }
 
 async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message>) {

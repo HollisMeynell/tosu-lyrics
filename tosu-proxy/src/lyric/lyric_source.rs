@@ -17,9 +17,9 @@ mod parse {
         pub(super) line: String,
     }
 
-    impl Into<String> for LyricRawLine {
-        fn into(self) -> String {
-            self.line
+    impl From<LyricRawLine> for String {
+        fn from(lyric: LyricRawLine) -> String {
+            lyric.line
         }
     }
 
@@ -35,7 +35,7 @@ mod parse {
         let mut line_buffer = String::new();
         let mut result = vec![];
         fn parse_line(text: &str, data: &mut Vec<LyricRawLine>) {
-            let b = REG_LYRIC_LINE.captures(&text);
+            let b = REG_LYRIC_LINE.captures(text);
             if b.is_none() {
                 return;
             }
@@ -91,13 +91,9 @@ impl Default for Lyric {
 impl Lyric {
     pub fn from_json_cache(json: &[u8]) -> Result<Self> {
         let lyrics: Vec<LyricLine> = serde_json::from_slice(json)?;
-        let end_time: f32;
-        match lyrics.last() {
-            None => {
-                return Err(Error::from("缓存无效"));
-            }
-            Some(l) => end_time = l.time,
-        }
+        let Some(end_time) = lyrics.last().map(|it| it.time) else {
+            return Err(Error::from("缓存无效"));
+        };
 
         let result = Self {
             lyrics,
@@ -108,7 +104,7 @@ impl Lyric {
     }
 
     pub fn to_json_cache(&self) -> Result<Vec<u8>> {
-        if self.lyrics.len() == 0 {
+        if self.lyrics.is_empty() {
             return Err(Error::LyricParse("can not serialize empty lyric"));
         }
         let cache = serde_json::to_string(self.get_lyrics())?;

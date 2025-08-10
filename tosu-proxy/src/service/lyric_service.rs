@@ -18,7 +18,7 @@ use tokio::task::JoinSet;
 use tracing::{debug, error};
 
 pub static LYRIC_SERVICE: LazyLock<Mutex<LyricService>> =
-    LazyLock::new(|| Mutex::new(LyricService::new()));
+    LazyLock::new(|| Mutex::new(LyricService::default()));
 
 pub struct LyricService {
     // 当前歌词的下标
@@ -284,7 +284,7 @@ impl LyricService {
         }
 
         let lyric_result = source
-            .search_lyrics(&songs_to_search, title, length, artist)
+            .search_lyrics(songs_to_search, title, length, artist)
             .await?;
 
         if let Some(lyric) = lyric_result {
@@ -323,8 +323,8 @@ impl LyricService {
 
         let qq_key = QQ_LYRIC_SOURCE.name().to_string();
         let netease_key = NETEASE_LYRIC_SOURCE.name().to_string();
-        Self::search_result_to_json(&*cache_map, qq_key, &mut result).await;
-        Self::search_result_to_json(&*cache_map, netease_key, &mut result).await;
+        Self::search_result_to_json(&cache_map, qq_key, &mut result).await;
+        Self::search_result_to_json(&cache_map, netease_key, &mut result).await;
         Value::Object(result)
     }
 
@@ -364,6 +364,12 @@ impl LyricService {
     }
     pub fn get_now_all_lyrics(&self) -> Option<&[LyricLine]> {
         self.now_lyric.as_ref().map(Lyric::get_lyrics)
+    }
+}
+
+impl Default for LyricService {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

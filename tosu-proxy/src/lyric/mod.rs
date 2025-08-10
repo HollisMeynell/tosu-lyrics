@@ -1,8 +1,8 @@
-mod lyric;
+mod lyric_source;
 mod source;
 
 use crate::error::{Error, Result};
-pub use lyric::*;
+pub use lyric_source::*;
 use sea_orm::EntityTrait;
 pub use source::*;
 

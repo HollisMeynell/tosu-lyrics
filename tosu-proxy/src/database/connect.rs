@@ -29,8 +29,8 @@ pub fn database() -> &'static DatabaseConnection {
     DATABASE_CONNECT.get().expect("数据库连接池异常")
 }
 
-pub fn close() {
-    let _ = database().clone().close();
+pub async  fn close() {
+    let _ = database().clone().close().await;
 }
 
 pub async fn table_exists<T: AsRef<str>>(table_name: T) -> Result<bool> {

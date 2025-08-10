@@ -116,7 +116,7 @@ pub trait LyricSource: Send + Sync {
     async fn search_music(&self, title: &str) -> Result<Vec<SongInfo>>;
     async fn fetch_lyrics(&self, song_id: &str) -> Result<LyricResult>;
     fn preferred_song<'a>(
-        songs: &'a Vec<SongInfo>,
+        songs: &'a [SongInfo],
         title: &str,
         length: u32,
         artist: &str,
@@ -134,7 +134,7 @@ pub trait LyricSource: Send + Sync {
     async fn search_all_music(&self, title: &str, artist: &str) -> Result<Vec<SongInfo>> {
         let mut song_all = self.search_music(&format!("{title} {artist}")).await?;
         if song_all.is_empty() {
-            let other = self.search_music(&title).await?;
+            let other = self.search_music(title).await?;
             song_all.extend(other);
         }
         Ok(song_all)
@@ -143,7 +143,7 @@ pub trait LyricSource: Send + Sync {
     /// length 设为 0, 不应用过滤
     async fn search_lyrics(
         &self,
-        song_all: &Vec<SongInfo>,
+        song_all: &[SongInfo],
         title: &str,
         length: u32,
         artist: &str,

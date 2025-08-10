@@ -68,7 +68,7 @@ impl Config {
     }
 }
 
-pub static GLOBAL_CONFIG: LazyLock<Config> = LazyLock::new(|| load_config());
+pub static GLOBAL_CONFIG: LazyLock<Config> = LazyLock::new(load_config);
 
 fn load_config() -> Config {
     use config::FileFormat;

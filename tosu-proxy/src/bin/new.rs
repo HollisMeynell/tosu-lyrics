@@ -12,7 +12,7 @@ async fn main() -> error::Result<()> {
     setting::init_setting().await;
     service::init_service().await?;
     server::start_server().await;
-    database::close();
+    database::close().await;
     info!("bye~");
     Ok(())
 }
