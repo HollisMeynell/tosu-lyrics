@@ -11,6 +11,8 @@ pub async fn global_setting() -> &'static RwLock<LyricSetting> {
 //加载需要数据库, 务必在数据库初始化完毕后再调用
 pub async fn init_setting() {
     let lyric_setting = LyricSetting::init().await;
-    if GLOBAL_SETTINGS.set(RwLock::new(lyric_setting)).is_err() { panic!("无法初始化歌词配置") }
+    if GLOBAL_SETTINGS.set(RwLock::new(lyric_setting)).is_err() {
+        panic!("无法初始化歌词配置")
+    }
     info!("初始化配置完成");
 }

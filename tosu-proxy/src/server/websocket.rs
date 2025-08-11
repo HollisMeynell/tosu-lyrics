@@ -138,7 +138,9 @@ async fn on_ws_message(key: &str, message: Message) {
         return;
     }
 
-    if let Ok(message) = message.as_str() { crate::service::on_setting(key, message).await }
+    if let Ok(message) = message.as_str() {
+        crate::service::on_setting(key, message).await
+    }
 }
 
 async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message>) {

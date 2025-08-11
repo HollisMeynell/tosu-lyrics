@@ -44,7 +44,7 @@ impl From<SettingPayload> for WebSocketMessage {
     }
 }
 
-impl From<WebSocketMessage>  for Message {
+impl From<WebSocketMessage> for Message {
     fn from(value: WebSocketMessage) -> Self {
         if let Ok(txt) = value.to_json_string() {
             Self::text(txt)

@@ -84,6 +84,13 @@ async fn handle_setting(mut setting: SettingPayload) -> WebsocketResult {
         getLyricList,
         setLyricSource,
         getAllLyric,
+        setBlock,
+        getBlockList,
+        setUnblock,
+        getClearCount,
+        setClearCache,
+        getLyricOffset,
+        setLyricOffset,
     };
     let mut result = match result {
         Ok(result) => result,
@@ -199,5 +206,45 @@ async fn get_all_lyric(mut setting: SettingPayload) -> Result<WebsocketResult> {
         .get_now_all_lyrics()
         .ok_or(Error::Static("no lyrics found"))?;
     setting.set_replay(lyrics)?;
+    Ok(WebsocketResult::Return(setting))
+}
+
+async fn set_block(setting: SettingPayload) -> Result<WebsocketResult> {
+    let mut lyric_service = LYRIC_SERVICE.lock().await;
+    lyric_service.set_block(true).await?;
+    Ok(WebsocketResult::Return(setting))
+}
+
+async fn get_block_list(setting: SettingPayload) -> Result<WebsocketResult> {
+    // todo
+    Ok(WebsocketResult::Return(setting))
+}
+
+async fn set_unblock(setting: SettingPayload) -> Result<WebsocketResult> {
+    let mut lyric_service = LYRIC_SERVICE.lock().await;
+    lyric_service.set_block(false).await?;
+    Ok(WebsocketResult::Return(setting))
+}
+
+async fn get_clear_count(setting: SettingPayload) -> Result<WebsocketResult> {
+    // todo
+    Ok(WebsocketResult::Return(setting))
+}
+
+async fn set_clear_cache(setting: SettingPayload) -> Result<WebsocketResult> {
+    // todo
+    Ok(WebsocketResult::Return(setting))
+}
+
+async fn get_lyric_offset(mut setting: SettingPayload) -> Result<WebsocketResult> {
+    let lyric_service = LYRIC_SERVICE.lock().await;
+    setting.set_replay(lyric_service.get_offset())?;
+    Ok(WebsocketResult::Return(setting))
+}
+
+async fn set_lyric_offset(setting: SettingPayload) -> Result<WebsocketResult> {
+    let offset = setting.get_value::<i32>()?;
+    let mut lyric_service = LYRIC_SERVICE.lock().await;
+    lyric_service.set_offset(offset).await;
     Ok(WebsocketResult::Return(setting))
 }

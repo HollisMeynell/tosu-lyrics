@@ -29,7 +29,7 @@ pub fn database() -> &'static DatabaseConnection {
     DATABASE_CONNECT.get().expect("数据库连接池异常")
 }
 
-pub async  fn close() {
+pub async fn close() {
     let _ = database().clone().close().await;
 }
 

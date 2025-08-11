@@ -22,6 +22,19 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Entity {
+    pub async fn get_by_bid(bid: i32) -> Option<(bool, i32)> {
+        let db = database();
+        // 优先根据 bid 查询
+        if let Some(model) = Self::find_by_id(bid)
+            .one(db)
+            .await
+            .expect("查询 offset_cache (bid) 失败")
+        {
+            Some((model.disable, model.offset))
+        } else {
+            None
+        }
+    }
     async fn find_first(bid: i32, sid: i32, title: &str) -> Option<Model> {
         let db = database();
         // 优先根据 bid 查询
@@ -63,8 +76,14 @@ impl Entity {
         }
     }
 
-    pub async fn save_setting(data: Model) {
-        let model = ActiveModel::from(data);
+    pub async fn save_setting(bid: i32, sid: i32, title: &str, block: bool, offset: i32) {
+        let model = ActiveModel::from(Model {
+            bid,
+            sid,
+            title: title.to_string(),
+            disable: block,
+            offset,
+        });
 
         let mut on_conflict = OnConflict::column(Column::Bid);
         on_conflict
@@ -85,5 +104,16 @@ impl Entity {
             .exec(database())
             .await
             .expect("删除 offset_cache 失败");
+    }
+
+    pub async fn get_all_disable() -> Vec<(i32, i32, String)> {
+        Self::find()
+            .filter(Column::Disable.eq(true))
+            .all(database())
+            .await
+            .unwrap_or(vec![])
+            .into_iter()
+            .map(|m| (m.bid, m.sid, m.title))
+            .collect()
     }
 }

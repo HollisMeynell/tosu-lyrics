@@ -20,7 +20,7 @@ mod tests {
             .ok_or::<Error>("没找到对应歌曲".into())?;
         let l1 = &lyric.lyric.unwrap();
         let l2 = lyric.trans.as_deref();
-        let l = Lyric::parse(&l1, l2, Some(title))?;
+        let l = Lyric::parse(l1, l2, Some(title))?;
         println!("{l:?}");
         Ok(())
     }

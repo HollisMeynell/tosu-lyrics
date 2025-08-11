@@ -24,7 +24,7 @@ pub struct LyricService {
     // 当前歌词的下标
     now_index: usize,
     now_lyric: Option<Lyric>,
-    now_save_cache: Option<SearchCache>,
+    now_save_cache: Option<OsuSongInfo>,
     // 偏移值, 毫秒
     offset: i32,
 
@@ -57,8 +57,9 @@ impl LyricService {
     pub async fn song_change(&mut self, song: OsuSongInfo) -> Result<()> {
         self.clear_cache().await;
 
-        let title = &song.title_unicode;
-        let artist = &song.artist_unicode;
+        let title = song.title_unicode.to_string();
+        let artist = song.artist_unicode.to_string();
+
         let bid = song.bid as i32;
         let sid = song.sid as i32;
         let length = if song.length < 0 {
@@ -67,9 +68,9 @@ impl LyricService {
             song.length as u32
         };
 
-        self.now_save_cache = Some(SearchCache::new(sid, bid, title.to_string(), length));
+        self.now_save_cache = Some(song);
 
-        let (disable, offset) = LyricConfigEntity::find_setting(bid, sid, title).await;
+        let (disable, offset) = LyricConfigEntity::find_setting(bid, sid, &title).await;
 
         if disable {
             return Ok(());
@@ -102,27 +103,27 @@ impl LyricService {
         Self::spawn_search_task(
             &mut join_set,
             &*QQ_LYRIC_SOURCE,
-            title,
-            artist,
+            &title,
+            &artist,
             Arc::clone(&self.music_cache),
         );
 
         Self::spawn_search_task(
             &mut join_set,
             &*NETEASE_LYRIC_SOURCE,
-            title,
-            artist,
+            &title,
+            &artist,
             Arc::clone(&self.music_cache),
         );
         macro_rules! search_and_set {
             (>$t:ident) => {
-                let search_success = self.search_and_set_lyric(&*$t, title, length, artist).await?;
+                let search_success = self.search_and_set_lyric(&*$t, &title, length, &artist).await?;
                 if search_success
                 {
                     debug!("通过网络加载 {title}");
                     let Some(lyric) = &self.now_lyric else { return Ok(()); };
                     let Some(save_key) = &self.now_save_cache else { return Ok(()); };
-                    match save_key.save_lyric(lyric).await {
+                    match Self::save_lyric(save_key, lyric).await {
                         Ok(_) | Err(Error::LyricParse(_)) => {
                             debug!("记录到缓存 {title}");
                         }
@@ -135,7 +136,7 @@ impl LyricService {
             };
             (:$t:ident) => {
                 if self
-                    .search_and_set_lyric(&*$t, title, length, artist)
+                    .search_and_set_lyric(&*$t, &title, length, &artist)
                     .await?
                 {
                     let mut tasks = self.wait_tasks.lock().await;
@@ -353,8 +354,7 @@ impl LyricService {
         let lyric = source.fetch_lyrics(key_info.key.as_ref()).await?;
         let lyric = TryInto::<Lyric>::try_into(lyric)?;
         if let Some(save_key) = &self.now_save_cache {
-            save_key
-                .save_lyric(&lyric)
+            Self::save_lyric(save_key, &lyric)
                 .await
                 .inspect_err(|err| error!("存储缓存异常: {}", err))?;
         }
@@ -362,42 +362,107 @@ impl LyricService {
         _ = self.time_next(0);
         Ok(())
     }
+
     pub fn get_now_all_lyrics(&self) -> Option<&[LyricLine]> {
         self.now_lyric.as_ref().map(Lyric::get_lyrics)
+    }
+
+    pub async fn set_block(&mut self, block: bool) -> Result<()> {
+        let Some(key) = self.now_save_cache.take() else {
+            return Err("no save cache is set".into());
+        };
+
+        let (is_block, offset) =
+            if let Some((block, offset)) = LyricConfigEntity::get_by_bid(key.bid as i32).await {
+                (block, offset)
+            } else {
+                (false, 0)
+            };
+
+        if is_block == block {
+            return Ok(());
+        }
+
+        if block {
+            LyricConfigEntity::save_setting(
+                key.bid as i32,
+                key.sid as i32,
+                &key.title,
+                true,
+                offset,
+            )
+            .await;
+            self.now_lyric.take();
+            self.now_save_cache = Some(key);
+        } else {
+            if offset == 0 {
+                LyricConfigEntity::delete_by_bid(key.bid as i32).await;
+            } else {
+                LyricConfigEntity::save_setting(
+                    key.bid as i32,
+                    key.sid as i32,
+                    &key.title,
+                    false,
+                    offset,
+                )
+                .await;
+            }
+            self.song_change(key).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn set_offset(&mut self, offset: i32) {
+        self.offset = offset;
+        let Some(key) = self.now_save_cache.as_ref() else {
+            return;
+        };
+        let config = LyricConfigEntity::get_by_bid(key.bid as i32).await;
+        match config {
+            None | Some((false, _)) if offset == 0 => {
+                LyricConfigEntity::delete_by_bid(key.bid as i32).await;
+            }
+            Some((disable, _)) => {
+                LyricConfigEntity::save_setting(
+                    key.bid as i32,
+                    key.sid as i32,
+                    &key.title,
+                    disable,
+                    offset,
+                )
+                .await;
+            }
+            None => {
+                LyricConfigEntity::save_setting(
+                    key.bid as i32,
+                    key.sid as i32,
+                    &key.title,
+                    false,
+                    offset,
+                )
+                .await;
+            }
+        }
+    }
+
+    pub fn get_offset(&self) -> i32 {
+        self.offset
+    }
+
+    async fn save_lyric(this: &OsuSongInfo, lyric: &Lyric) -> Result<()> {
+        LyricCacheEntity::save(
+            this.sid as i32,
+            this.bid as i32,
+            this.title.as_ref(),
+            this.length,
+            lyric,
+        )
+        .await
     }
 }
 
 impl Default for LyricService {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-struct SearchCache {
-    sid: i32,
-    bid: i32,
-    title: String,
-    audio_length: u32,
-}
-
-impl SearchCache {
-    fn new(sid: i32, bid: i32, title: String, audio_length: u32) -> Self {
-        Self {
-            sid,
-            bid,
-            title,
-            audio_length,
-        }
-    }
-
-    async fn save_lyric(&self, lyric: &Lyric) -> Result<()> {
-        LyricCacheEntity::save(
-            self.sid,
-            self.bid,
-            self.title.as_ref(),
-            self.audio_length as i32,
-            lyric,
-        )
-        .await
     }
 }

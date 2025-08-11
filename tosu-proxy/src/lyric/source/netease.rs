@@ -139,10 +139,7 @@ impl LyricSource for NeteaseLyricSource {
             });
         }
 
-        let lyric = result
-            .lrc
-            .map(|item| item.lyric)
-            .filter(|s| !s.is_empty());
+        let lyric = result.lrc.map(|item| item.lyric).filter(|s| !s.is_empty());
 
         let trans = result
             .tlyric
