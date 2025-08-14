@@ -34,7 +34,7 @@ tokio = { version = "1.47.1", features = ["fs", "rt-multi-thread", "process", "s
 # rust-embed="8.6.0"
 
 # new
-async-trait = { version = "0.1.88", optional = true }
+async-trait = { version = "0.1.89", optional = true }
 bincode = { version = "2.0.1", optional = true }
 config = { version = "0.15.13", optional = true }
 futures = { version = "0.3.31", optional = true }
