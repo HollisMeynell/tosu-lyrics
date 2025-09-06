@@ -6,6 +6,7 @@ use crate::lyric::{
 };
 use crate::model::websocket::WebSocketMessage;
 use crate::model::websocket::lyric::{LyricPayload, SequenceType};
+use crate::model::websocket::setting::block::BlockItem;
 use crate::osu_source::OsuSongInfo;
 use crate::server::ALL_SESSIONS;
 use sea_orm::EntityTrait;
@@ -458,6 +459,18 @@ impl LyricService {
             lyric,
         )
         .await
+    }
+
+    pub async fn get_all_block_list(&self) -> Vec<BlockItem> {
+        LyricConfigEntity::get_all_disable()
+            .await
+            .into_iter()
+            .map(|(sid, bid, title)| {
+                let sid = sid as u32;
+                let bid = bid as u32;
+                BlockItem { bid, sid, title }
+            })
+            .collect()
     }
 }
 

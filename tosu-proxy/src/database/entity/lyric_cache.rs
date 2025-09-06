@@ -3,6 +3,7 @@ use crate::lyric::Lyric;
 use sea_orm::ActiveValue;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
+use crate::database::entity::DB_ERROR_MESSAGE;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "lyric_cache")]
@@ -28,7 +29,7 @@ impl Entity {
             .filter(Column::Sid.eq(sid))
             .one(database())
             .await
-            .expect("无法查询数据库")
+            .expect(DB_ERROR_MESSAGE)
     }
 
     pub async fn find_by_bid(bid: i32) -> Option<Model> {
@@ -36,7 +37,7 @@ impl Entity {
             .filter(Column::Bid.eq(bid))
             .one(database())
             .await
-            .expect("无法查询数据库")
+            .expect(DB_ERROR_MESSAGE)
     }
 
     pub async fn find_by_title_like(title: &str) -> Vec<Model> {
@@ -44,7 +45,13 @@ impl Entity {
             .filter(Column::Title.contains(title))
             .all(database())
             .await
-            .expect("无法查询数据库")
+            .expect(DB_ERROR_MESSAGE)
+    }
+
+    pub async fn all_count() -> u64 {
+        Self::find()
+            .count(database()).await
+            .expect(DB_ERROR_MESSAGE)
     }
 
     /// - `sid`：sid

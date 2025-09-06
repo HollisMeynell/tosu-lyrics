@@ -148,9 +148,9 @@
 | getAllLyric        | [LyricLine[]](#LyricLine)           | 获取当前曲子完整歌词                     |  Y   |
 | setBlock           | null                                | 将当前曲子添加到黑名单中                   |  Y   |
 | setUnblock         | null                                | 将当前曲子从黑名单中移除                   |  Y   |
-| getBlockList       | [BlockItem[]](#BlockItem)           | 获取黑名单列表                        |  N   |
-| getClearCount      | number                              | 已缓存歌词的数量                       |  N   |
-| setClearCache      | null                                | 清空缓存                           |  N   |
+| getBlockList       | [BlockItem[]](#BlockItem)           | 获取黑名单列表                        |  Y   |
+| getCacheCount      | number                              | 已缓存歌词的数量                       |  N   |
+| setCacheCache      | null                                | 清空缓存                           |  N   |
 | getLyricOffset     | number                              | 查看当前歌词的偏移                      |  Y   |
 | setLyricOffset     | number                              | 修改当前歌词的偏移                      |  Y   |
 
@@ -196,11 +196,11 @@
 
 黑名单
 
-| name  | type   | description     | required |
-|:------|:-------|:----------------|:--------:|
-| bid   | number | 三选一             |    N     |
-| sid   | number | 三选一             |    N     |
-| title | string | 三选一(上传曲名正则表达式?) |    N     |
+| name  | type   | description | required |
+|:------|:-------|:------------|:--------:|
+| bid   | number | bid         |    N     |
+| sid   | number | sid         |    N     |
+| title | string | 名称          |    N     |
 
 ## 其他 HTTP 接口 (画大饼):
 

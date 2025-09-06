@@ -11,6 +11,8 @@ pub use lyric_cache::Entity as LyricCacheEntity;
 pub use lyric_config::Entity as LyricConfigEntity;
 pub use setting::Entity as SettingEntity;
 
+static DB_ERROR_MESSAGE: &str = "无法查询数据库";
+
 macro_rules! init_entity {
     ($($fn_name:ident($entity:ident),)*) => {
         pub(super)async fn init_all_table() -> Result<()> {

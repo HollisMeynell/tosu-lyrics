@@ -1,4 +1,4 @@
-use super::database;
+use super::{database, DB_ERROR_MESSAGE};
 use sea_orm::ActiveValue;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
@@ -22,7 +22,7 @@ impl Entity {
         let result = query
             .one(database())
             .await
-            .expect("can not read database")?;
+            .expect(DB_ERROR_MESSAGE)?;
         Some(result.setting)
     }
 
@@ -37,6 +37,6 @@ impl Entity {
             .on_conflict(on_conflict)
             .exec(database())
             .await
-            .expect("can not write database");
+            .expect(DB_ERROR_MESSAGE);
     }
 }

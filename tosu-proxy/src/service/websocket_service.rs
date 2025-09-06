@@ -87,8 +87,6 @@ async fn handle_setting(mut setting: SettingPayload) -> WebsocketResult {
         setBlock,
         getBlockList,
         setUnblock,
-        getClearCount,
-        setClearCache,
         getLyricOffset,
         setLyricOffset,
     };
@@ -215,8 +213,10 @@ async fn set_block(setting: SettingPayload) -> Result<WebsocketResult> {
     Ok(WebsocketResult::Return(setting))
 }
 
-async fn get_block_list(setting: SettingPayload) -> Result<WebsocketResult> {
-    // todo
+async fn get_block_list(mut setting: SettingPayload) -> Result<WebsocketResult> {
+    let lyric_service = LYRIC_SERVICE.lock().await;
+    let result = lyric_service.get_all_block_list().await;
+    setting.set_replay(result)?;
     Ok(WebsocketResult::Return(setting))
 }
 

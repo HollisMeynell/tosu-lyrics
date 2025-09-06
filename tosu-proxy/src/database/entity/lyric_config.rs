@@ -2,6 +2,7 @@ use crate::database::database;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{ColumnTrait, QueryFilter};
+use crate::database::entity::DB_ERROR_MESSAGE;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "lyric_config")]
@@ -28,7 +29,7 @@ impl Entity {
         if let Some(model) = Self::find_by_id(bid)
             .one(db)
             .await
-            .expect("查询 offset_cache (bid) 失败")
+            .expect(DB_ERROR_MESSAGE)
         {
             Some((model.disable, model.offset))
         } else {
@@ -41,7 +42,7 @@ impl Entity {
         if let Some(model) = Self::find_by_id(bid)
             .one(db)
             .await
-            .expect("查询 offset_cache (bid) 失败")
+            .expect(DB_ERROR_MESSAGE)
         {
             return Some(model);
         }
@@ -51,7 +52,7 @@ impl Entity {
             .filter(Column::Title.eq(title))
             .one(db)
             .await
-            .expect("查询 offset_cache (title) 失败")
+            .expect(DB_ERROR_MESSAGE)
         {
             return Some(model);
         }
@@ -61,7 +62,7 @@ impl Entity {
             .filter(Column::Sid.eq(sid))
             .one(db)
             .await
-            .expect("查询 offset_cache (sid) 失败")
+            .expect(DB_ERROR_MESSAGE)
         {
             return Some(model);
         }
@@ -96,14 +97,14 @@ impl Entity {
             .on_conflict(on_conflict)
             .exec(database())
             .await
-            .expect("保存 offset_cache 失败");
+            .expect(DB_ERROR_MESSAGE);
     }
 
     pub async fn delete_by_bid(bid: i32) {
         Self::delete_by_id(bid)
             .exec(database())
             .await
-            .expect("删除 offset_cache 失败");
+            .expect(DB_ERROR_MESSAGE);
     }
 
     pub async fn get_all_disable() -> Vec<(i32, i32, String)> {
