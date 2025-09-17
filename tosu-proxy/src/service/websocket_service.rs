@@ -7,6 +7,7 @@ use crate::osu_source::OsuState;
 use crate::server::ALL_SESSIONS;
 use crate::service::LYRIC_SERVICE;
 use paste::paste;
+use tracing::debug;
 use std::fmt::Display;
 
 #[derive(Debug)]
@@ -52,7 +53,7 @@ pub async fn on_setting(session_key: &str, msg: &str) {
 async fn handle_setting(mut setting: SettingPayload) -> WebsocketResult {
     let key = setting.key.clone();
     let echo = setting.echo.take();
-    println!("echo is {echo:?}");
+    debug!("echo is {echo:?}");
     macro_rules! key_matcher {
         ($($name:ident),* $(,)?) => {
             match key.as_str() {
