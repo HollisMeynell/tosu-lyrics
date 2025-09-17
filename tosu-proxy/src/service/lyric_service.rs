@@ -197,55 +197,45 @@ impl LyricService {
 
             let (index, lyric_line) = current.ok_or(Error::Impossible)?;
 
-            // 记录, 将秒转为毫秒
+            // 记录当前行开始/结束(下一行开始)时间，单位毫秒
             self.current_lyric_start_time = (lyric_line.time * 1000f32) as i32;
-            match lyric.get_line_by_index(index + 1) {
-                None => self.current_lyric_end_time = i32::MAX,
-                Some(l) => self.current_lyric_end_time = (l.time * 1000f32) as i32,
+            let next_line = lyric.get_line_by_index(index + 1);
+            self.current_lyric_end_time = match next_line {
+                None => i32::MAX,
+                Some(l) => (l.time * 1000f32) as i32,
             };
 
             if self.now_index == index {
                 return Ok(());
             }
 
+            let prev_index = self.now_index;
             self.now_index = index;
 
-            ws_lyric.sequence = if self.now_index < index {
+            ws_lyric.sequence = if prev_index < index {
                 SequenceType::Down
             } else {
                 SequenceType::Up
             };
 
-            ws_lyric.next_time = if self.current_lyric_end_time == i32::MAX {
-                0
-            } else {
-                self.current_lyric_end_time - self.current_lyric_start_time
+            // next_time: 距离下一行开始的时长；末行为 -1
+            ws_lyric.next_time = match next_line {
+                None => -1,
+                Some(l) => (l.time * 1000f32) as i32 - self.current_lyric_start_time,
             };
 
             ws_lyric.set_current_lyric(lyric_line).await;
         }
 
-        'previous: {
-            if self.now_index == 0 {
-                break 'previous;
+        // previous line
+        if self.now_index > 0 {
+            if let Some(previous) = lyric.get_line_by_index(self.now_index - 1) {
+                ws_lyric.set_previous_lyric(previous).await;
             }
-            let previous = lyric.get_line_by_index(self.now_index - 1);
-            if previous.is_none() {
-                break 'previous;
-            }
-            ws_lyric
-                .set_previous_lyric(previous.ok_or(Error::Impossible)?)
-                .await;
         }
 
-        'next: {
-            let next = lyric.get_line_by_index(self.now_index - 1);
-            if next.is_none() {
-                break 'next;
-            }
-            let next = next.ok_or(Error::Impossible)?;
-            let new_time = (next.time * 1000f32) as i32;
-            ws_lyric.next_time = new_time - ws_lyric.next_time;
+        // next line
+        if let Some(next) = lyric.get_line_by_index(self.now_index + 1) {
             ws_lyric.set_next_lyric(next).await;
         }
         let message: WebSocketMessage = ws_lyric.into();
