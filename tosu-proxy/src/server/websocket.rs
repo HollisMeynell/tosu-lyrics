@@ -95,7 +95,7 @@ impl WebsocketSession {
         T: AsRef<str>,
     {
         self.find_clients(message, |k, client| {
-            key.as_ref() != k && matches!(*client, ClientType::Client(_))
+            key.as_ref() == k && matches!(*client, ClientType::Client(_))
         })
         .await;
     }
