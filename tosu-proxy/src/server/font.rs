@@ -60,5 +60,5 @@ async fn download_font(req: &mut Request, res: &mut Response) {
 pub fn get_font_route() -> Router {
     Router::with_path(CONFIG_ENDPOINT_FONT)
         .push(Router::with_path(CONFIG_ENDPOINT_FONT_UPLOAD).post(upload_font))
-        .push(Router::with_path(CONFIG_ENDPOINT_FONT_DOWNLOAD).post(upload_font))
+        .push(Router::with_path(CONFIG_ENDPOINT_FONT_DOWNLOAD).get(download_font))
 }

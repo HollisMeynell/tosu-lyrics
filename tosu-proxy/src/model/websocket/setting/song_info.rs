@@ -8,6 +8,6 @@ type SongInfo = crate::lyric::SongInfo;
 pub struct SongInfoList {
     #[serde(rename = "QQ")]
     pub qq: Vec<SongInfo>,
-    #[serde(rename = "QQ")]
+    #[serde(rename = "Netease")]
     pub netease: Vec<SongInfo>,
 }

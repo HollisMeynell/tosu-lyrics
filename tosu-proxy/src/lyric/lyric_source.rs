@@ -282,11 +282,11 @@ impl Lyric {
     }
 
     pub fn get_line_by_index(&self, index: usize) -> Option<&LyricLine> {
-        if index > self.lyrics.len() {
+        if index >= self.lyrics.len() {
             return None;
         }
 
-        Some(self.lyrics.index(index))
+        self.lyrics.get(index)
     }
 
     pub fn get_lyrics(&self) -> &[LyricLine] {
