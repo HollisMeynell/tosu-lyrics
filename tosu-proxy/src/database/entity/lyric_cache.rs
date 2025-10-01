@@ -54,6 +54,13 @@ impl Entity {
             .expect(DB_ERROR_MESSAGE)
     }
 
+    pub async fn delete_all() {
+        Self::delete_many()
+            .exec(database())
+            .await
+            .expect(DB_ERROR_MESSAGE);
+    }
+
     /// - `sid`：sid
     /// - `bid`：bid
     /// - `title`：title

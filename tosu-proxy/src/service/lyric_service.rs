@@ -462,6 +462,14 @@ impl LyricService {
             })
             .collect()
     }
+
+    pub async fn get_cache_count(&self) -> u64 {
+        LyricCacheEntity::all_count().await
+    }
+
+    pub async fn clear_all_cache(&self) {
+        LyricCacheEntity::delete_all().await;
+    }
 }
 
 impl Default for LyricService {

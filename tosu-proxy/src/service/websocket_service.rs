@@ -88,6 +88,8 @@ async fn handle_setting(mut setting: SettingPayload) -> WebsocketResult {
         setBlock,
         getBlockList,
         setUnblock,
+        getCacheCount,
+        setCacheClean,
         getLyricOffset,
         setLyricOffset,
     };
@@ -227,13 +229,18 @@ async fn set_unblock(setting: SettingPayload) -> Result<WebsocketResult> {
     Ok(WebsocketResult::Return(setting))
 }
 
-async fn get_clear_count(setting: SettingPayload) -> Result<WebsocketResult> {
-    // todo
+async fn get_cache_count(mut setting: SettingPayload) -> Result<WebsocketResult> {
+    let lyric_service = LYRIC_SERVICE.lock().await;
+    let count = lyric_service.get_cache_count().await;
+    setting.set_replay(count)?;
     Ok(WebsocketResult::Return(setting))
 }
 
-async fn set_clear_cache(setting: SettingPayload) -> Result<WebsocketResult> {
-    // todo
+async fn set_cache_clean(mut setting: SettingPayload) -> Result<WebsocketResult> {
+    let lyric_service = LYRIC_SERVICE.lock().await;
+    lyric_service.clear_all_cache().await;
+    super::on_osu_state_change(OsuState::Clean).await;
+    setting.set_replay("success")?;
     Ok(WebsocketResult::Return(setting))
 }
 

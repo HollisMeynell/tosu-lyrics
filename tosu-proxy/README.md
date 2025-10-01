@@ -149,8 +149,8 @@
 | setBlock           | null                                | 将当前曲子添加到黑名单中                   |  Y   |
 | setUnblock         | null                                | 将当前曲子从黑名单中移除                   |  Y   |
 | getBlockList       | [BlockItem[]](#BlockItem)           | 获取黑名单列表                        |  Y   |
-| getCacheCount      | number                              | 已缓存歌词的数量                       |  N   |
-| setCacheCache      | null                                | 清空缓存                           |  N   |
+| getCacheCount      | number                              | 已缓存歌词的数量                       |  Y   |
+| setCacheClean      | null                                | 清空缓存                           |  Y   |
 | getLyricOffset     | number                              | 查看当前歌词的偏移                      |  Y   |
 | setLyricOffset     | number                              | 修改当前歌词的偏移                      |  Y   |
 
