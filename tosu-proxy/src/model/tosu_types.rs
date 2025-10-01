@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct NumberName {
+    #[serde(default)]
     pub number: i64,
     pub name: String,
 }

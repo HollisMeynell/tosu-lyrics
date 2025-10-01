@@ -59,6 +59,7 @@ impl Config {
         };
 
         tracing_subscriber::fmt()
+            .compact()
             .with_ansi(true)
             .with_file(true)
             .with_line_number(true)
