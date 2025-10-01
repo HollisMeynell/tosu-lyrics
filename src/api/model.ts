@@ -64,8 +64,8 @@ interface WebsocketSettingTypeMap {
 }
 
 interface BaseLyricSetter {
-    first?: string;
-    second?: string;
+    origin?: string;
+    translation?: string;
 }
 
 interface SongInfoKey {

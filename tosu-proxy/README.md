@@ -52,16 +52,16 @@
   "type": "lyric",
   "lyric": [
     {
-      "first": "还记得 你说家是唯一的城堡",
-      "second": ""
+      "origin": "还记得 你说家是唯一的城堡",
+      "translation": ""
     },
     {
-      "first": "随着稻香河流继续奔跑",
-      "second": ""
+      "origin": "随着稻香河流继续奔跑",
+      "translation": ""
     },
     {
-      "first": "微微笑 小时候的梦我知道",
-      "second": ""
+      "origin": "微微笑 小时候的梦我知道",
+      "translation": ""
     }
   ],
   "current": 0,
