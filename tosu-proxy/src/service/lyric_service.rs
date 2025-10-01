@@ -5,7 +5,7 @@ use crate::lyric::{
     QQ_LYRIC_SOURCE, SongInfo, SongInfoKey,
 };
 use crate::model::websocket::WebSocketMessage;
-use crate::model::websocket::lyric::{LyricPayload, SequenceType};
+use crate::model::websocket::lyric::{LyricLinePayload, LyricPayload, SequenceType};
 use crate::model::websocket::setting::block::BlockItem;
 use crate::osu_source::OsuSongInfo;
 use crate::server::ALL_SESSIONS;
@@ -35,6 +35,9 @@ pub struct LyricService {
 
     music_cache: Arc<Mutex<HashMap<&'static str, Vec<SongInfo>>>>,
     wait_tasks: Mutex<Option<JoinSet<&'static str>>>,
+
+    // 当前歌曲是否切换的状态
+    is_song_changed: bool,
 }
 
 impl LyricService {
@@ -52,6 +55,7 @@ impl LyricService {
             // 使用 Arc 和 Mutex 包装缓存
             music_cache: Arc::new(Mutex::new(cache)),
             wait_tasks: Mutex::new(None),
+            is_song_changed: true,
         }
     }
 
@@ -116,6 +120,7 @@ impl LyricService {
             &artist,
             Arc::clone(&self.music_cache),
         );
+
         macro_rules! search_and_set {
             (>$t:ident) => {
                 let search_success = self.search_and_set_lyric(&*$t, &title, length, &artist).await?;
@@ -171,10 +176,6 @@ impl LyricService {
 
     /// 时间单位为毫秒
     pub async fn time_next(&mut self, t: i32) -> Result<()> {
-        if self.now_lyric.is_none() {
-            return Ok(());
-        }
-
         let Some(lyric) = &mut self.now_lyric else {
             return Ok(());
         };
@@ -188,6 +189,19 @@ impl LyricService {
         }
 
         let mut ws_lyric = LyricPayload::default();
+        if self.is_song_changed {
+            self.is_song_changed = false;
+            let lyrics: Vec<LyricLinePayload> = lyric
+                .get_lyrics()
+                .iter()
+                .map(|lyric| LyricLinePayload {
+                    origin: lyric.origin.clone(),
+                    translation: lyric.translation.clone(),
+                })
+                .collect();
+            ws_lyric.lyric = Some(Arc::from(lyrics))
+        }
+
         {
             let current = lyric.find_line(t as f32 / 1000f32);
 
@@ -224,20 +238,9 @@ impl LyricService {
                 Some(l) => (l.time * 1000f32) as i32 - self.current_lyric_start_time,
             };
 
-            ws_lyric.set_current_lyric(lyric_line).await;
+            ws_lyric.current = self.now_index as i32;
         }
 
-        // previous line
-        if self.now_index > 0 {
-            if let Some(previous) = lyric.get_line_by_index(self.now_index - 1) {
-                ws_lyric.set_previous_lyric(previous).await;
-            }
-        }
-
-        // next line
-        if let Some(next) = lyric.get_line_by_index(self.now_index + 1) {
-            ws_lyric.set_next_lyric(next).await;
-        }
         let message: WebSocketMessage = ws_lyric.into();
         ALL_SESSIONS.send_to_all_client(message.into()).await;
         Ok(())
@@ -245,6 +248,7 @@ impl LyricService {
 
     // 清理缓存
     async fn clear_cache(&mut self) {
+        self.is_song_changed = true;
         let mut tasks = self.wait_tasks.lock().await;
         *tasks = None;
         drop(tasks);

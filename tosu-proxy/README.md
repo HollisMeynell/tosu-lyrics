@@ -24,39 +24,47 @@
 
 ### LyricLine
 
-| name   | type   | description | required |
-|:-------|:-------|:------------|:--------:|
-| first  | string | 主要歌词        |    N     |
-| second | string | 次要歌词        |    N     |
+| name        | type   | description | required |
+|:------------|:-------|:------------|:--------:|
+| origin      | string | 主要歌词        |    Y     |
+| translation | string | 次要歌词        |    N     |
 
 ### Lyric
 
-| name     | type      | description                   | required |
-|:---------|:----------|:------------------------------|:--------:|
-| type     | string    | "lyric"                       |    Y     |
-| previous | LyricLine | 上一条                           |    N     |
-| current  | LyricLine | 当前条                           |    N     |
-| next     | LyricLine | 下一条                           |    N     |
-| nextTime | number    | 持续时间(ms)**如果是`-1`则表示为最后一行歌词** |    Y     |
-| sequence | enum      | "up"/"down"                   |    Y     |
+| name     | type                      | description | required |
+|:---------|:--------------------------|:------------|:--------:|
+| type     | string                    | "lyric"     |    Y     |
+| lyric    | [LyricLine[]](#LyricLine) | 全部歌词        |    N     |
+| current  | number                    | 歌词下标        |    Y     |
+| nextTime | number                    | 持续时间(ms)    |    Y     |
+| sequence | string                    | "up"/"down" |    Y     |
+
+**lyric 只有第一次下发才会存在**
+
+**current 是从零开始, 如果是`-1`说明不需要显示**
+
+**nextTime 如果是`-1`则表示为最后一行歌词**
 
 示例:
 
 ```json
 {
   "type": "lyric",
-  "previous": {
-    "first": "还记得 你说家是唯一的城堡",
-    "second": ""
-  },
-  "current": {
-    "first": "随着稻香河流继续奔跑",
-    "second": ""
-  },
-  "next": {
-    "first": "微微笑 小时候的梦我知道",
-    "second": ""
-  },
+  "lyric": [
+    {
+      "first": "还记得 你说家是唯一的城堡",
+      "second": ""
+    },
+    {
+      "first": "随着稻香河流继续奔跑",
+      "second": ""
+    },
+    {
+      "first": "微微笑 小时候的梦我知道",
+      "second": ""
+    }
+  ],
+  "current": 0,
   "nextTime": 1000,
   "sequence": "up"
 }
@@ -67,7 +75,7 @@
 > 约定字段 `key` 使用小驼峰命名
 >
 > `key` 命名时, 提交设置与广播通常使用 `set` 开头, 查询使用 `get` 开头, 响应使用 `rep` 开头
-> 
+>
 > `get` 事件发送不需要 `value`, `value`作为响应出现
 >
 > 提交设置与设置广播通常不会出现 `error` 以及 `echo`
@@ -167,10 +175,10 @@
 
 歌曲 key
 
-| name   | type   | description    | required |
-|:-------|:-------|:---------------|:--------:|
-| type   | string | `QQ`/`Netease` |    Y     |
-| key    | string | 歌曲ID           |    Y     |
+| name | type   | description    | required |
+|:-----|:-------|:---------------|:--------:|
+| type | string | `QQ`/`Netease` |    Y     |
+| key  | string | 歌曲ID           |    Y     |
 
 ### SongInfo
 
