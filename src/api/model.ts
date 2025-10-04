@@ -63,9 +63,14 @@ interface WebsocketSettingTypeMap {
     setLyricOffset: number;
 }
 
-interface BaseLyricSetter {
+interface LyricLine {
     origin?: string;
     translation?: string;
+}
+
+interface BaseLyricSetter {
+    first?: string;
+    second?: string;
 }
 
 interface SongInfoKey {
@@ -84,8 +89,6 @@ interface SongInfo {
     length: string;
     key: string;
 }
-
-type LyricLine = BaseLyricSetter;
 
 interface BlockItem {
     bid?: number;
