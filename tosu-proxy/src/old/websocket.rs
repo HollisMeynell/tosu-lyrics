@@ -140,7 +140,7 @@ async fn handle_ws(
         let msg = msg.unwrap();
         match msg {
             AggregatedMessage::Text(text) => {
-                let massage = serde_json::from_str::<ConfigMessage>(text.trim());
+                let massage = crate::util::to_json::<ConfigMessage>(text.trim());
                 if let Ok(msg) = massage {
                     WsSessions::get_static()
                         .send_all(&key, serde_json::to_string(&msg).unwrap())

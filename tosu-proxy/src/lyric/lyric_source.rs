@@ -1,7 +1,6 @@
 use crate::error::{Error, Result};
-use std::ops::Index;
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use std::ops::Index;
 
 mod parse {
     use regex::Regex;

@@ -41,7 +41,7 @@ mod test {
         let v = LyricSettingType::Align(String::from("center"));
         let json = v.to_json_string()?;
         println!("{json}");
-        let json = serde_json::from_str::<LyricSettingType>(&json)?;
+        let json = crate::util::to_json::<LyricSettingType>(&json)?;
         println!("{json:?}");
         Ok(())
     }

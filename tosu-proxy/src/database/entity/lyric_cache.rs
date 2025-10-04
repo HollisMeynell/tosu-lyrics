@@ -1,9 +1,9 @@
 use crate::database::database;
+use crate::database::entity::DB_ERROR_MESSAGE;
 use crate::lyric::Lyric;
 use sea_orm::ActiveValue;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
-use crate::database::entity::DB_ERROR_MESSAGE;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "lyric_cache")]
@@ -50,7 +50,8 @@ impl Entity {
 
     pub async fn all_count() -> u64 {
         Self::find()
-            .count(database()).await
+            .count(database())
+            .await
             .expect(DB_ERROR_MESSAGE)
     }
 

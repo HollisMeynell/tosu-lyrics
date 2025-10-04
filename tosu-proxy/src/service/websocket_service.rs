@@ -7,8 +7,8 @@ use crate::osu_source::OsuState;
 use crate::server::ALL_SESSIONS;
 use crate::service::LYRIC_SERVICE;
 use paste::paste;
-use tracing::debug;
 use std::fmt::Display;
+use tracing::debug;
 
 #[derive(Debug)]
 enum WebsocketResult {
@@ -18,7 +18,7 @@ enum WebsocketResult {
 }
 
 pub async fn on_setting(session_key: &str, msg: &str) {
-    let message: WebSocketMessage = match serde_json::from_str(msg) {
+    let message: WebSocketMessage = match crate::util::to_json(msg) {
         Ok(m) => m,
         Err(e) => {
             let err = format!("failed to deserialize setting: {e}");
@@ -102,10 +102,10 @@ async fn handle_setting(mut setting: SettingPayload) -> WebsocketResult {
         }
     };
 
-    if let Some(echo) = echo {
-        if let WebsocketResult::Return(payload) = &mut result {
-            payload.echo.replace(echo);
-        }
+    if let Some(echo) = echo
+        && let WebsocketResult::Return(payload) = &mut result
+    {
+        payload.echo.replace(echo);
     }
 
     result

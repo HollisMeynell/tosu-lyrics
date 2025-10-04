@@ -2,7 +2,7 @@ pub mod base;
 pub mod block;
 pub mod song_info;
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::model::JsonStruct;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize, Serializer};
@@ -37,7 +37,7 @@ impl SettingPayload {
         Ok(self)
     }
     pub fn set_replay_json_string(&mut self, json: &str) -> Result<&mut Self> {
-        let value: Value = serde_json::from_str(json)?;
+        let value: Value = crate::util::to_json(json)?;
         self.value = Some(value);
         Ok(self)
     }

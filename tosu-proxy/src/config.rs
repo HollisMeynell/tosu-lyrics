@@ -60,12 +60,24 @@ impl Config {
 
         tracing_subscriber::fmt()
             .compact()
+            .with_timer(TimeFormat)
             .with_ansi(true)
             .with_file(true)
             .with_line_number(true)
             .with_max_level(level)
             .with_test_writer()
             .init();
+    }
+}
+
+struct TimeFormat;
+
+impl tracing_subscriber::fmt::time::FormatTime for TimeFormat {
+    fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
+        let now = chrono::Utc::now();
+        now.format("%y-%m-%d %H:%M:%S").write_to(w)?;
+        let ms = now.timestamp_subsec_millis() / 100;
+        write!(w, ".{ms}")
     }
 }
 

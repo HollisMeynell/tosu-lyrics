@@ -1,4 +1,4 @@
-use super::{database, DB_ERROR_MESSAGE};
+use super::{DB_ERROR_MESSAGE, database};
 use sea_orm::ActiveValue;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
@@ -19,10 +19,7 @@ impl ActiveModelBehavior for ActiveModel {}
 impl Entity {
     pub async fn get_config(key: &str) -> Option<String> {
         let query = Self::find_by_id(key);
-        let result = query
-            .one(database())
-            .await
-            .expect(DB_ERROR_MESSAGE)?;
+        let result = query.one(database()).await.expect(DB_ERROR_MESSAGE)?;
         Some(result.setting)
     }
 

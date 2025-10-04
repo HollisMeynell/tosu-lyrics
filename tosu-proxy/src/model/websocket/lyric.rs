@@ -1,7 +1,5 @@
-use std::sync::Arc;
-use crate::lyric::LyricLine;
-use crate::setting::global_setting;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// 表示歌词的序列方向。
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]

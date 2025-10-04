@@ -43,7 +43,7 @@ pub fn setting_derive(item: TokenStream) -> TokenStream {
         quote! {
             let #field_name = match SettingEntity::get_config(#field_name_str).await {
                 None => { #default_expr }
-                Some(value) => { serde_json::from_str(&value).unwrap_or_default() }
+                Some(value) => { crate::util::to_json(&value).unwrap_or_default() }
             };
         }
     });

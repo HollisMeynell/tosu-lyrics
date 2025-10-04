@@ -104,10 +104,10 @@ impl WebsocketSession {
     where
         T: AsRef<str>,
     {
-        if let Some(channel) = self.0.read().await.get(key.as_ref()) {
-            if let Err(e) = channel.get_channel().send(message) {
-                error!("can not send message: {e}")
-            }
+        if let Some(channel) = self.0.read().await.get(key.as_ref())
+            && let Err(e) = channel.get_channel().send(message)
+        {
+            error!("can not send message: {e}")
         }
     }
     pub async fn send_pong<T>(&self, key: &T, message: Message)

@@ -81,7 +81,7 @@ mod test {
     fn test_serialize_setting() -> Result<()> {
         // setting
         let setting_str = r#"{"type":"setting","id":"123","key":"k","echo":"ok"}"#;
-        let mut setting = serde_json::from_str::<WebSocketMessage>(setting_str)?;
+        let mut setting = crate::util::to_json::<WebSocketMessage>(setting_str)?;
         let s = setting.get_mut_setting()?;
         s.set_replay("hello")?;
         println!("{}", setting);

@@ -1,4 +1,6 @@
 use crate::error::Result;
+use serde::Deserialize;
+use std::any::type_name;
 use std::path::Path;
 
 pub(crate) fn generate_random_string() -> String {
@@ -65,6 +67,16 @@ pub(crate) async fn read_audio_length<P: AsRef<Path>>(file_path: P) -> Result<i3
         Ok(_) => Err("解析到无效的音频时长".into()),
         Err(e) => Err(format!("无法解析音频时长: {}", e).into()),
     }
+}
+
+pub(crate) fn to_json<'a, T: Deserialize<'a>>(value: &'a str) -> Result<T> {
+    let mut de = serde_json::Deserializer::from_str(value);
+    serde_path_to_error::deserialize(&mut de).map_err(|e| {
+        let type_name = type_name::<T>();
+        let path = e.path().to_string();
+        let err = e.into_inner();
+        crate::error::Error::Json(err).with_context(format!("{type_name}:{path}"))
+    })
 }
 
 #[cfg(test)]

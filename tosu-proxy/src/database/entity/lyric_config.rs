@@ -1,8 +1,8 @@
 use crate::database::database;
+use crate::database::entity::DB_ERROR_MESSAGE;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{ColumnTrait, QueryFilter};
-use crate::database::entity::DB_ERROR_MESSAGE;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "lyric_config")]
@@ -26,11 +26,7 @@ impl Entity {
     pub async fn get_by_bid(bid: i32) -> Option<(bool, i32)> {
         let db = database();
         // 优先根据 bid 查询
-        if let Some(model) = Self::find_by_id(bid)
-            .one(db)
-            .await
-            .expect(DB_ERROR_MESSAGE)
-        {
+        if let Some(model) = Self::find_by_id(bid).one(db).await.expect(DB_ERROR_MESSAGE) {
             Some((model.disable, model.offset))
         } else {
             None
@@ -39,11 +35,7 @@ impl Entity {
     async fn find_first(bid: i32, sid: i32, title: &str) -> Option<Model> {
         let db = database();
         // 优先根据 bid 查询
-        if let Some(model) = Self::find_by_id(bid)
-            .one(db)
-            .await
-            .expect(DB_ERROR_MESSAGE)
-        {
+        if let Some(model) = Self::find_by_id(bid).one(db).await.expect(DB_ERROR_MESSAGE) {
             return Some(model);
         }
 

@@ -213,6 +213,11 @@ impl TosuWebsocketClient {
 
     /// 处理 Tosu 消息
     async fn handle_tosu_message(&self, tosu_data: TosuApi) {
+        // 2025-10-04 tosu 更新, 出现无歌曲的事件下发, 在这里过滤掉
+        if tosu_data.beatmap.id == i64::default() {
+            // return;
+        }
+
         let bid = tosu_data.beatmap.id;
         let sid = tosu_data.beatmap.set;
         let now = tosu_data.beatmap.time.live;
