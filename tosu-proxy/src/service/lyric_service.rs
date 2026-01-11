@@ -14,7 +14,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, LazyLock};
-use tokio::sync::Mutex;
+use tokio::sync::{broadcast, Mutex};
 use tokio::task::JoinSet;
 use tracing::{debug, error};
 
@@ -34,6 +34,11 @@ pub struct LyricService {
     current_lyric_end_time: i32,
 
     music_cache: Arc<Mutex<HashMap<&'static str, Vec<SongInfo>>>>,
+
+    // 任务取消通道
+    cancel_tx: broadcast::Sender<()>,
+    cancel_rx: Mutex<Option<broadcast::Receiver<()>>>,
+
     wait_tasks: Mutex<Option<JoinSet<&'static str>>>,
 
     // 当前歌曲是否切换的状态
@@ -45,6 +50,8 @@ impl LyricService {
         let mut cache = HashMap::with_capacity(2);
         cache.insert(QQ_LYRIC_SOURCE.name(), Vec::with_capacity(10));
         cache.insert(NETEASE_LYRIC_SOURCE.name(), Vec::with_capacity(10));
+        // 创建任务取消通道
+        let (cancel_tx, cancel_rx) = broadcast::channel(1);
         Self {
             now_index: 0,
             now_lyric: None,
@@ -54,6 +61,8 @@ impl LyricService {
             current_lyric_end_time: -1,
             // 使用 Arc 和 Mutex 包装缓存
             music_cache: Arc::new(Mutex::new(cache)),
+            cancel_tx,
+            cancel_rx: Mutex::new(Some(cancel_rx)),
             wait_tasks: Mutex::new(None),
             is_song_changed: true,
         }
@@ -105,12 +114,23 @@ impl LyricService {
 
         // 后台任务: 同时查询 网易云 | QQ, 用于当其中一个查到结果, 另一个还在进行时允许另一个在后台继续执行
         let mut join_set = JoinSet::new();
+
+        // 克隆取消通道接收器，为每个任务创建独立的接收器
+        let cancel_rx = {
+            let rx_guard = self.cancel_rx.lock().await;
+            rx_guard
+                .as_ref()
+                .expect("Cancellation receiver should always be available")
+                .resubscribe()
+        };
+
         Self::spawn_search_task(
             &mut join_set,
             &*QQ_LYRIC_SOURCE,
             &title,
             &artist,
             Arc::clone(&self.music_cache),
+            cancel_rx.resubscribe(),
         );
 
         Self::spawn_search_task(
@@ -119,6 +139,7 @@ impl LyricService {
             &title,
             &artist,
             Arc::clone(&self.music_cache),
+            cancel_rx.resubscribe(),
         );
 
         macro_rules! search_and_set {
@@ -249,10 +270,27 @@ impl LyricService {
     // 清理缓存
     async fn clear_cache(&mut self) {
         self.is_song_changed = true;
+
+        // Step 1: 广播取消信号给所有活动任务
+        let _ = self.cancel_tx.send(());
+
+        // Step 2: 等待所有任务优雅完成
         let mut tasks = self.wait_tasks.lock().await;
+        if let Some(join_set) = tasks.as_mut() {
+            while join_set.join_next().await.is_some() {
+                // 等待每个任务完成
+            }
+        }
+
+        // Step 3: 清空 JoinSet
         *tasks = None;
         drop(tasks);
 
+        // Step 4: 重置取消通道接收器，为下一批任务做准备
+        let new_rx = self.cancel_tx.subscribe();
+        *self.cancel_rx.lock().await = Some(new_rx);
+
+        // Step 5: 清空音乐缓存
         let mut cache = self.music_cache.lock().await;
         if let Some(qq_cache) = cache.get_mut(QQ_LYRIC_SOURCE.name()) {
             qq_cache.clear();
@@ -297,16 +335,29 @@ impl LyricService {
         title: &str,
         artist: &str,
         music_cache: Arc<Mutex<HashMap<&'static str, Vec<SongInfo>>>>,
+        mut cancel_rx: broadcast::Receiver<()>,
     ) {
         let title = title.to_string();
         let artist = artist.to_string();
         tasks.spawn(async move {
-            if let Ok(musics) = source.search_all_music(&title, &artist).await {
+            // 使用 tokio::select! 同时监听取消信号和搜索结果
+            let search_result = tokio::select! {
+                // 取消分支 - 收到信号立即退出
+                _ = cancel_rx.recv() => {
+                    return source.name();
+                }
+                // 搜索分支 - 执行实际的搜索操作
+                result = source.search_all_music(&title, &artist) => result,
+            };
+
+            // 如果搜索成功（未被取消），处理结果
+            if let Ok(musics) = search_result {
                 let mut cache = music_cache.lock().await;
                 if let Some(cache_vec) = cache.get_mut(source.name()) {
                     cache_vec.extend(musics);
                 }
             }
+
             source.name()
         });
     }
@@ -409,6 +460,11 @@ impl LyricService {
 
     pub async fn set_offset(&mut self, offset: i32) {
         self.offset = offset;
+        // 重置当前时间窗口，强制 time_next 重新计算
+        // 防止 offset 变化后用旧的时间窗口判断导致错误跳行
+        self.current_lyric_start_time = -1;
+        self.current_lyric_end_time = -1;
+
         let Some(key) = self.now_save_cache.as_ref() else {
             return;
         };
