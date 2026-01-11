@@ -30,7 +30,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.142"
 thiserror = "2.0.17"
 serde_path_to_error = "0.1.20"
-tokio = { version = "1.47.1", features = ["fs", "rt-multi-thread", "process", "sync", "macros"] }
+tokio = { version = "1.49.0", features = ["fs", "rt-multi-thread", "process", "sync", "macros"] }
 # 后续将文件打包进二进制文件?
 # rust-embed="8.6.0"
 
