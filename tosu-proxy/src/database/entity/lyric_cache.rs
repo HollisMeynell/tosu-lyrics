@@ -24,42 +24,38 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Entity {
-    pub async fn find_by_sid(sid: i32) -> Option<Model> {
-        Self::find()
+    pub async fn find_by_sid(sid: i32) -> crate::error::Result<Option<Model>> {
+        Ok(Self::find()
             .filter(Column::Sid.eq(sid))
             .one(database())
-            .await
-            .expect(DB_ERROR_MESSAGE)
+            .await?)
     }
 
-    pub async fn find_by_bid(bid: i32) -> Option<Model> {
-        Self::find()
+    pub async fn find_by_bid(bid: i32) -> crate::error::Result<Option<Model>> {
+        Ok(Self::find()
             .filter(Column::Bid.eq(bid))
             .one(database())
-            .await
-            .expect(DB_ERROR_MESSAGE)
+            .await?)
     }
 
-    pub async fn find_by_title_like(title: &str) -> Vec<Model> {
-        Self::find()
+    pub async fn find_by_title_like(title: &str) -> crate::error::Result<Vec<Model>> {
+        Ok(Self::find()
             .filter(Column::Title.contains(title))
             .all(database())
-            .await
-            .expect(DB_ERROR_MESSAGE)
+            .await?)
     }
 
-    pub async fn all_count() -> u64 {
-        Self::find()
+    pub async fn all_count() -> crate::error::Result<u64> {
+        Ok(Self::find()
             .count(database())
-            .await
-            .expect(DB_ERROR_MESSAGE)
+            .await?)
     }
 
-    pub async fn delete_all() {
+    pub async fn delete_all() -> crate::error::Result<()> {
         Self::delete_many()
             .exec(database())
-            .await
-            .expect(DB_ERROR_MESSAGE);
+            .await?;
+        Ok(())
     }
 
     /// - `sid`：sid

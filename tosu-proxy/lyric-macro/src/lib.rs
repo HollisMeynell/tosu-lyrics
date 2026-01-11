@@ -42,8 +42,9 @@ pub fn setting_derive(item: TokenStream) -> TokenStream {
         });
         quote! {
             let #field_name = match SettingEntity::get_config(#field_name_str).await {
-                None => { #default_expr }
-                Some(value) => { crate::util::to_json(&value).unwrap_or_default() }
+                Ok(None) => { #default_expr }
+                Ok(Some(value)) => { crate::util::to_json(&value).unwrap_or_default() }
+                Err(_) => { #default_expr }
             };
         }
     });
@@ -63,8 +64,8 @@ pub fn setting_derive(item: TokenStream) -> TokenStream {
         quote! {
             #vis fn #setter_name(&mut self, value: #field_type) {
                 let value_str = serde_json::to_string(&value).unwrap();
-                tokio::spawn(async {
-                    SettingEntity::save_config(String::from(#field_name_str), value_str).await;
+                tokio::spawn(async move {
+                    let _ = SettingEntity::save_config(String::from(#field_name_str), value_str).await;
                 });
                 self.#field_name = value;
             }

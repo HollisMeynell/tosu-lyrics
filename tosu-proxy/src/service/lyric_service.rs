@@ -84,7 +84,7 @@ impl LyricService {
 
         self.now_save_cache = Some(song);
 
-        let (disable, offset) = LyricConfigEntity::find_setting(bid, sid, &title).await;
+        let (disable, offset) = LyricConfigEntity::find_setting(bid, sid, &title).await?;
 
         if disable {
             return Ok(());
@@ -93,9 +93,9 @@ impl LyricService {
         }
 
         // 先查询缓存
-        let cache = match LyricCacheEntity::find_by_bid(bid).await {
+        let cache = match LyricCacheEntity::find_by_bid(bid).await? {
             Some(v) => Some(v),
-            None => LyricCacheEntity::find_by_sid(sid).await,
+            None => LyricCacheEntity::find_by_sid(sid).await?,
         };
 
         if let Some(cache) = cache {
@@ -419,10 +419,9 @@ impl LyricService {
         };
 
         let (is_block, offset) =
-            if let Some((block, offset)) = LyricConfigEntity::get_by_bid(key.bid as i32).await {
-                (block, offset)
-            } else {
-                (false, 0)
+            match LyricConfigEntity::get_by_bid(key.bid as i32).await? {
+                Some((config_block, offset)) => (config_block, offset),
+                None => (false, 0),
             };
 
         if is_block == block {
@@ -437,12 +436,12 @@ impl LyricService {
                 true,
                 offset,
             )
-            .await;
+            .await?;
             self.now_lyric.take();
             self.now_save_cache = Some(key);
         } else {
             if offset == 0 {
-                LyricConfigEntity::delete_by_bid(key.bid as i32).await;
+                LyricConfigEntity::delete_by_bid(key.bid as i32).await?;
             } else {
                 LyricConfigEntity::save_setting(
                     key.bid as i32,
@@ -451,7 +450,7 @@ impl LyricService {
                     false,
                     offset,
                 )
-                .await;
+                .await?;
             }
             self.song_change(key).await?;
         }
@@ -470,11 +469,11 @@ impl LyricService {
         };
         let config = LyricConfigEntity::get_by_bid(key.bid as i32).await;
         match config {
-            None | Some((false, _)) if offset == 0 => {
-                LyricConfigEntity::delete_by_bid(key.bid as i32).await;
+            Ok(None) | Ok(Some((false, _))) if offset == 0 => {
+                let _ = LyricConfigEntity::delete_by_bid(key.bid as i32).await;
             }
-            Some((disable, _)) => {
-                LyricConfigEntity::save_setting(
+            Ok(Some((disable, _))) => {
+                let _ = LyricConfigEntity::save_setting(
                     key.bid as i32,
                     key.sid as i32,
                     &key.title,
@@ -483,8 +482,8 @@ impl LyricService {
                 )
                 .await;
             }
-            None => {
-                LyricConfigEntity::save_setting(
+            Ok(None) => {
+                let _ = LyricConfigEntity::save_setting(
                     key.bid as i32,
                     key.sid as i32,
                     &key.title,
@@ -493,6 +492,7 @@ impl LyricService {
                 )
                 .await;
             }
+            Err(_) => {}
         }
     }
 
@@ -511,24 +511,24 @@ impl LyricService {
         .await
     }
 
-    pub async fn get_all_block_list(&self) -> Vec<BlockItem> {
-        LyricConfigEntity::get_all_disable()
-            .await
+    pub async fn get_all_block_list(&self) -> Result<Vec<BlockItem>> {
+        Ok(LyricConfigEntity::get_all_disable()
+            .await?
             .into_iter()
             .map(|(sid, bid, title)| {
                 let sid = sid as u32;
                 let bid = bid as u32;
                 BlockItem { bid, sid, title }
             })
-            .collect()
+            .collect())
     }
 
-    pub async fn get_cache_count(&self) -> u64 {
+    pub async fn get_cache_count(&self) -> Result<u64> {
         LyricCacheEntity::all_count().await
     }
 
-    pub async fn clear_all_cache(&self) {
-        LyricCacheEntity::delete_all().await;
+    pub async fn clear_all_cache(&self) -> Result<()> {
+        LyricCacheEntity::delete_all().await
     }
 }
 
