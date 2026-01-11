@@ -71,17 +71,26 @@ impl WebsocketSession {
     }
 
     async fn find_clients<F: Fn(&String, &ClientType) -> bool>(&self, message: Message, f: F) {
-        self.0
-            .read()
-            .await
+        let sessions = self.0.read().await;
+
+        // 收集发送失败的客户端 key
+        let failed_keys: Vec<String> = sessions
             .iter()
             .filter(|(key, client)| f(key, client))
-            .for_each(|(_, client)| {
-                let r = client.get_channel().send(message.clone());
-                if let Err(e) = r {
-                    error!("can not send message: {e}")
-                }
-            });
+            .filter_map(|(key, client)| {
+                client.get_channel().send(message.clone())
+                    .err()
+                    .map(|_| key.clone())
+            })
+            .collect();
+
+        drop(sessions); // 释放读锁
+
+        // 移除失效的客户端
+        for key in failed_keys {
+            self.remove_client(&key).await;
+            debug!("Removed dead client: {key}");
+        }
     }
 
     pub async fn send_to_all_client(&self, message: Message) {
@@ -104,25 +113,31 @@ impl WebsocketSession {
     where
         T: AsRef<str>,
     {
-        if let Some(channel) = self.0.read().await.get(key.as_ref())
-            && let Err(e) = channel.get_channel().send(message)
-        {
-            error!("can not send message: {e}")
+        let key_str = key.as_ref();
+        let send_result = self.0.read().await
+            .get(key_str)
+            .map(|channel| channel.get_channel().send(message));
+
+        if let Some(Err(e)) = send_result {
+            error!("Failed to send message to {key_str}: {e}");
+            self.remove_client(key).await;
+            debug!("Removed dead client: {key_str}");
         }
     }
     pub async fn send_pong<T>(&self, key: &T, message: Message)
     where
         T: AsRef<str>,
     {
-        let sessions = self.0.read().await;
-        let channel = sessions.get(key.as_ref());
-        let channel = match channel {
-            Some(ch) => ch,
-            _ => return,
-        };
+        let key_str = key.as_ref();
         let pong = Message::pong(message.as_bytes().to_vec());
-        if let Err(e) = channel.get_channel().send(pong) {
-            error!("can not send message: {e}")
+        let send_result = self.0.read().await
+            .get(key_str)
+            .map(|channel| channel.get_channel().send(pong));
+
+        if let Some(Err(e)) = send_result {
+            error!("Failed to send pong to {key_str}: {e}");
+            self.remove_client(key).await;
+            debug!("Removed dead client: {key_str}");
         }
     }
 }
