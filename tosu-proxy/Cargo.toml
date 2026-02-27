@@ -39,7 +39,7 @@ async-trait = { version = "0.1.89", optional = true }
 bincode = { version = "2.0.1", optional = true }
 config = { version = "0.15.19", optional = true }
 futures = { version = "0.3.31", optional = true }
-futures-util = { version = "0.3.31", optional = true }
+futures-util = { version = "0.3.32", optional = true }
 paste = { version = "1.0.15", optional = true}
 regex = { version = "1.11.1", optional = true }
 salvo = { version = "0.81.0", features = ["default", "serve-static", "websocket"], optional = true }
