@@ -130,7 +130,7 @@ macro_rules! base_setter {
 macro_rules! base_getter {
     ($name:ident, $e:expr) => {
         async fn $name(mut setting: SettingPayload) -> Result<WebsocketResult> {
-            let json = SettingEntity::get_config($e.get_key()).await;
+            let json = SettingEntity::get_config($e.get_key()).await?;
             let json = json.ok_or(Error::Static("cannot get setting"))?;
             setting.set_replay_json_string(&json)?;
             let result = WebsocketResult::Return(setting);
@@ -218,7 +218,7 @@ async fn set_block(setting: SettingPayload) -> Result<WebsocketResult> {
 
 async fn get_block_list(mut setting: SettingPayload) -> Result<WebsocketResult> {
     let lyric_service = LYRIC_SERVICE.lock().await;
-    let result = lyric_service.get_all_block_list().await;
+    let result = lyric_service.get_all_block_list().await?;
     setting.set_replay(result)?;
     Ok(WebsocketResult::Return(setting))
 }
@@ -231,7 +231,7 @@ async fn set_unblock(setting: SettingPayload) -> Result<WebsocketResult> {
 
 async fn get_cache_count(mut setting: SettingPayload) -> Result<WebsocketResult> {
     let lyric_service = LYRIC_SERVICE.lock().await;
-    let count = lyric_service.get_cache_count().await;
+    let count = lyric_service.get_cache_count().await?;
     setting.set_replay(count)?;
     Ok(WebsocketResult::Return(setting))
 }

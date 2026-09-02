@@ -17,13 +17,13 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Entity {
-    pub async fn get_config(key: &str) -> Option<String> {
+    pub async fn get_config(key: &str) -> crate::error::Result<Option<String>> {
         let query = Self::find_by_id(key);
-        let result = query.one(database()).await.expect(DB_ERROR_MESSAGE)?;
-        Some(result.setting)
+        let result = query.one(database()).await?;
+        Ok(result.map(|m| m.setting))
     }
 
-    pub async fn save_config(key: String, setting: String) {
+    pub async fn save_config(key: String, setting: String) -> crate::error::Result<()> {
         let model = ActiveModel {
             key: ActiveValue::set(key),
             setting: ActiveValue::set(setting),
@@ -33,7 +33,7 @@ impl Entity {
         Self::insert(model)
             .on_conflict(on_conflict)
             .exec(database())
-            .await
-            .expect(DB_ERROR_MESSAGE);
+            .await?;
+        Ok(())
     }
 }
