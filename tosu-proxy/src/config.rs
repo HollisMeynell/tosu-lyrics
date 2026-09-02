@@ -17,6 +17,8 @@ pub static CONFIG_ENDPOINT_FONT: &str = "font";
 pub static CONFIG_ENDPOINT_FONT_UPLOAD: &str = "upload";
 pub static CONFIG_ENDPOINT_FONT_DOWNLOAD: &str = "download";
 pub static CONFIG_ENDPOINT_AUDIO_LEN: &str = "audio/len";
+pub static CONFIG_ENDPOINT_LYRIC: &str = "lyric";
+pub static CONFIG_ENDPOINT_LYRIC_UPLOAD: &str = "upload";
 
 static CONFIG_PATH: &str = "config.json5";
 #[derive(Debug, Deserialize, Serialize)]

@@ -358,6 +358,27 @@ impl LyricService {
         Ok(())
     }
 
+    pub async fn set_manual_lyric(&mut self, lyric_text: &str) -> Result<()> {
+        let Some(key) = self.now_save_cache.as_ref() else {
+            return Err("当前没有播放歌曲, 无法上传歌词".into());
+        };
+
+        let lyric = Lyric::parse(lyric_text, None, None)?;
+
+        Self::save_lyric(key, &lyric)
+            .await
+            .inspect_err(|err| error!("存储缓存异常: {}", err))?;
+
+        self.now_lyric = Some(lyric);
+        // 重置播放状态, 强制重新下发完整歌词
+        self.is_song_changed = true;
+        self.now_index = usize::MAX;
+        self.current_lyric_start_time = -1;
+        self.current_lyric_end_time = -1;
+        _ = self.time_next(0);
+        Ok(())
+    }
+
     pub fn get_now_all_lyrics(&self) -> Option<&[LyricLine]> {
         self.now_lyric.as_ref().map(Lyric::get_lyrics)
     }

@@ -210,7 +210,7 @@
 | sid   | number | sid         |    N     |
 | title | string | 名称          |    N     |
 
-## 其他 HTTP 接口 (画大饼):
+## 其他 HTTP 接口:
 
 ### GET - 查询歌曲时常
 
@@ -235,3 +235,11 @@
 - `/font/download`
 
 下载上次上传的文件
+
+### POST - 上传歌词
+
+上传歌词文件(.lrc / 文本), 绑定到当前播放歌曲并写入缓存
+
+- `/lyric/upload`
+
+使用 form 上传, 取第一个文件, 文件编码需为 UTF-8
