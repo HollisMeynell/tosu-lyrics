@@ -1,11 +1,9 @@
 // 功能: 功能操作面板
-import { Button, DarkModeToggle } from "@/components/ui";
-import { Component, JSX, Show } from "solid-js";
-import { A, useNavigate } from "@solidjs/router";
+import { DarkModeToggle } from "@/components/ui";
+import { Component, JSX } from "solid-js";
+import { A } from "@solidjs/router";
 import { SettingIcon } from "@/assets/Icons";
 import { useLocation } from "@solidjs/router";
-import { Mask } from "@/components/ui";
-import { wsService } from "@/services/webSocketService.ts";
 
 interface ControllerProps {
     children: JSX.Element;
@@ -40,23 +38,13 @@ const CustomA: Component<CustomAProps> = (props) => {
 };
 
 const Controller: Component<ControllerProps> = (props) => {
-    const location = useLocation();
-    const navigate = useNavigate();
-    const shouldShowMask = () => {
-        const isClientPage =
-            location.pathname === "/lyrics/controller/client" ||
-            location.pathname === "/lyrics/controller/" ||
-            location.pathname === "/lyrics/controller";
-        return !isClientPage && !wsService.clientSignal();
-    };
-
-    const jumpToClient = () => {
-        navigate("/lyrics/controller/client");
-    };
-
-    const Tips = () => (
-        <Button onClick={jumpToClient}>当前客户端不可用, 请选择客户端</Button>
-    );
+    // 这里原先有一层"必须先选择一个客户端才能管理"的遮罩，依赖旧前端的
+    // `wsService.clientSignal()`（靠旧协议的 online/互查消息维护）。
+    // 新版后端是**全局单一状态**（一首当前歌曲 + 一份全局设置），
+    // 根本不存在"其他浏览器客户端"这个概念，那个信号因此恒为 false，
+    // 遮罩会把所有管理页都盖住、真实用户点不动任何控件。
+    // 迁移到 HTTP 的全局管理页不需要这个前置条件，故移除（F-01 的最小前置修复）。
+    // `/lyrics/controller/client` 页面本身保持原样，留给 B-08 / F-07。
 
     // 导航栏配置
     const navItems = [
@@ -65,6 +53,8 @@ const Controller: Component<ControllerProps> = (props) => {
         { href: "/lyrics/controller/textstyle", icon: "palette" },
         { href: "/lyrics/controller/blackList", icon: "blackList" },
         { href: "/lyrics/controller/cacheManager", icon: "cache" },
+        { href: "/lyrics/controller/upload", icon: "content" },
+        { href: "/lyrics/controller/shadow", icon: "palette" },
     ];
 
     //通过 relative 和 transform-3d 实现 DarkModeToggle 组件的 fixed 定位相对父元素而非视窗 666 借鉴 https://www.cnblogs.com/ai888/p/18598560
@@ -84,11 +74,6 @@ const Controller: Component<ControllerProps> = (props) => {
             <div class="ml-18 mr-8 h-full relative overflow-y-auto overflow-x-hidden scrollbar-hide">
                 {props.children}
             </div>
-            <Show when={shouldShowMask()}>
-                <Mask class="ml-16 h-full">
-                    <Tips />
-                </Mask>
-            </Show>
             <DarkModeToggle />
         </div>
     );

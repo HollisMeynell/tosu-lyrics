@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { batch, createSignal } from "solid-js";
 import { WebsocketLyric } from "@/api/model.ts";
 import { LyricLine } from "@/types/lyricTypes.ts";
 
@@ -27,24 +27,33 @@ const toDisplayLine = (line: {
 
 /**
  * 处理后端下发的歌词事件
+ *
+ * WS 回调不是 Solid 的事件处理器, 不会自动批处理。若不显式 batch,
+ * lyrics / cursor / nextTime 会各自触发一次滚动副作用, 造成一次错误滚动。
  */
 export const applyLyricEvent = (data: WebsocketLyric) => {
-    // lyric 数组仅在换歌后首次下发
-    if (data.lyric != null) {
-        setLyrics(data.lyric.map(toDisplayLine));
-    }
-    // current 为 -1 表示不需要显示
-    if (data.current >= 0) {
-        setCursor(data.current);
-    }
-    setNextTime(data.nextTime > 0 ? data.nextTime : 0);
+    batch(() => {
+        // lyric 数组仅在换歌 / 换源 / 上传后首次下发
+        const hasFullList = data.lyric != null;
+        const nextLyrics = hasFullList ? data.lyric!.map(toDisplayLine) : lyrics();
+        // current 为 -1 表示不需要显示; 下标越界时保持现状, 避免滚动到不存在的行
+        const cursorInRange =
+            data.current >= 0 && data.current < nextLyrics.length;
+
+        if (hasFullList) setLyrics(nextLyrics);
+        if (cursorInRange) setCursor(data.current);
+        // 末行 nextTime 为 -1, 展示层按 0(立即完成)处理
+        setNextTime(data.nextTime > 0 ? data.nextTime : 0);
+    });
 };
 
 /**
  * 清空当前歌词 (setClear 广播)
  */
 export const clearLyrics = () => {
-    setLyrics([]);
-    setCursor(0);
-    setNextTime(0);
+    batch(() => {
+        setLyrics([]);
+        setCursor(0);
+        setNextTime(0);
+    });
 };

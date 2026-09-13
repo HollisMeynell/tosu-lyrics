@@ -19,6 +19,12 @@ const Content = lazy(() => import("@/pages/Controller/ControlTools/Content"));
 const TextStyle = lazy(
     () => import("@/pages/Controller/ControlTools/TextStyle")
 );
+const Shadow = lazy(
+    () => import("@/pages/Controller/ControlTools/Shadow")
+);
+const Upload = lazy(
+    () => import("@/pages/Controller/ControlTools/Upload")
+);
 const CacheManager = lazy(
     () => import("@/pages/Controller/ControlTools/CacheManager")
 );
@@ -86,6 +92,8 @@ export default function AppRoutes() {
                 <Route path="/content" component={Content} />
                 <Route path="/textstyle" component={TextStyle} />
                 <Route path="/cacheManager" component={CacheManager} />
+                <Route path="/upload" component={Upload} />
+                <Route path="/shadow" component={Shadow} />
             </Route>
         </Route>
     );

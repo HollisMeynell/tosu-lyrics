@@ -1,8 +1,14 @@
 // 功能: 面板-文字样式（颜色、字体、显示效果）
-import store from "@/stores/indexStore";
 import { Select } from "@/components/ui";
+import { font } from "@/stores/settingsStore";
+import type { SettingsPatch } from "@/types/globalTypes";
 
-export default function Controller() {
+interface FontProps {
+    update: (patch: SettingsPatch) => Promise<boolean>;
+    disabled?: boolean;
+}
+
+export default function Controller(props: FontProps) {
     const fonts = [
         // cSpell: ignore msyh simsun fangsong kaiti
         { code: "", name: "LRC.otf" },
@@ -13,26 +19,11 @@ export default function Controller() {
         { code: "arial", name: "Arial" },
     ];
 
-    // async function loadFontData() {
-    //     try {
-    //         if ("queryLocalFonts" in window) {
-    //             const availableFonts = await window.queryLocalFonts();
-    //             console.log(availableFonts);
-    //             for (const fontData of availableFonts) {
-    //                 fonts.push({
-    //                     code: fontData.postscriptName,
-    //                     name: fontData.fullName,
-    //                 });
-    //             }
-    //         }
-    //     } catch (err) {
-    //         if (err instanceof Error) console.error(err.name, err.message);
-    //     }
-    // }
-
-    // createEffect(() => {
-    //     loadFontData();
-    // });
+    // 后端契约支持主 / 副独立字体，但当前 UI 只有一个选择器：
+    // 主副一起设置，等后续做独立选择控件时再拆开。
+    const apply = (value: string) => {
+        void props.update({ font: { first: value, second: value } });
+    };
 
     return (
         <div class="flex flex-col items-start md:flex-row md:items-center gap-4 md:gap-19">
@@ -40,8 +31,9 @@ export default function Controller() {
             <Select
                 class="w-56"
                 options={fonts}
-                value={store.getState.settings.font}
-                onChange={(value) => store.setFont(value)}
+                value={font()}
+                disabled={props.disabled}
+                onChange={apply}
             />
         </div>
     );

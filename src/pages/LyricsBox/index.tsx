@@ -1,5 +1,13 @@
-import store from "@/stores/indexStore";
-import { alignment, font } from "@/stores/settingsStore";
+import {
+    alignment,
+    font,
+    fontSize,
+    secondFont,
+    shadow,
+    textColor,
+    useTranslationAsMain,
+    showSecond,
+} from "@/stores/settingsStore";
 import {
     cursor,
     lyrics,
@@ -19,6 +27,7 @@ import {
 } from "solid-js";
 import { LyricLine } from "@/types/lyricTypes.ts";
 import { loadFont } from "@/utils/fonts.ts";
+import { measureLineWidth } from "@/utils/lyricScroll.ts";
 
 let blink = () => void 0;
 
@@ -105,17 +114,10 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     // 更新滚动
     const updateScroll = (p: HTMLLIElement) => {
         setLyricLIRef(p);
-        const getMaxWidth = () => {
-            if (p.children.length === 2) {
-                return Math.max(
-                    p.children[0].scrollWidth * 2,
-                    p.children[1].scrollWidth
-                );
-            }
-            return p.children[0].scrollWidth;
-        };
-
-        const maxWidth = getMaxWidth();
+        // 按目标(active)字号补偿后再比较, 详见 utils/lyricScroll.ts。
+        // 目标字号必须与下面 MainLyric / SecondLyric 实际用的 font-size 一致。
+        const sizes = fontSize();
+        const maxWidth = measureLineWidth(p, sizes.first, sizes.second);
 
         if (!lyricUL) return;
 
@@ -123,7 +125,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
 
         const alignmentStyle = p.style.alignItems || "center";
 
-        console.log(`${maxWidth} || ${clientWidth}`);
         if (maxWidth > clientWidth) {
             const ulPadding = 40;
             // 计算偏移量(非常精细)
@@ -169,17 +170,14 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         )
     );
 
-    // 更新字体
+    // 确保内置默认字体已加载。
+    // 字体族现在由 MainLyric / SecondLyric 各自的 inline style 负责（主副可不同）。
     createEffect(
-        on([font], () => {
+        on([font, secondFont], () => {
             if (!lyricUL) return;
-            const fontName = font();
-            if (fontName.length === 0) {
-                loadFont().then((font) => {
-                    lyricUL.style.fontStyle = font;
-                });
+            if (font().length === 0 || secondFont().length === 0) {
+                void loadFont();
             }
-            lyricUL.style.fontFamily = fontName;
         })
     );
 
@@ -195,14 +193,31 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         }
     });
 
+
+    /**
+     * 由设置生成 CSS filter（B-09）。
+     *
+     * 未启用阴影时返回 undefined —— 不写 filter，保持"完全没有阴影"的原始外观，
+     * 而不是写一个空 filter。
+     */
+    const shadowFilter = (which: "first" | "second") => {
+        const s = which === "first" ? shadow().first : shadow().second;
+        if (!s.enable) return undefined;
+        // CSS drop-shadow: <x> <y> <blur> <color>
+        return `drop-shadow(${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.color})`;
+    };
+
     // 子组件
     const MainLyric: Component<MainLyricProps> = (props) => (
         <p
-            class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff] transition-[font-size] duration-300"
+            class="font-tLRC whitespace-nowrap text-4xl font-bold transition-[font-size] duration-300"
             style={{
-                color: store.getState.settings.textColor.first,
+                filter: shadowFilter("first"),
+                color: textColor().first,
+                "font-family": font() || undefined,
                 "text-align": props.align || "center",
-                "font-size": props.active ? "3em" : "1.5em",
+                // active 用设置字号, 非 active 保持 2:1 比例(与 lyricScroll 的补偿一致)
+                "font-size": `${props.active ? fontSize().first : fontSize().first / 2}em`,
             }}
         >
             {props.text}
@@ -212,15 +227,17 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     const SecondLyric: Component<SecondLyricProps> = (props) => (
         <p
             classList={{
-                "font-oLRC whitespace-nowrap text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4 transition-[font-size] duration-300":
+                "font-oLRC whitespace-nowrap text-2xl font-bold mt-4 transition-[font-size] duration-300":
                     true,
                 block: props.block,
                 hidden: !props.block,
             }}
             style={{
-                color: store.getState.settings.textColor.second,
+                filter: shadowFilter("second"),
+                color: textColor().second,
+                "font-family": secondFont() || font() || undefined,
                 "text-align": props.align || "center",
-                "font-size": props.active ? "2em" : "1em",
+                "font-size": `${props.active ? fontSize().second : fontSize().second / 2}em`,
             }}
         >
             {props.text}
@@ -256,7 +273,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     // 渲染歌词行
     const lines = (lyric: Accessor<LyricLine>, index: number) => {
         const getMainLyric = () =>
-            store.getState.settings.useTranslationAsMain
+            useTranslationAsMain()
                 ? lyric().main
                     ? lyric().main
                     : lyric().origin
@@ -265,7 +282,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                   : lyric().main;
 
         const getSecondLyric = () =>
-            store.getState.settings.useTranslationAsMain
+            useTranslationAsMain()
                 ? lyric().origin
                 : lyric().main;
 
@@ -280,7 +297,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
             >
                 <MainLyric text={getMainLyric()} active={cursor() === index} />
                 <Show
-                    when={lyric().origin && store.getState.settings.showSecond}
+                    when={lyric().origin && showSecond()}
                 >
                     <SecondLyric
                         block={cursor() === index}

@@ -21,8 +21,10 @@ pub async fn init_database() {
     connect.ping().await.expect("数据库检查失败");
     info!("数据库连接完成");
     DATABASE_CONNECT.set(connect).expect("无法初始化数据库");
-    use super::entity::init_all_table;
-    init_all_table().await.expect("can not create all table");
+    use super::entity::init_all_table_and_migrate;
+    init_all_table_and_migrate()
+        .await
+        .expect("can not create all table");
 }
 
 pub fn database() -> &'static DatabaseConnection {
