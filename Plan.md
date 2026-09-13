@@ -1,360 +1,171 @@
-# 第二代前端开发规划
+# osu! 歌词显示器 · 开发计划与当前状态
 
-## 项目背景
-
-旧版前端（SolidJS + TypeScript + TailwindCSS）直接连接 tosu WebSocket 获取歌曲信息，通过代理自行从 QQ/网易云搜索歌词，在浏览器中展示。新版后端（Rust `lyric-server`）接管了歌词搜索、缓存、配置持久化等职责，前端退化为纯展示 + 控制层。
-
-> 架构原则：**后端处理数据，前端专注展示**。后端通过 WebSocket 下发歌词、接收控制指令；前端不再直接访问 tosu 或第三方歌词 API。
-
----
-
-## 一、旧版架构梳理
-
-### 1.1 技术栈
-
-| 项目 | 技术 |
-|------|------|
-| 框架 | SolidJS 1.9 + TypeScript 5.8 |
-| 样式 | TailwindCSS 4.1 |
-| 构建 | Vite 6.3 |
-| 路由 | @solidjs/router 0.15 |
-| WebSocket | reconnecting-websocket 4.4 |
-| 缓存 | IndexedDB（浏览器端） |
-
-### 1.2 目录结构
-
-```
-src/
-├── adapters/              # 歌词源适配器（QQ、网易云）
-│   ├── index.ts
-│   ├── lyricAdapter.ts    # 抽象基类
-│   ├── netease/index.ts   # 网易云歌词
-│   └── qq/index.ts        # QQ音乐歌词
-├── api/
-│   ├── model.ts           # 旧 WS 消息模型（将被替换）
-│   └── websocket.ts       # 旧 WS 客户端（将被替换）
-├── assets/Icons/          # SVG 图标组件
-├── components/ui/         # 通用 UI 组件库
-│   ├── Button.tsx
-│   ├── Select.tsx
-│   ├── ToggleSwitch.tsx
-│   ├── ToggleNSwitch.tsx
-│   ├── ToggleList.tsx
-│   ├── ToggleListExtends.tsx
-│   ├── DragPanel.tsx
-│   ├── Mask.tsx
-│   ├── DarkModeToggle.tsx
-│   ├── CustomColorSelector.tsx
-│   ├── Upload.tsx
-│   └── index.tsx
-├── config/constants.ts    # API URL、超时等常量
-├── hooks/initializeApp.ts # 应用初始化入口
-├── pages/
-│   ├── LyricsBox/         # 歌词展示页面（OBS 浏览器源）
-│   └── Controller/        # 控制面板
-│       ├── ControlTools/
-│       │   ├── BlackList/  # 黑名单管理
-│       │   ├── CacheManager/ # 缓存管理
-│       │   ├── Client/     # 客户端选择
-│       │   ├── Content/    # 歌词内容控制
-│       │   └── TextStyle/  # 文字样式（颜色、字体）
-│       └── index.tsx       # 控制器主框架 + 导航
-├── routes/                # 路由定义
-├── services/
-│   ├── configService.ts   # REST 配置存取
-│   ├── webSocketService.ts # WebSocket 服务
-│   └── managers/
-│       ├── tosuManager.ts  # tosu 连接 + 歌词获取调度
-│       └── lyricManager.ts # 歌词数据模型
-├── stores/
-│   │
-├── indexStore│├── settingsStore│├── blacklistStore│   
-├── types/│    
-│   ├── globalTypes│    ├──lyricTypes│├── tosuTypes│  ├── wsTypes│    └── wsLyricTypes│    
-│── utils/
-└──── cache│(IndexedDB)── fonts.ts── helpers── parseLyrics│(LRC 解析)── parseParams│── request│(HTTP│代理请求)
-```
-
-### 1.3 数据流（旧版）
-
-```
-tosu WebSocket ──► tosuManager ──► LyricManager ──► LyricsBox（展示）
-                       │
-                       ├──► Adapters（QQ/网易云）──► HTTP 代理 ──► 第三方 API
-                       │
-                       └──► IndexedDB（缓存读写）
-
-Controller ──► webSocketService ◄──► 其他客户端（OBS 端）
-```
-
-### 1.4 功能清单（旧版已完成）
-
-- [x] 歌词展示（主歌词 + 翻译歌词）
-- [x] 时间轴滚动、歌词闪烁
-- [x] 文字色彩（主/副歌词独立色彩）
-- [x] 翻译作为主歌词显示
-- [x] 显示/隐藏副歌词
-- [x] 左对齐 / 居中 / 右对齐
-- [x] 夜间模式
-- [x] 控制面板（Ctrl+Alt+T / 三指触摸 切换）
-- [x] 歌曲黑名单管理
-- [x] 查看各源搜索结果
-- [x] 指定歌曲换源
-- [x] 歌词缓存管理（增删）
-- [x] 客户端选择与测试
+> 本文件是**当前唯一有效的开发计划**。
+> 早期那份描述"旧版架构 → 新版架构"的规划文档已被本文件取代，不再维护；
+> 参考用的原始计划见仓库外的 `Plan_origin.md`（**只读参考，不是 dev 计划**）。
+>
+> 记录口径：只写**实际验证过**的状态。自动化验证与真人验证分开标注。
 
 ---
 
-## 二、新版后端能力
-
-### 2.1 技术栈
-
-| 项目 | 技术 |
-|------|------|
-| 语言 | Rust (edition 2024) |
-| 异步运行时 | Tokio |
-| 歌词处理 | lyrics_helper_rs 0.2.1 |
-| 日志 | tracing |
-
-### 2.2 已实现/待实现
-
-- [x] 接入 tosu 获取当前歌曲
-- [x] QQ / 网易云歌词搜索
-- [x] 歌词缓存（增删、过期）
-- [x] 持久化配置
-- [x] 字体存储
-- [x] 上传歌词
-- [ ] **WebSocket 服务器**（核心待开发）
-  - [x] 时间轴调整
-  - [x] 歌曲更新推送
-  - [x] 样式更新推送
-  - [x] 拉黑/显示
-  - [ ] 歌词换行指令
-- [ ] HTTP API（配置存取等）
-
-### 2.3 新版数据流（预期）
+## 一、架构（已冻结）
 
 ```
-tosu ──► lyric-server（Rust） ──WebSocket──► 前端 LyricsBox（展示）
-              │                                 │
-              ├── QQ/网易云 API                  └── Controller（控制面板）
-              ├── 歌词缓存（服务端）                │
-              ├── 配置持久化（服务端）              └── WebSocket ──► lyric-server
-              └── 字体存储（服务端）
+                    ┌──────────────────────────────────────┐
+   osu! ──► tosu ──►│  osu-lyric 后端 (Rust, :41280)        │
+            (WS,    │  · 歌曲识别 / 歌词匹配 / 缓存         │
+             :24050)│  · 黑名单 · 偏移 · 来源绑定 · 字体    │
+                    └───────┬──────────────────────┬───────┘
+                  WS 推送    │                      │  HTTP 管理
+                  (展示事件) │                      │  (查询 / 修改)
+                            ▼                      ▼
+                    ┌───────────────┐      ┌────────────────┐
+                    │  LyricsBox    │      │  Controller    │
+                    │  /lyrics      │      │  /lyrics/      │
+                    │  （OBS 源）    │      │  controller/*  │
+                    └───────────────┘      └────────────────┘
 ```
 
----
+| 通道 | 职责 |
+|---|---|
+| **HTTP `/api/*`** | **全部管理操作** |
+| **WS `/ws`** | **只做展示事件传输**（后端 → 展示端推送） |
 
-## 三、可复用部分
+**WS 不是管理通道**：客户端通过 WS 发送的任何内容都不会改变业务状态。
 
-以下旧版组件和代码**可以直接复用或少量修改后复用**：
+### 身份约定（冻结）
 
-### 3.1 界面（UI）— 几乎全部复用
-
-| 类别 | 文件/组件 | 复用程度 | 说明 |
-|------|-----------|----------|------|
-| 歌词展示 | `pages/LyricsBox/index.tsx` | **高度复用** | 核心展示逻辑（滚动、对齐、字体）不变，仅数据来源从 tosuManager 变为 WebSocket |
-| 控制面板框架 | `pages/Controller/index.tsx` | **高度复用** | 导航结构、暗夜模式切换、Mask 遮罩逻辑不变 |
-| UI 组件库 | `components/ui/*` | **完全复用** | Button, Select, ToggleSwitch, DragPanel, Mask, DarkModeToggle, CustomColorSelector, Upload, ToggleList |
-| 图标库 | `assets/Icons/*` | **完全复用** | 所有 SVG 图标 |
-| 样式 | `index.css` + TailwindCSS | **完全复用** | 所有样式类和暗夜模式 |
-| 客户端选择 | `ControlTools/Client/` | **高度复用** | 逻辑基本不变 |
-| 黑名单管理 | `ControlTools/BlackList/` | **高度复用** | 表格、表单逻辑不变 |
-| 歌词内容控制 | `ControlTools/Content/` | **中度复用** | 数据获取从 WS query 变为直接 WS 推送 |
-| 文字样式 | `ControlTools/TextStyle/` | **高度复用** | 颜色选择器、对齐切换、开关组件不变 |
-| 缓存管理 | `ControlTools/CacheManager/` | **中度复用** | 缓存操作从 IndexedDB 查询变为 WS 指令 |
-| 路由结构 | `routes/index│高度复用** | Ctrl│Alt│T│三│指切换逻辑保留 |
-| 
-| Stores | `stores/settingsStore│` | **高度复用** | SolidJS signals│font, textColor, alignment 等 |
-
-### ** 3│2 数据层 — │部分复用**
-
-| 类别 | 文件 | 复用程度 │ 说明 |
-|------|-----------|----------|------|
-| 歌词数据模型 │ `services/managers│lyricManager│` | **高度复用** | Lyric 类（insert, jump│ nextTime）逻辑不变 |
-| LRC │解析 | `utils│parseLyrics│` | **完全复用** │ │纯文本解析│无依赖 |
-| 字体加载 | `utils│fonts│` | **完全复用** │ 本地字体文件加载 |
-| 工具函数 | `utils│helpers│` | **完全复用** | generateRandomString, debounce, ms│str 等 |
-| 类型定义 | `types/globalTypes│` │ │**高度复用** │ AlignType, Settings, BlacklistItem 等 |
-│ 歌词类型 │ `types│lyricTypes│` | **高度复用** │ LyricRawLine, LyricLine, MusicInfo 等 |
-
-### 3.3 需要重写的部分
-
-| 类别 | 文件 | 原因 |
-|------|------|------|
-| tosu │连接 | `services/managers│tosuManager│` | 后端接管 tosu 连接 |
-| 歌词适配器 | `adapters│*` | 后端接管歌词搜索 |
-│ IndexedDB 缓存 │ `utils│cache│` | 后端接管缓存 |
-│ WebSocket │服务 | `services│webSocketService│` | 协议重新设计，前端角色从│peer│变为 client│ 
-│WebSocket │消息类型 | `types│wsTypes│` | 消息格式变更 |
-│初始化入口 | `hooks/initializeApp│` | 注册│handler 需要调整 |
-│ 配置存取 │ `services│configService│` │ 配置改由 WS 下发│不再直接 fetch |
-│ 请求工具 │ `utils│request│` | 不再需要前端代理第三方 API 请求 |
+| 标识 | 用途 |
+|---|---|
+| `bid` | 当前播放的**具体谱面** —— 播放上下文与异步新旧判断 |
+| `sid` | **歌曲级歌词资源**归属 —— 来源绑定 / 缓存 / LRC 上传 |
+| `title` | 仅展示与标题级黑名单规则，**不参与判等** |
+| generation | 异步代际；换歌与清屏让在途结果失效 |
 
 ---
 
-## 四、WebSocket 协议
+## 二、主线完成情况
 
-协议已在 `tosu-proxy/README.md` 中完整定义，前端也有对应的类型实现。
+前端已从"浏览器直连 tosu + 自行搜索歌词"改为"后端处理数据，前端专注展示 + 控制"。
 
-### 4.1 协议要点
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| **B-04** | 黑名单（后端 HTTP CRUD + Controller 页面） | ✅ 完成 |
+| **B-05** | 歌词内容（当前 / 搜索 / 预览 / 来源 / 偏移 / 清屏） | ✅ 完成 |
+| **B-06** | 缓存（分页 / 搜索 / 删除 / TTL / 旧库迁移） | ✅ 完成 |
+| **B-07** | LRC 上传 + 字体资源（版本化） | ✅ 完成 |
+| **B-08** | 在线展示端 + 定向 blink | ✅ 完成 |
+| **B-09** | 阴影设置 | ✅ 完成 |
+| **B-10** | 黑名单备注元数据 | ✅ 完成 |
+| **B-11** | 移除 23 个 WS 管理入口 | ✅ 完成 |
+| **F-03** | TextStyle HTTP 化收尾 | ✅ 完成 |
+| **F-04** | Content 页面（含清屏 / 偏移归零） | ✅ 完成 |
+| **F-05** | BlackList + Cache 页面核对 | ✅ 完成 |
+| **F-06** | 上传与字体页面 | ✅ 完成 |
+| **F-07** | Client 页面（B-11 后曾损坏，已修复） | ✅ 完成 |
+| **F-08** | 阴影页面 | ✅ 完成 |
+| **F-09** | 旧链路清理（IndexedDB / tosuManager / 旧 Config 等） | ✅ 完成 |
+| **F-10** | 删除前端 WS 管理调用链 | ✅ 完成 |
+| **D-01** | README / 运行入口 / 构建流程收尾 | ✅ 完成 |
 
-- 两层连接模型：
-  - `ws://host/api/ws` → 歌词接收端（OBS 展示页），接收歌词推送 + 设置广播
-  - `ws://host/api/ws?setter=true` → 配置发送端（控制面板），不接收广播，发送设置后收响应
-- 消息类型：
-  - Lyric 事件（`type: "lyric"`）— 后端 → 前端单向推送
-  - Setting 事件（`type: "setting"`）— 双向，含提交/广播/响应三种模式，通过 `key` 区分操作，`echo` 字段匹配请求-响应
-
-### 4.2 已定义的事件列表
-
-见 `tosu-proxy/README.md` 设置事件子列表（137 行附近），共 19 个 key，覆盖：
-
-- 歌词推送（lyric + current + nextTime + sequence）
-- 样式设置（字体、字号、颜色、对齐、翻译偏好、副歌词显示）
-- 歌词换源（setLyricSource）
-- 搜索结果查询（getLyricList）
-- 完整歌词获取（getAllLyric）
-- 黑名单（setBlock / setUnblock / getBlockList）
-- 缓存（getCacheCount / setCacheClean）
-- 歌词偏移（getLyricOffset / setLyricOffset）
-
-### 4.3 前端已有实现
-
-| 文件 | 角色 |
-|------|------|
-| `api/model.ts` | 协议类型定义（LyricLine, WebsocketLyric, WebsocketSetting, WebsocketSettingTypeMap 等），与 README 对齐 |
-| `api/websocket.ts` | Setting 消息的 send/await 封装（setFont, getFont, setColor 等），基于 reconnecting-websocket |
-
-这两个文件已实现了 19 个 setting key 的封装，但尚未与 LyricsBox / Controller 页面接通。
-
-### 4.4 协议待补充项
-
-| gap | 说明 | 影响页面 |
-|-----|------|----------|
-| 多客户端支持 | 缺少连接时 ID 分配、在线/离线通知、消息 target 路由 | ClientList（客户端选择） |
-| 缓存列表分页 | 只有 getCacheCount + setCacheClean，缺少 getCacheList、removeCacheItem | CacheManager |
-| 黑名单任意曲目 | setBlock/setUnblock 只能操作当前歌曲，缺少按 ID 增删任意项 | BlackList |
-| 按 key 查歌词 | 缺少 getLyricByKey {provider, key}，搜索结果中预览歌词需要 | Content / SearchResult |
-| 客户端闪烁测试 | 缺少 blink 指令 | ClientList "测试" 按钮 |
-| 歌曲元信息 | Lyric 首次推送缺少 bid / title / artist | LyricsBox、Content |
-| 配置持久化 | 无 getConfig / setConfig，也无 HTTP /api/config | initializeApp |
+**旧链路已彻底移除**：`webSocketService` / `configService` / `blacklistStore` /
+`indexStore` / `tosuManager` / `adapters/` / IndexedDB 歌词缓存 / `/api/proxy` /
+`/api/config` 均已删除。生产 bundle 里对这些的引用数为 0。
 
 ---
 
-## 五、第二代前端任务列表
+## 三、主线完成后的功能增强（M1 ～ M8）
 
-### Phase 1: 基础架构搭建
+| 模块 | 内容 | 状态 |
+|---|---|---|
+| **M1** | 在线展示端：**全局 / 单独客户端**双模式 | ✅ 完成 |
+| **M2** | 歌词内容：完整阅读区 + 持续时间列 + 拖动调整 offset | ✅ 完成 |
+| **M3** | 搜索结果：时长差 / 统一排序 / 翻译标记 / 原文+翻译预览 | ✅ 完成 |
+| **M4** | Shadow 简化：关闭阴影 + 模糊 + X/Y，**立即生效** | ✅ 完成 |
+| **M5** | 恢复默认文字样式 | ✅ 完成 |
+| **M6** | BlackList 默认 scope 改为 `sid` | ✅ 完成 |
+| **M7** | Cache 增加「刷新缓存」按钮 | ✅ 完成 |
+| **M8** | 字体上传修复 + 拖拽上传 | ✅ 完成 |
 
-- [ ] **P1-1** 补充协议缺失项（与后端协商）
-  - Lyric 事件增加 `bid`、`title`、`artist` 字段
-  - 增加多客户端生命周期事件（online/offline）
-  - Setting 消息增加 `target` 字段用于客户端路由
-  - 补充缓存列表、黑名单增删、按 key 查歌词、blink 等 key
+### 本轮（整理阶段）的两个 shadow 修复
 
-- [ ] **P1-2** 重写 `services/webSocketService.ts`
-  - 从旧的 peer-to-peer 协议切换到 `api/model.ts` 的扁平 type 协议
-  - 保留 registerHandler / registerQuery 模式，增加在线客户端管理
-  - 歌词推送直接写入 store signals
+| 修复 | 内容 |
+|---|---|
+| **① 默认阴影开启** | 主 / 副歌词阴影默认**开启**（此前为关闭） |
+| **② 默认阴影颜色** | 主 / 副默认颜色均为 `#000000` |
 
-- [ ] **P1-3** 重构 `initializeApp.ts`
-  - 注册新版 WS handler（歌词 → LyricsBox，设置 → settingsStore，在线状态 → ClientList）
-  - 接入配置获取（WS getConfig 或 HTTP /api/config）
+**四处默认值已统一**（此前不一致会导致"新装开启、恢复默认后又关掉"）：
 
-- [ ] **P1-4** 清理旧数据层
-  - 移除 tosuManager、adapters/*、IndexedDB 缓存（utils/cache.ts）
-  - 保留 LyricManager（本地时间轴 jump/nextTime 计算）
+1. 后端 `ShadowSettings::default()`
+2. 前端 `DEFAULT_SHADOW`（`stores/settingsStore.ts`）
+3. 「恢复默认样式」按钮（直接复用前端那份常量）
+4. 展示端 `LyricsBox` 的 filter 生成（由 `enable` 驱动）
 
-### Phase 2: 核心功能对接
-
-- [ ] **P2-1** 歌词展示对接
-  - 后端 WebSocket 推送歌词 → 直接更新 LyricsBox 的 lyrics/cursor 信号
-  - 移除去 tosuManager 的依赖
-  - 保留滚动、对齐、字体、闪烁等展示效果
-
-- [ ] **P2-2** 控制面板对接
-  - 文字颜色 → WS push 到后端（或后端主动推送）
-  - 对齐方式 → WS push
-  - 翻译设置 → WS push
-  - 副歌词显隐 → WS push
-
-- [ ] **P2-3** 歌词内容控制对接
-  - 当前歌词查看 → WS query
-  - 搜索结果查看 → WS query（或后端主动推送搜索结果列表）
-  - 换源操作 → WS push
-
-- [ ] **P2-4** 黑名单对接
-  - 列表查询 → WS query 或后端主动推送
-  - 增删改 → WS push
-  - 本地 store 同步
-
-- [ ] **P2-5** 缓存管理对接
-  - 缓存列表查询 → WS query
-  - 删除缓存项 → WS push
-  - 清空缓存 → WS push
-
-### Phase 3: 体验完善
-
-- [ ] **P3-1** 错误处理
-  - WebSocket 断线重连提示
-  - 后端不可用时降级 UI
-  - 歌词获取失败的空状态
-
-- [ ] **P3-2** 客户端选择优化
-  - 首次连接自动选择
-  - 客户端离线检测
-
-- [ ] **P3-3** 未完成功能（来自旧版 TODO）
-  - [ ] 歌词偏移微调
-  - [ ] 歌词阴影修改
-  - [ ] 主歌词/翻译歌词独立字体
-  - [ ] 手动上传歌词
-  - [ ] 黑名单 UI 更新修复
+已用自动化验证覆盖：全新库默认值 → 展示端实际渲染出 `drop-shadow` →
+改乱后点「恢复默认样式」→ 再次开启且为纯黑 → 展示端重新出现阴影。
 
 ---
 
-## 六、开发路线图
+## 四、待处理（**未完成**）
 
-```
-Phase 1（基础架构）
-├── 补充协议缺失项（4.4 节列出的 gap）
-├── 重写 webSocketService → 接入 api/model.ts 协议
-├── 重构初始化流程
-└── 清理旧数据层（tosuManager、adapters、cache）
-      │
-      ▼
-Phase 2（核心功能对接）
-├── 歌词展示 ← WebSocket 推送
-├── 控制面板 ← WebSocket 双向通信
-├── 歌词内容、换源
-├── 黑名单
-└── 缓存管理
-      │
-      ▼
-Phase 3（体验完善）
-├── 错误处理、断线重连
-├── 空状态、加载态 UI
-└── 旧版 TODO 遗留功能
+### 4.1 ⚠️ 当前歌词无法展示
+
+**状态：未修复，本轮只做记录。**
+
+- 来源：**真人测试**中发现
+- 现象：Controller「歌词内容」页的**当前歌词展示无法显示**
+- 本轮**未修复**，也**未继续分析根因**（按要求）
+- 已知的自动化测试（`controller-content-e2e.mjs`）在当前代码上是通过的，
+  因此这是**自动化未覆盖到**的问题，不能因为自动化通过就认为它不存在
+- 后续需要：先复现并区分是「后端返回空」还是「前端渲染/请求失败」，
+  再决定修哪一层
+
+> 记录原则：不猜测根因。以上只是现象与已知事实。
+
+### 4.2 其他已知但**明确暂缓**的问题
+
+| 问题 | 状态 |
+|---|---|
+| 选曲界面预览时首行跑马灯反复触发 | 调查**暂停**，未修复 |
+| 切歌刚发出（防抖窗口内）随即清屏的时序 | 未修复；只比对代际无法区分"清屏前的换歌"，不做过度设计 |
+| QQ 纯音乐无歌词响应的解码 WARN | 未处理（不改 `qq.rs`） |
+| `artist` 繁简 / 罗马字匹配导致的漏配 | 未处理（自动匹配的已知边界） |
+| M1 的单独客户端调整只覆盖颜色 / 字号 / 对齐 | 字体、阴影、副歌词显隐仍需在**全局**模式调整 |
+
+---
+
+## 五、测试现状
+
+### 自动化
+
+- `cargo test --features=new`：51 passed
+- `cargo clippy --features=new`：新增代码无 warning
+- `npx tsc --noEmit` / `npx vite build`：通过
+- 端到端（`../_probe/`，基于假 tosu + CDP 真实浏览器）：
+  展示链路、各管理页 HTTP 全链路、并发/代际、缓存与来源绑定边界、字体上传等
+
+### 真人验证
+
+已由用户完成一轮真人测试（主线功能正常）。本轮整理阶段发现的
+**「当前歌词无法展示」**来自真人测试，见 §4.1。
+
+> 自动化通过 ≠ 真人可用。这项待办就是反例，不要用自动化结果否定它。
+
+---
+
+## 六、运行与构建
+
+```bash
+just build          # = build-frontend + build-backend + copy-backend
 ```
 
-### 建议开发顺序
+> ⚠️ `vite build` 会**清空 `dist/`**，而 `dist/` 里同时有后端二进制、`config.json5`、
+> `ffprobe` 等运行产物。`justfile` 已改为先构建到临时目录再并入。
+>
+> 手工构建的顺序必须是：**前端 build → 后端 release build → 复制 exe 到 `dist/`**，
+> 否则 `dist/` 会留下一份旧 exe。
 
-1. **补充 WebSocket 协议缺失项**（前后端协商 4.4 节 gap）— 协议主体已定义，只需补漏
-2. **重写 WebSocket 服务层**（切换到 `api/model.ts` 协议，接入歌词推送）
-3. **对接歌词展示**（最核心功能，最早验证）
-4. **对接控制面板**（逐个子面板接入）
-5. **清理旧代码**（移除 tosuManager、adapters、cache 等）
+运行：把 `dist/` 的内容与 `osu-lyric.exe` 放到同一目录，执行 `osu-lyric.exe`，
+打开 `http://127.0.0.1:41280/lyrics`（展示页）或 `/lyrics/controller/*`（控制台）。
 
----
-
-## 七、技术决策建议
-
-| 决策点 | 建议 | 理由 |
-|--------|------|------|
-| 框架 | 继续使用 SolidJS | 改动最小，团队熟悉 |
-| 样式 | 继续使用 TailwindCSS 4 | 旧版样式直接复用 |
-| 构建 | 继续使用 Vite | 无需变更 |
-| 缓存位置 | 后端管理，前端不缓存 | 架构原则：后端处理数据 |
-| 配置存取 | WebSocket 同步 + 后端持久化 | 减少 HTTP 端点，统一通信通道 |
-| 歌词解析 | 后端解析好推送，还是前端解析？ | **后端解析**（推送结构化数据），前端只展示；Lyric 类的 jump/insert 可保留用于本地时间轴计算 |
-| 多客户端支持 | 保留现有 client 选择机制 | 控制器需要知道控制哪个 OBS 端 |
+详见 `README.md` 与 `tosu-proxy/README.md`。

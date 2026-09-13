@@ -44,10 +44,23 @@ async fn on_song_update(song: OsuSongInfo) {
         handle.abort()
     }
 
+    // 立即清空上一首的展示状态并广播清屏。
+    // 搜索被防抖延迟了 100ms, 若不在这里清空, 这段时间内新歌的时间事件
+    // 会继续驱动上一首的歌词, 推出错误的下标。
+    {
+        let mut lyric_service = LYRIC_SERVICE.lock().await;
+        lyric_service.clear_state();
+        // 换代必须发生在**观察到的这一刻**，而不是 100ms 防抖之后。
+        // 否则在防抖窗口内完成的旧搜索仍会拿旧代际通过校验，
+        // 把上一首的结果写进新歌状态。
+        lyric_service.invalidate_async();
+        super::LyricService::broadcast_clear().await;
+    }
+
     let task = tokio::spawn(async move {
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        let mut lyric_service = LYRIC_SERVICE.lock().await;
-        if let Err(e) = lyric_service.song_change(song).await {
+        // song_change 自己管理加锁粒度（联网阶段不持锁），这里不再预先持锁
+        if let Err(e) = super::LyricService::song_change(song).await {
             error!("song update error: {}", e);
         }
     });
@@ -56,8 +69,14 @@ async fn on_song_update(song: OsuSongInfo) {
 }
 
 async fn on_clean() {
-    // 清空歌词服务状态(菜单/清空指令), 并向所有歌词页广播清空
+    // 先取消在途的换歌任务。
+    // 否则"搜索/下载还在跑 -> 回到菜单"时, 那个任务稍后会拿到锁、
+    // 把 now_lyric 重新写回去并推一帧, 让已经清空的歌词在菜单里复活。
+    if let Some(handle) = BEFORE_HANDLE.lock().await.take() {
+        handle.abort();
+    }
+
+    // 回到菜单: 清空展示并忘掉当前歌曲, 并向所有歌词页广播清空
     let mut lyric_service = LYRIC_SERVICE.lock().await;
-    lyric_service.clear_state();
-    super::LyricService::broadcast_clear().await;
+    lyric_service.song_clean().await;
 }

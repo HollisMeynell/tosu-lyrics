@@ -115,7 +115,7 @@ fn bigram_similarity(a: &str, b: &str) -> f32 {
 }
 
 /// 标题相似度评分(0-100), 越高越可能是同一首歌
-fn title_score(query: &str, candidate: &str) -> i32 {
+pub(crate) fn title_score(query: &str, candidate: &str) -> i32 {
     let q = normalize_title(query);
     let c = normalize_title(candidate);
     if q.is_empty() || c.is_empty() {
@@ -464,6 +464,11 @@ pub trait LyricSource: Send + Sync {
 fn is_short_title(title: &str) -> bool {
     let count = title.chars().filter(|c| c.is_alphanumeric()).count();
     count <= SHORT_TITLE_CHARS
+}
+
+/// 供内容服务做候选排序用的标题匹配分（0~100）
+pub fn score_title(query: &str, candidate: &str) -> i32 {
+    title_score(query, candidate)
 }
 
 #[cfg(test)]

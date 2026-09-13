@@ -1,3 +1,4 @@
+import type { Shadow } from "@/types/globalTypes";
 interface WebsocketMessage {
     type: string;
 }
@@ -33,34 +34,30 @@ type WebsocketSetting<
     type: "setting";
     key: K;
     value?: WebsocketSettingTypeMap[K];
-    error?: string;
+    /**
+     * 管理请求的关联键。前端已不再通过 WS 发管理请求（管理走 HTTP），
+     * 因此这个字段只作为**兼容读取**保留：后端不会再产生它。
+     */
     echo?: string;
 };
 
+/**
+ * 展示端会收到的设置事件（F-10）。
+ *
+ * 改造前这张表同时描述了**管理请求**（`getFont` / `setBlock` / `setCacheClean`
+ * / `getCacheCount` …）和它们的返回值。管理走 HTTP 之后，这里只保留
+ * **后端主动推给展示端**的事件 —— 前端不再发送任何 setting 消息。
+ */
 interface WebsocketSettingTypeMap {
     setClear: null;
     setFont: BaseLyricSetter;
-    getFont: BaseLyricSetter;
     setFontSize: BaseLyricSetter;
-    getFontSize: BaseLyricSetter;
     setAlignment: BaseLyricSetter;
-    getAlignment: BaseLyricSetter;
     setColor: BaseLyricSetter;
-    getColor: BaseLyricSetter;
     setTranslationMain: boolean;
-    getTranslationMain: boolean;
     setSecondShow: boolean;
-    getSecondShow: boolean;
-    setLyricSource: SongInfoKey;
-    getLyricList: SongInfoList;
-    getAllLyric: LyricLine[];
-    setBlock: null;
-    setUnblock: null;
-    getBlockList: BlockItem[];
-    getCacheCount: number;
-    setCacheClean: null;
-    getLyricOffset: number;
-    setLyricOffset: number;
+    setBlink: null;
+    setShadow: { first?: Shadow; second?: Shadow };
 }
 
 interface LyricLine {
@@ -73,15 +70,9 @@ interface BaseLyricSetter {
     second?: string;
 }
 
-interface SongInfoKey {
-    type: "QQ" | "Netease";
-    key: string;
-}
 
-interface SongInfoList {
-    QQ: SongInfo[];
-    Netease: SongInfo[];
-}
+
+
 
 interface SongInfo {
     title: string;
@@ -90,11 +81,7 @@ interface SongInfo {
     key: string;
 }
 
-interface BlockItem {
-    bid?: number;
-    sid?: number;
-    title?: string;
-}
+
 
 export { isWebsocketMessage, isLyric, isSetting };
 
@@ -104,9 +91,6 @@ export type {
     WebsocketSetting,
     WebsocketSettingTypeMap,
     BaseLyricSetter,
-    SongInfoKey,
-    SongInfoList,
     SongInfo,
     LyricLine,
-    BlockItem,
 };

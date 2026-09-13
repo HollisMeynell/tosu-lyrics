@@ -1,138 +1,214 @@
 <!-- markdownlint-disable MD028 MD033 -->
-<h1 align="center">tosu 歌词显示器</h1>
+<h1 align="center">osu! 歌词显示器</h1>
 
-## 介绍
+通过 [tosu](https://github.com/tosuapp/tosu) 获取 osu! 当前播放的歌曲信息，
+由 Rust 后端从网易云 / QQ 音乐等平台匹配并解析歌词，推送到网页显示，作为 OBS 的浏览器源使用。
 
-本项目通过 [tosu](https://github.com/tosuapp/tosu) 获取 osu 当前播放的歌曲信息，并借助一个简单的 [代理工具](tosu-proxy)
-从网易云音乐等多个平台获取歌词信息，解析后在网页中显示出来，作为 OBS 的浏览器源使用。
+> **安全声明**：本项目所有代码均已开源。如对安全性有疑虑，可自行查看代码并编译。
 
-> **安全声明**:
->
-> - 本项目所有代码均已开源，如果您对安全性有疑虑，可以自行查看代码并编译。
+---
 
-## TODO
+## 架构
 
-- [ ] Controller
-  - [x] 查看当前播放歌曲的歌词
-  - [x] 提供单句的复制
-  - [x] 文字色彩修改(支持主歌词、翻译歌词独立色彩)
-  - [x] 选择是否将翻译作为主歌词显示
-  - [x] 选择显示翻译与否
-  - [x] 浏览器控制页面可以实时改变 OBS 中歌词显示效果
-  - [x] 控制台夜间模式
-  - [x] 左右对齐、居中对齐
-  - [x] 歌曲黑名单管理, 屏蔽单曲、某标题对应的全部曲目的歌词
-  - [x] 查看当前曲名在各源下的所有搜索结果
-  - [x] 支持指定某单曲对应为其他 源/搜索结果 对应的歌词
-  - [x] 对歌词缓存进行删除操作
-  - [ ] 微调单曲的歌词偏移
-  - [ ] 歌词阴影修改
-  - [ ] 字体修改 | todo: **整体字体切换与字体上传已完成, 主歌词 / 翻译歌词的独立字体修改待完成**
-  - [ ] 加强对源的搜索精确度，减少指定歌词的次数以提升用户体验
-  - [ ] 手动上传新歌词
+```
+                    ┌──────────────────────────────────────┐
+   osu! ──► tosu ──►│  osu-lyric 后端 (Rust, :41280)        │
+            (WS,    │  · 歌曲识别 / 歌词匹配 / 缓存         │
+             :24050)│  · 黑名单 · 偏移 · 来源绑定           │
+                    │  · 字体资源 (版本化)                  │
+                    └───────┬──────────────────────┬───────┘
+                            │                      │
+                  WS 推送    │                      │  HTTP 管理
+                  (展示事件) │                      │  (查询 / 修改)
+                            ▼                      ▼
+                    ┌───────────────┐      ┌────────────────┐
+                    │  LyricsBox    │      │  Controller    │
+                    │  /lyrics      │      │  /lyrics/      │
+                    │  （OBS 浏览器源）│      │  controller/*  │
+                    └───────────────┘      └────────────────┘
+```
 
-- fix:
-  - [ ] 黑名单改动触发更新 UI（setValue时拿到的config.titleBlackList疑似为空）
+**职责边界（改造后的核心约定）**
 
+| 通道 | 职责 |
+|---|---|
+| **HTTP `/api/*`** | **全部管理操作**：读取状态、修改设置、黑名单、缓存、歌词来源、上传、字体、客户端 |
+| **WS `/ws`** | **只做展示事件传输**：后端把歌词、清屏、样式、闪烁**推给**展示端 |
 
-## 使用
+WS **不是**管理通道 —— 客户端通过 WS 发送的任何内容都不会改变业务状态（旧版 23 个
+WS 管理命令已在 B-11 中彻底移除）。展示端只接收、不发送。
 
-### 下载、启动
+---
 
-1. 下载 [tosu](https://github.com/tosuapp/tosu/releases) 并解压到任意目录（例如 `/AppData/Roaming` 或 `Program Files`等）。**注意：无需运行 `tosu.exe`。**
-2. 下载 [release](https://github.com/HollisMeynell/tosu-lyrics/releases/) 中的压缩包并将文件解压到 tosu 的根目录。
-3. 运行 `tosu-proxy.exe`。
-4. 41280 端口用于显示本项目，24050 端口用于 tosu。(可以通过环境变量 `TOSU_PROXY_PORT` 来指定本项目的端口, tosu 端口也可以被修改, 请参阅对应设置)
+## 路由
 
-### 显示
+### 页面
 
-将 `http://127.0.0.1:41280/lyrics/` 添加到 OBS 的浏览器源中。建议设置宽为 1200，高为 300, 在自定义CSS中添加 `.dark body {background-color: rgba(0, 0, 0, 0);}` 用于在夜间模式将背景透明化。
+| 路径 | 说明 |
+|---|---|
+| `/lyrics` | **歌词展示页**（加入 OBS 浏览器源的地址） |
+| `/lyrics/controller/client` | 在线展示端 |
+| `/lyrics/controller/content` | 歌词内容（当前歌词 / 搜索 / 预览 / 来源 / 偏移 / 清屏） |
+| `/lyrics/controller/textstyle` | 文字样式（颜色 / 字号 / 字体 / 对齐 / 翻译优先 / 副歌词） |
+| `/lyrics/controller/shadow` | 阴影（主 / 副独立） |
+| `/lyrics/controller/blackList` | 黑名单 |
+| `/lyrics/controller/cacheManager` | 歌词缓存 |
+| `/lyrics/controller/upload` | LRC 上传与字体资源 |
 
-### 控制
+> 访问 `/` 会永久重定向到 `/lyrics`。
 
-在外部浏览器访问[http://127.0.0.1:41280/lyrics/](http://127.0.0.1:41280/lyrics/)。
-在 OBS 的浏览器的`交互`中、外部浏览器中，均可以通过
+### HTTP API
 
-- ctrl + alt + t
-- 三指轻点屏幕
+全部挂在 `/api` 下，成功返回结构化 JSON，失败统一为
+`{"error":{"code":"...","message":"..."}}` 并配合语义化状态码。
 
-来切换控制面板的打开状态。
-默认关闭以提升观众体验。
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/status` | 当前歌曲、歌词状态、生效偏移、是否被屏蔽 |
+| GET | `/api/lyrics/current` | 当前歌词 + 身份 + 偏移 + 来源绑定 + `lyricState` |
+| GET | `/api/lyrics/search-results` | 已有候选（每项带自己的 `source` / `key`） |
+| POST | `/api/lyrics/search` | 主动搜索（空 body = 按当前歌曲） |
+| GET | `/api/lyrics/preview?source=&key=` | 预览候选，**不改变播放** |
+| PUT / DELETE | `/api/lyrics/source` | 应用来源绑定 / 恢复自动匹配 |
+| PUT | `/api/lyrics/offset` | 设置偏移（毫秒） |
+| POST | `/api/lyrics/upload` | 上传 LRC（multipart），绑定到发起时歌曲的 `sid` |
+| POST | `/api/display/clear` | 清空所有展示端（持续清屏，直到换歌 / 换源 / 上传） |
+| GET / PATCH | `/api/settings` | 展示设置（颜色 / 字号 / 字体 / 对齐 / 翻译优先 / 副歌词 / 阴影） |
+| GET / POST | `/api/blocks` | 黑名单列表 / 新增（幂等） |
+| PATCH / DELETE | `/api/blocks/{id}` | 修改备注与名称 / 删除单条 |
+| DELETE | `/api/blocks` | 清空（幂等） |
+| GET | `/api/cache?page=&size=&q=` | 缓存分页 + 标题过滤 |
+| GET | `/api/cache/count` | 缓存总数 |
+| DELETE | `/api/cache/{bid}` | 删除单条缓存 |
+| DELETE | `/api/cache?title=` | 按标题删除缓存 |
+| DELETE | `/api/cache` | 清空缓存 |
+| POST | `/api/cache/cleanup` | 清理过期条目 |
+| GET | `/api/clients` | 在线展示端列表 |
+| POST | `/api/clients/{id}/blink` | 定向闪烁（`id` 可为会话 key 或自报身份） |
+| POST | `/api/clients/blink` | 全部展示端闪烁 |
+| GET | `/api/font/info` | 主 / 副字体版本信息 |
+| GET / POST | `/api/font/{kind}` | 下载 / 上传覆盖字体（`kind` = `main` / `sub`） |
 
-> [!IMPORTANT]
-> **跨域说明**：
->
-> - **由于 obs 跨域环境限制很多, 你必须启动 `tosu-proxy`。**
+### WebSocket
 
-> [!TIP]
->
-> - 文件结构: 非必要情况下尽量使 `tosu-proxy.exe` 和 `tosu.exe` 位于项目根目录，静态文件位于 `<tosu根目录>/static/lyrics` 目录中，否则需要手动启动两个程序。
-> - 隔离说明: `tosu-proxy` 不影响 `tosu` 或其他插件的正常使用。可访问 [`http://127.0.0.1:24050`](http://127.0.0.1:24050) 使用他们。
-> - 字体修改: 您可以通过修改 `LRC.otf` 更改全部字体, 或者添加 `tLRC.otf` (对应主歌词) 和 `oLRC.otf` (对应副歌词) 来更改字体。
-> - 自定义字体支持 `ttf`、`woff` 等字体格式，但需将文件名严格填写为 `LRC.otf`, `tLRC.otf` 或 `oLRC.otf` (即 'xxx.ttf' => 'LRC.otf')。
+| 路径 | 方向 | 说明 |
+|---|---|---|
+| `/ws` | 后端 → 前端 | 歌词推送、`setColor` / `setFont` / `setFontSize` / `setAlignment` / `setTranslationMain` / `setSecondShow` / `setShadow` / `setClear` / `setBlink` |
+| `/ws?id=<名字>` | — | 展示端**自报稳定身份**，便于定向操作与识别（可选） |
 
-## 如何更新
-- 下载新的 release 压缩包，解压后覆盖到 tosu 根目录。
-- 如果旧版本出现异常的歌词，请在更新后清理缓存来解决。
-    操作方法：向 obs 浏览器源中 url 末尾添加`?clear-cache=true`参数，并确定，刷新缓存后将参数去除
+---
+
+## 构建
+
+依赖：Rust（stable）、Node.js + pnpm、[just](https://github.com/casey/just)（可选）。
+
+```bash
+just build          # = build-dist + build-backend + copy-backend
+```
+
+或分步：
+
+```bash
+# 前端
+pnpm i
+pnpm build          # 产物在 dist/
+
+# 后端
+cd tosu-proxy
+cargo build -r --bin osu-lyric --features=new
+```
+
+> ⚠️ **`vite build` 会清空 `dist/`**，而 `dist/` 里还放着后端二进制、`config.json5`、
+> 数据库、字体等运行产物。构建前端前请先备份这些文件，或使用
+> `npx vite build --outDir dist-new` 构建到临时目录后再并入。
+
+---
+
+## 运行
+
+1. 下载 [tosu](https://github.com/tosuapp/tosu/releases) 并解压到任意目录（**无需运行 `tosu.exe`**）。
+2. 把构建产物放到同一目录：
+   - `osu-lyric.exe`（后端）
+   - `dist/` 里的前端内容（`index.html` / `assets/` / `LRC.otf` 等）
+   - 首次运行会自动生成 `config.json5` 与 `lyric.db`
+3. 运行 `osu-lyric.exe`。
+4. 打开 `http://127.0.0.1:41280/lyrics` 即为展示页；控制台在同源的 `/lyrics/controller/*`。
+
+### 配置 `config.json5`
+
+```json5
+{
+    server: "127.0.0.1",
+    log: "info",
+    port: 41280,
+    database: "sqlite://lyric.db?mode=rwc",
+    tosu: {
+        url: "ws://127.0.0.1:24050/websocket/v2"
+    },
+    // 歌词缓存有效期（小时）。不填默认 30 天；填 0 表示不过期。
+    lyricCacheTtlHours: 720
+}
+```
+
+| 字段 | 说明 |
+|---|---|
+| `server` / `port` | 后端监听地址与端口（默认 `127.0.0.1:41280`） |
+| `log` | 日志级别：`trace` / `debug` / `info` / `warn` / `error` |
+| `database` | SQLite 连接串 |
+| `tosu.url` | tosu 的 v2 WebSocket 地址 |
+| `lyricCacheTtlHours` | 歌词缓存 TTL，缺省 30 天，`0` 为不过期 |
+
+### 在 OBS 中使用
+
+把 `http://127.0.0.1:41280/lyrics` 添加为浏览器源。建议宽 1200、高 300。
+夜间模式下若希望背景透明，在自定义 CSS 中加入：
+
+```css
+.dark body { background-color: rgba(0, 0, 0, 0); }
+```
+
+---
+
+## 数据持久化
+
+后端用单个 SQLite 文件（默认 `lyric.db`）保存几类彼此独立的数据：
+
+| 表 | 内容 | 能否随意删除 |
+|---|---|---|
+| `lyric_cache` | 歌词缓存（带 TTL） | ✅ 纯缓存，删了会重新联网取 |
+| `lyric_binding` | **来源绑定**（按 `sid` 归属） | ❌ 用户数据 |
+| `lyric_config` | 单曲**偏移** | ❌ 用户数据 |
+| `lyric_block` | **黑名单**（`bid` / `sid` / `title` 三种作用域） | ❌ 用户数据 |
+| `config` | 展示设置（JSON） | ❌ 用户数据 |
+
+**删缓存不会影响来源绑定、偏移或黑名单。** 旧数据库会在启动时自动迁移
+（补充新增列、把旧的屏蔽规则搬进 `lyric_block`），迁移是幂等的。
+
+### 身份约定
+
+| 标识 | 用途 |
+|---|---|
+| `bid` | **当前播放的具体谱面** —— 播放上下文、异步结果的新旧判断 |
+| `sid` | **歌曲级歌词资源归属** —— 来源绑定、缓存、LRC 上传 |
+| `title` | 仅用于展示与"标题级黑名单规则"，**不参与判等** |
+| generation | 异步代际：换歌 / 清屏会让在途的搜索与取词结果失效 |
+
+---
 
 ## 开发
 
-### 代理工具
+```bash
+# 前端热更新（已配置 /api 代理到 127.0.0.1:41280）
+pnpm dev
 
-确保已安装 Rust 编译环境。
+# 后端测试
+cd tosu-proxy && cargo test --features=new
 
-    ```bash
-    cd tosu-proxy # 进入代理工具目录
-    cargo build --release # 编译代理工具
-    ```
+# 后端 lint（新增代码不应引入 warning）
+cd tosu-proxy && cargo clippy --features=new
+```
 
-### 歌词页面
+### 自动化验证
 
-确保已安装 Node.js 环境。
-
-    ```bash
-    cd /<path-to-root> # 进入项目目录
-    npm install # 安装依赖
-    npm run dev # 启动开发服务器
-    # 访问5173端口需要附带参数 /?controller=true 以开启控制面板
-    npm run build # 编译
-    ```
-
-可将 `dist` 目录下的文件复制到 `tosu` 的 `static/lyrics` 目录。
-
-## 致谢
-
-- 本项目的原型和样式改进灵感来自 [@EmitPots](https://github.com/EmitPots)。
-- 参考项目：[LyricDisplayerPlugin](https://github.com/OsuSync/LyricDisplayerPlugin)。
-- 感谢所有贡献者和用户的支持！🙌
-
-## 未来 (画上大饼先)
-
-之前开发是想最小化依赖, 仅作为 tosu 的一个插件来完成工作, 随着功能的增加, 
-纯 ts 对缓存, 配置, 控制等方面支持不足, 开发越来越困难, 
-索性重构一下, 让前端回归最纯粹的展示功能, 正所谓
-
-> Make each program do one thing well.
-
-第二期重构将会解耦前端处理数据, 采用后端接入 tosu, Websocket 仅发送指令控制页面显示
-
-后端任务列表:
-- [x] 接入数据源获取当前歌曲
-  - [x] 接入 [tosu](https://github.com/tosuapp/tosu)
-  - ~~使用 [rosu-memory](https://github.com/486c/rosu-memory) 直接读取数据~~(不好做, 寄)
-  - ~~接入 [gosumemory](https://github.com/l3lackShark/gosumemory) (tosu 接口兼容)~~
-- [x] 查询歌词
-  - [x] qq 歌词数据源
-  - [x] 网易云歌词数据源
-- [ ] ws 接收 / 下发指令
-  - [ ] 歌词换行
-  - [x] 时间轴调整
-  - [x] 歌曲更新
-  - [x] 样式更新
-  - [x] 拉黑 / 显示
-- [x] 缓存歌词(增/删, 缓存过期时间)
-- [x] 持久化配置
-- [x] 存储字体
-- [x] 上传歌词
-- [x] 编写后端文档, 支持自己实现页面
+仓库外的 `../_probe/` 下有一套基于假 tosu 的端到端测试，覆盖后端 HTTP、
+展示 WS 推送、以及用 CDP 驱动真实浏览器点击 Controller 页面的全链路。

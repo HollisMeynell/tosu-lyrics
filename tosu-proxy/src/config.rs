@@ -19,6 +19,27 @@ pub static CONFIG_ENDPOINT_FONT_DOWNLOAD: &str = "download";
 pub static CONFIG_ENDPOINT_AUDIO_LEN: &str = "audio/len";
 pub static CONFIG_ENDPOINT_LYRIC: &str = "lyric";
 pub static CONFIG_ENDPOINT_LYRIC_UPLOAD: &str = "upload";
+// 管理 HTTP(新增): 只读状态查询 + 展示控制, 不依赖控制台改造即可用 HTTP 独立验证
+pub static CONFIG_ENDPOINT_STATUS: &str = "status";
+pub static CONFIG_ENDPOINT_LYRICS: &str = "lyrics";
+pub static CONFIG_ENDPOINT_LYRICS_CURRENT: &str = "current";
+pub static CONFIG_ENDPOINT_LYRICS_SEARCH_RESULTS: &str = "search-results";
+pub static CONFIG_ENDPOINT_LYRICS_SEARCH: &str = "search";
+pub static CONFIG_ENDPOINT_LYRICS_PREVIEW: &str = "preview";
+pub static CONFIG_ENDPOINT_LYRICS_SOURCE: &str = "source";
+pub static CONFIG_ENDPOINT_LYRICS_OFFSET: &str = "offset";
+pub static CONFIG_ENDPOINT_LYRICS_UPLOAD: &str = "upload";
+pub static CONFIG_ENDPOINT_LYRICS_TRANSLATION_CHECK: &str = "translation-check";
+pub static CONFIG_ENDPOINT_DISPLAY: &str = "display";
+pub static CONFIG_ENDPOINT_DISPLAY_CLEAR: &str = "clear";
+pub static CONFIG_ENDPOINT_SETTINGS: &str = "settings";
+pub static CONFIG_ENDPOINT_BLOCKS: &str = "blocks";
+pub static CONFIG_ENDPOINT_CLIENTS: &str = "clients";
+pub static CONFIG_ENDPOINT_CLIENTS_BLINK: &str = "blink";
+pub static CONFIG_ENDPOINT_CLIENTS_SETTINGS: &str = "settings";
+pub static CONFIG_ENDPOINT_CACHE: &str = "cache";
+pub static CONFIG_ENDPOINT_CACHE_COUNT: &str = "count";
+pub static CONFIG_ENDPOINT_CACHE_CLEANUP: &str = "cleanup";
 
 static CONFIG_PATH: &str = "config.json5";
 #[derive(Debug, Deserialize, Serialize)]
@@ -32,6 +53,9 @@ pub struct Config {
     pub log_level: Option<String>,
     pub port: u16,
     pub database: String,
+    /// 歌词缓存 TTL（小时）。缺省 30 天；填 0 表示不过期。
+    #[serde(default)]
+    pub lyric_cache_ttl_hours: Option<i64>,
     pub tosu: Option<TosuConfig>,
 }
 
@@ -42,6 +66,7 @@ impl Default for Config {
             log_level: None,
             port: 41280,
             database: "sqlite://lyric.db?mode=rwc".to_string(),
+            lyric_cache_ttl_hours: None,
             tosu: Some(TosuConfig {
                 url: "ws://127.0.0.1:24050/websocket/v2".to_string(),
             }),

@@ -1,44 +1,16 @@
-export const BACKEND_CONFIG_URL = "http://127.0.0.1:41280/api/config";
-export const BACKEND_WEBSOCKET_URL = "http://127.0.0.1:41280/ws";
-export let PROXY_URL = "http://127.0.0.1:41280/api/proxy";
-export const AUDIO_URL = "http://127.0.0.1:24050/files/beatmap/audio";
-export const WS_URL = "ws://127.0.0.1:24050/websocket/v2";
 
-export const WS_QUERY_TIMEOUT = 5000;
+/**
+ * 新版管理 HTTP 的基址。
+ *
+ * 用相对路径：开发时 vite 已把 `/api` 代理到后端，生产时页面由后端自身提供，
+ * 两种情况都不需要写死主机与端口。
+ */
+export const BACKEND_API_BASE = "/api";
 
-export const TIME_DIFF_FILTER = (songLength: number, audioLength: number) => {
-    const diff = Math.abs(songLength - audioLength);
-    return diff < 8000;
-};
-
-export const SEARCH_MUSIC_URL = (adapter: string, title: string) => {
-    switch (adapter) {
-        case "QQ": {
-            return `https://c.y.qq.com/soso/fcgi-bin/client_search_cp?p=1&n=10&format=json&w=${title}`;
-        }
-        case "Netease": {
-            return `https://music.163.com/api/search/get/?s=${title}&type=1&limit=5`;
-        }
-        default: {
-            return "";
-        }
-    }
-};
-
-export const GET_LYRIC_URL = (adapter: string, songID: number | string) => {
-    switch (adapter) {
-        case "QQ": {
-            return `https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid=${songID}&format=json&nobase64=1`;
-        }
-        case "Netease": {
-            return `https://music.163.com/api/song/lyric?id=${songID}&lv=1&kv=1&tv=-1`;
-        }
-        default: {
-            return "";
-        }
-    }
-};
-
-export const setProxyUrl = (url: string) => {
-    PROXY_URL = url;
-};
+// 新版后端展示 WS 的真实路由是根路径 `/ws`(不是 /api/ws)。
+// - 开发: 页面由 vite dev server 提供, 后端在默认端口, 显式指向它
+// - 生产: 页面由后端自身提供, 直接用当前 host, 改端口/OBS 刷新都不会失联
+const BACKEND_DEV_HOST = "127.0.0.1:41280";
+const wsHost = import.meta.env.DEV ? BACKEND_DEV_HOST : window.location.host;
+const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+export const BACKEND_WEBSOCKET_URL = `${wsScheme}://${wsHost}/ws`;

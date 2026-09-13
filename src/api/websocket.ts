@@ -5,29 +5,36 @@ import {
     isWebsocketMessage,
     WebsocketLyric,
     WebsocketSetting,
-    WebsocketSettingTypeMap,
 } from "@/api/model.ts";
 import { BACKEND_WEBSOCKET_URL } from "@/config/constants.ts";
-import { generateRandomString } from "@/utils/helpers";
 
 export type SettingHandler = (data: WebsocketSetting) => void;
 export type LyricHandler = (data: WebsocketLyric) => void;
 
+/**
+ * 新版后端 WebSocket 客户端 —— **只接收，不发送**（F-10）。
+ *
+ * 改造前这里承担了两件事：接收展示推送，以及通过 `sendSetting` + echo
+ * 请求队列做**管理 RPC**。管理已全部迁到 HTTP（B-11 删除了后端入口），
+ * 因此整个发送侧被删除：
+ *
+ * - 没有 `sendData` / `sendSetting` / echo 队列
+ * - 没有 `?setter=true` 连接模式
+ * - 没有 `getFont` / `setBlock` / `setCacheClean` 之类的管理方法
+ *
+ * 保留的只有展示事件接收：歌词推送、`setColor` / `setFont` / `setFontSize` /
+ * `setAlignment` / `setTranslationMain` / `setSecondShow` / `setShadow` /
+ * `setClear` / `setBlink` 等**后端主动推给展示端**的事件。
+ *
+ * 这样就不存在"通过 WS 再建一个隐藏管理通道"的可能。
+ */
 export class Websocket {
     private ws: ReconnectingWebSocket;
-    private actions = new Map<string, SettingHandler>();
     private lyricHandler: LyricHandler | undefined;
     private settingHandler: SettingHandler | undefined;
 
-    /**
-     * 初始化 WebSocket 对象
-     * @param isClient 设置端要传 false, 此时不再收到歌词下发
-     */
-    constructor(isClient: boolean = true) {
-        const url = isClient
-            ? BACKEND_WEBSOCKET_URL
-            : BACKEND_WEBSOCKET_URL + "?setter=true";
-        this.ws = new ReconnectingWebSocket(url);
+    constructor() {
+        this.ws = new ReconnectingWebSocket(BACKEND_WEBSOCKET_URL);
         this.setupWebsocket();
     }
 
@@ -49,235 +56,24 @@ export class Websocket {
             }
             if (!isWebsocketMessage(json)) return;
             if (isLyric(json)) {
-                this.onLyric(json);
+                this.lyricHandler?.(json);
             } else if (isSetting(json)) {
-                this.onSetting(json);
+                this.settingHandler?.(json);
             }
         };
     }
 
-    private sendData(data: unknown) {
-        if (this.ws.readyState !== WebSocket.OPEN) {
-            console.error("Websocket is not open");
-            return;
-        }
-        this.ws.send(JSON.stringify(data));
-    }
-
-    private onLyric(data: WebsocketLyric) {
-        this.lyricHandler?.(data);
-    }
-
-    private onSetting(data: WebsocketSetting) {
-        if (data.echo != null) {
-            this.actions.get(data.echo)?.(data);
-            return;
-        }
-        // 无 echo 的 setting 为后端广播
-        this.settingHandler?.(data);
-    }
-
-    /**
-     * 设置歌词事件(后端单向推送)的处理器
-     */
+    /** 歌词推送处理器 */
     public setLyricHandler(handler: LyricHandler | undefined) {
         this.lyricHandler = handler;
     }
 
-    /**
-     * 设置广播事件(无 echo 的 setting)的处理器
-     */
+    /** 展示设置广播处理器 */
     public setSettingHandler(handler: SettingHandler | undefined) {
         this.settingHandler = handler;
     }
 
-    private genKey(): string {
-        let key: string;
-        do {
-            key = generateRandomString(16);
-        } while (this.actions.has(key));
-        return key;
-    }
-
-    private async sendSetting<
-        K extends keyof WebsocketSettingTypeMap = keyof WebsocketSettingTypeMap,
-    >(type: K, data: WebsocketSettingTypeMap[K]): Promise<WebsocketSetting<K>> {
-        return new Promise<WebsocketSetting<K>>((resolve, reject) => {
-            const key = this.genKey();
-            this.actions.set(key, resolve as SettingHandler);
-            const message: WebsocketSetting<K> = {
-                type: "setting",
-                key: type,
-                value: data,
-                echo: key,
-            };
-            this.sendData(message);
-            setTimeout(
-                () => reject(new Error("Websocket setting timeout")),
-                1000
-            );
-        });
-    }
-
-    /**
-     * 清空歌词
-     */
-    public async setClear() {
-        const data: WebsocketSettingTypeMap["setClear"] = null;
-        await this.sendSetting("setClear", data);
-    }
-
-    public async setFont(
-        data: WebsocketSettingTypeMap["setFont"]
-    ): Promise<WebsocketSettingTypeMap["setFont"]> {
-        const result = await this.sendSetting("setFont", data);
-        return result.value!;
-    }
-
-    public async getFont(
-        data: WebsocketSettingTypeMap["getFont"]
-    ): Promise<WebsocketSettingTypeMap["getFont"]> {
-        const result = await this.sendSetting("getFont", data);
-        return result.value!;
-    }
-
-    public async setFontSize(
-        data: WebsocketSettingTypeMap["getFont"]
-    ): Promise<WebsocketSettingTypeMap["getFont"]> {
-        const result = await this.sendSetting("getFont", data);
-        return result.value!;
-    }
-
-    public async getFontSize(
-        data: WebsocketSettingTypeMap["getFont"]
-    ): Promise<WebsocketSettingTypeMap["getFont"]> {
-        const result = await this.sendSetting("getFont", data);
-        return result.value!;
-    }
-
-    public async setAlignment(
-        data: WebsocketSettingTypeMap["getFont"]
-    ): Promise<WebsocketSettingTypeMap["getFont"]> {
-        const result = await this.sendSetting("getFont", data);
-        return result.value!;
-    }
-
-    public async getAlignment(
-        data: WebsocketSettingTypeMap["getFont"]
-    ): Promise<WebsocketSettingTypeMap["getFont"]> {
-        const result = await this.sendSetting("getFont", data);
-        return result.value!;
-    }
-
-    public async setColor(
-        data: WebsocketSettingTypeMap["getFont"]
-    ): Promise<WebsocketSettingTypeMap["getFont"]> {
-        const result = await this.sendSetting("getFont", data);
-        return result.value!;
-    }
-
-    public async getColor(
-        data: WebsocketSettingTypeMap["getColor"]
-    ): Promise<WebsocketSettingTypeMap["getColor"]> {
-        const result = await this.sendSetting("getColor", data);
-        return result.value!;
-    }
-
-    public async setTranslationMain(
-        data: WebsocketSettingTypeMap["setTranslationMain"]
-    ): Promise<WebsocketSettingTypeMap["setTranslationMain"]> {
-        const result = await this.sendSetting("setTranslationMain", data);
-        return result.value!;
-    }
-
-    public async getTranslationMain(
-        data: WebsocketSettingTypeMap["getTranslationMain"]
-    ): Promise<WebsocketSettingTypeMap["getTranslationMain"]> {
-        const result = await this.sendSetting("getTranslationMain", data);
-        return result.value!;
-    }
-
-    public async setSecondShow(
-        data: WebsocketSettingTypeMap["setSecondShow"]
-    ): Promise<WebsocketSettingTypeMap["setSecondShow"]> {
-        const result = await this.sendSetting("setSecondShow", data);
-        return result.value!;
-    }
-
-    public async getSecondShow(
-        data: WebsocketSettingTypeMap["getSecondShow"]
-    ): Promise<WebsocketSettingTypeMap["getSecondShow"]> {
-        const result = await this.sendSetting("getSecondShow", data);
-        return result.value!;
-    }
-
-    public async setLyricSource(
-        data: WebsocketSettingTypeMap["setLyricSource"]
-    ): Promise<WebsocketSettingTypeMap["setLyricSource"]> {
-        const result = await this.sendSetting("setLyricSource", data);
-        return result.value!;
-    }
-
-    public async getLyricList(
-        data: WebsocketSettingTypeMap["getLyricList"]
-    ): Promise<WebsocketSettingTypeMap["getLyricList"]> {
-        const result = await this.sendSetting("getLyricList", data);
-        return result.value!;
-    }
-
-    public async getAllLyric(
-        data: WebsocketSettingTypeMap["getAllLyric"]
-    ): Promise<WebsocketSettingTypeMap["getAllLyric"]> {
-        const result = await this.sendSetting("getAllLyric", data);
-        return result.value!;
-    }
-
-    public async setBlock(
-        data: WebsocketSettingTypeMap["setBlock"]
-    ): Promise<WebsocketSettingTypeMap["setBlock"]> {
-        const result = await this.sendSetting("setBlock", data);
-        return result.value!;
-    }
-
-    public async setUnblock(
-        data: WebsocketSettingTypeMap["setUnblock"]
-    ): Promise<WebsocketSettingTypeMap["setUnblock"]> {
-        const result = await this.sendSetting("setUnblock", data);
-        return result.value!;
-    }
-
-    public async getBlockList(
-        data: WebsocketSettingTypeMap["getBlockList"]
-    ): Promise<WebsocketSettingTypeMap["getBlockList"]> {
-        const result = await this.sendSetting("getBlockList", data);
-        return result.value!;
-    }
-
-    public async getCacheCount(
-        data: WebsocketSettingTypeMap["getCacheCount"]
-    ): Promise<WebsocketSettingTypeMap["getCacheCount"]> {
-        const result = await this.sendSetting("getCacheCount", data);
-        return result.value!;
-    }
-
-    public async setCacheClean(
-        data: WebsocketSettingTypeMap["setCacheClean"]
-    ): Promise<WebsocketSettingTypeMap["setCacheClean"]> {
-        const result = await this.sendSetting("setCacheClean", data);
-        return result.value!;
-    }
-
-    public async getLyricOffset(
-        data: WebsocketSettingTypeMap["getLyricOffset"]
-    ): Promise<WebsocketSettingTypeMap["getLyricOffset"]> {
-        const result = await this.sendSetting("getLyricOffset", data);
-        return result.value!;
-    }
-
-    public async setLyricOffset(
-        data: WebsocketSettingTypeMap["setLyricOffset"]
-    ): Promise<WebsocketSettingTypeMap["setLyricOffset"]> {
-        const result = await this.sendSetting("setLyricOffset", data);
-        return result.value!;
+    public close() {
+        this.ws.close();
     }
 }

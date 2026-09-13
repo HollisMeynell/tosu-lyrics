@@ -1,245 +1,186 @@
-# 后端接口 文档
+# osu-lyric 后端
 
-消息通过 WebSocket, 使用 json 格式进行传输
+Rust 后端：连接 tosu 获取 osu! 当前歌曲，匹配并解析歌词，通过 HTTP 与 WebSocket 对外提供服务。
 
-目前websocket连接分为两类, 如果ws连接带有参数 `?setter=true` 则分配为配置发送端,
-避免无用的消息发送
+> 本文件描述的是**改造后**的接口。旧版基于 WS 的 23 个管理命令已全部移除，
+> 不要再参考历史文档里的 `setter` / `getAllLyric` / `setBlock` 等 WS 管理协议。
 
-- 歌词接收端, 会收到 歌词变更事件, 设置配置事件
-- 配置发送端, 不会收到广播消息, 但是发送消息后会收到响应结果
+---
 
-目前消息分为两种, 一个是歌词事件, 一个是配置事件
+## 职责边界
 
-其中歌词事件仅后端发送
+| 通道 | 用途 |
+|---|---|
+| **HTTP `/api/*`** | 全部**管理**操作：查询状态、修改设置、黑名单、缓存、歌词来源、上传、字体、客户端 |
+| **WebSocket `/ws`** | **只做展示事件传输**：后端把歌词与展示事件推给展示端 |
 
-配置事件包含 **提交**, **响应**, **广播** 三种类型
+WS **不是**管理通道。客户端通过 WS 发送的任何内容都只被记录，不会改变业务状态。
 
-> [!IMPORTANT]
-> 所有 json 的 `key` 均使用小驼峰命名法
->
+---
 
-## 歌词事件
+## HTTP 接口
 
-类型:
+统一约定：
 
-### LyricLine
+- 路径挂在 `/api` 下
+- 时间单位一律为**毫秒**（唯一年长例外见各接口说明）
+- 成功返回结构化 JSON；mutation 返回**最终服务端状态**
+- 失败统一为 `{"error":{"code":"...","message":"..."}}` + 语义化状态码
 
-| name        | type   | description | required |
-|:------------|:-------|:------------|:--------:|
-| origin      | string | 主要歌词        |    Y     |
-| translation | string | 次要歌词        |    N     |
+错误码：`invalid_param`(400) / `no_song`(409) / `no_lyric`(404|422) /
+`not_found`(404) / `write_failed`(500) / `song_changed`(409) / `source_failed`(502) / `internal`(500)
 
-### Lyric
+### 状态与展示
 
-| name     | type                      | description | required |
-|:---------|:--------------------------|:------------|:--------:|
-| type     | string                    | "lyric"     |    Y     |
-| lyric    | [LyricLine[]](#LyricLine) | 全部歌词        |    N     |
-| current  | number                    | 歌词下标        |    Y     |
-| nextTime | number                    | 持续时间(ms)    |    Y     |
-| sequence | string                    | "up"/"down" |    Y     |
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/status` | 当前歌曲、歌词状态、生效偏移、`blocked` |
+| POST | `/api/display/clear` | 清空所有展示端。语义为**持续清屏**，直到换歌 / 换源 / 上传歌词 |
 
-**lyric 只有第一次下发才会存在**
+`/api/status` 的 `blocked` 与 `lyric.loaded=false` 是两回事：前者是用户显式拉黑，
+后者是源里没有歌词。
 
-**current 是从零开始, 如果是`-1`说明不需要显示**
+### 歌词内容
 
-**nextTime 如果是`-1`则表示为最后一行歌词**
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/lyrics/current` | 当前歌词 + 身份 + 偏移 + `source` + `lyricState` |
+| GET | `/api/lyrics/search-results` | 已有候选 |
+| POST | `/api/lyrics/search` | 主动搜索；空 body 表示按当前歌曲搜索 |
+| GET | `/api/lyrics/preview?source=&key=` | 预览候选，**不改变播放状态** |
+| PUT | `/api/lyrics/source` | 应用来源绑定（幂等） |
+| DELETE | `/api/lyrics/source` | 恢复自动匹配 |
+| PUT | `/api/lyrics/offset` | 设置偏移，返回最终生效值（±30s 内） |
+| POST | `/api/lyrics/upload` | 上传 LRC（multipart 或原始 body） |
 
-示例:
+**`/api/lyrics/current` 的契约**：没有播放中的歌 → 404 `no_song`；
+有歌但没有可用歌词 → **200** + `lyric: null` + `lyricState`
+（`ok` / `blocked` / `none`）。没歌词是正常瞬时状态，不是错误。
 
-```json
-{
-  "type": "lyric",
-  "lyric": [
-    {
-      "origin": "还记得 你说家是唯一的城堡",
-      "translation": ""
-    },
-    {
-      "origin": "随着稻香河流继续奔跑",
-      "translation": ""
-    },
-    {
-      "origin": "微微笑 小时候的梦我知道",
-      "translation": ""
-    }
-  ],
-  "current": 0,
-  "nextTime": 1000,
-  "sequence": "up"
-}
+**异步正确性**：所有联网操作（搜索 / 取词 / 应用来源 / 上传）在发起时取一份
+"代际 + 歌曲身份"，提交前重新校验；不匹配返回 **409 `song_changed`**，结果整份丢弃。
+
+### 设置
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/settings` | 读取完整设置（含默认值） |
+| PATCH | `/api/settings` | 局部更新；校验 + 落库成功后才广播 |
+
+字段：`textColor` / `fontSize` / `font`（均为 `{first, second}`）、`alignment`、
+`translationMain`、`secondShow`、`shadow`（`{first, second}`，每项含
+`enable` / `inset` / `color` / `offset`）。
+
+### 黑名单
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET / POST | `/api/blocks` | 列表 / 新增（幂等：同一 `(scope,value)` 只更新元数据） |
+| PATCH / DELETE | `/api/blocks/{id}` | 修改名称与备注 / 删除单条 |
+| DELETE | `/api/blocks` | 清空 |
+
+**作用域**：`bid`（单谱面）/ `sid`（谱面集）/ `title`（标题）。
+一条规则只属于其中之一，**不做跨作用域回退** —— 标题相同的另一首歌不会被误伤。
+拉黑当前播放的歌会立即清屏；解除后立即重新加载。
+
+### 缓存
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/cache?page=&size=&q=` | 分页 + 标题过滤（`page` 从 1 开始，`size` 夹到 1..=200） |
+| GET | `/api/cache/count` | 总数 |
+| DELETE | `/api/cache/{bid}` | 删除单条（幂等） |
+| DELETE | `/api/cache?title=` | 按标题模糊删除 |
+| DELETE | `/api/cache` | 清空 |
+| POST | `/api/cache/cleanup` | 清理过期条目 |
+
+TTL 默认 30 天，配置 `lyricCacheTtlHours` 可覆盖，`0` 表示不过期。
+**删缓存不会触碰来源绑定 / 偏移 / 黑名单** —— 它们分属不同的表。
+
+### 在线展示端
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/clients` | 在线展示端列表 |
+| POST | `/api/clients/{id}/blink` | 定向闪烁；`id` 可以是会话 key 或自报身份 |
+| POST | `/api/clients/blink` | 全部展示端闪烁 |
+
+**在线会话 ≠ 持久身份**：`id` 是每次连接随机生成的会话标识；
+客户端可通过 `ws://host/ws?id=obs-main` **自报稳定身份**，重连后仍是它。
+
+### 字体资源
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/font/info` | 主 / 副字体的版本、大小、URL |
+| GET | `/api/font/{kind}` | 下载（`kind` = `main` / `sub`） |
+| POST | `/api/font/{kind}` | 上传并覆盖 |
+
+**版本化**：版本号由 `文件 mtime + 大小` 派生，覆盖写后必然变化，重启后仍从磁盘读出同一值。
+展示端用 `/api/font/main?v=<版本>` 加载，版本变则 URL 变，浏览器不会继续用旧字体。
+带 `v` 时返回 `immutable` 长缓存，不带 `v` 时返回 `no-cache`。
+
+---
+
+## WebSocket
+
+**路径**：`/ws`（根路径，**不是** `/api/ws`）
+
+前端**只接收，不发送**。后端推送的消息：
+
+```jsonc
+// 歌词推送
+{ "type": "lyric", "lyric": [{ "origin": "...", "translation": "..." }],
+  "current": 3, "nextTime": 4200, "sequence": "down" }
+
+// 展示事件
+{ "type": "setting", "key": "setColor", "value": { "first": "#fff", "second": "#e0e0e0" } }
 ```
 
-## 设置事件
+展示事件 key：`setColor` / `setFont` / `setFontSize` / `setAlignment` /
+`setTranslationMain` / `setSecondShow` / `setShadow` / `setClear` / `setBlink`。
 
-> 约定字段 `key` 使用小驼峰命名
->
-> `key` 命名时, 提交设置与广播通常使用 `set` 开头, 查询使用 `get` 开头, 响应使用 `rep` 开头
->
-> `get` 事件发送不需要 `value`, `value`作为响应出现
->
-> 提交设置与设置广播通常不会出现 `error` 以及 `echo`
+新展示端接入时会立刻收到一次完整的样式快照与歌词快照（无歌词时下发 `setClear`），
+因此 OBS 刷新或断线重连不需要额外处理。
 
-类型:
+可选参数 `?id=<名字>` 自报身份，便于在 `/api/clients` 中识别与定向操作。
 
-### 封装类
+---
 
-| name  | type   | description                    | required |
-|:------|:-------|:-------------------------------|:--------:|
-| type  | string | "setting"                      |    Y     |
-| key   | string | 设置类型, 与`value`的类型绑定            |    Y     |
-| value | ?      | 具体数据类型, 与 `key` 绑定, 可以为 `null` |    N     |
-| error | string | 错误信息, 通常与 `value` 互斥           |    N     |
-| echo  | string | 如果请求中包含, 响应同样包含相同的值            |    N     |
+## 数据与身份约定
 
-示例:
+### 表
 
-```json
-{
-  "type": "setting",
-  "key": "getLyricList",
-  "value": {
-    "title": "稻香",
-    "artist": "周杰伦",
-    "length": 203000
-  },
-  "echo": "3c50"
-}
+| 表 | 内容 |
+|---|---|
+| `lyric_cache` | 歌词缓存（带 `updated_at`，受 TTL 约束） |
+| `lyric_binding` | 来源绑定，**按 `sid` 归属** |
+| `lyric_config` | 单曲偏移，**严格按 `bid` 精确匹配** |
+| `lyric_block` | 黑名单规则（`scope` + `value`，复合唯一索引） |
+| `config` | 展示设置（一行 JSON） |
+
+启动时 `init_all_table_and_migrate()` 会建表、建索引并做幂等迁移
+（补 `lyric_cache.updated_at`、补 `lyric_block.reason`、把旧 `lyric_config.disable`
+行搬进 `lyric_block`）。旧库可直接被新版本打开。
+
+### 身份
+
+| 标识 | 用途 |
+|---|---|
+| `bid` | 当前播放的**具体谱面** —— 播放上下文与异步新旧判断 |
+| `sid` | **歌曲级歌词资源**归属 —— 来源绑定 / 缓存 / LRC 上传 |
+| `title` | 仅展示与标题级黑名单规则，**不参与判等** |
+| generation | 异步代际，换歌与清屏会让在途结果失效 |
+
+---
+
+## 构建与运行
+
+```bash
+cargo build -r --bin osu-lyric --features=new
+cargo test --features=new
+cargo clippy --features=new
 ```
 
-```json
-{
-  "type": "setting",
-  "key": "repLyricList",
-  "value": {
-    "QQ": [
-      {
-        "title": "稻香",
-        "artist": "周杰伦",
-        "length": 203000,
-        "key": "003aAYrm3GE0Ac"
-      }
-    ]
-  },
-  "echo": "3c50"
-}
-```
-
-```json
-{
-  "type": "setting",
-  "key": "repLyricList",
-  "error": "Search result is empty",
-  "echo": "3c50"
-}
-```
-
-## 设置事件 子列表
-
-| key                | type                                | description                    | done |
-|:-------------------|-------------------------------------|:-------------------------------|:----:|
-| setClear           | null                                | 清空当前显示的歌词, 控制端发送会向歌词页 ws 广播此消息 |  Y   |
-| setFont            | [BaseLyricSetter](#BaseLyricSetter) | 字体                             |  Y   |
-| getFont            | [BaseLyricSetter](#BaseLyricSetter) | 字体(获取)                         |  Y   |
-| setFontSize        | [BaseLyricSetter](#BaseLyricSetter) | 字体大小                           |  Y   |
-| getFontSize        | [BaseLyricSetter](#BaseLyricSetter) | 字体大小(获取)                       |  Y   |
-| setAlignment       | [BaseLyricSetter](#BaseLyricSetter) | 对齐方式                           |  Y   |
-| getAlignment       | [BaseLyricSetter](#BaseLyricSetter) | 对齐方式(获取)                       |  Y   |
-| setColor           | [BaseLyricSetter](#BaseLyricSetter) | 字体颜色                           |  Y   |
-| getColor           | [BaseLyricSetter](#BaseLyricSetter) | 字体颜色(获取)                       |  Y   |
-| setTranslationMain | bool                                | 翻译为主歌词                         |  Y   |
-| getTranslationMain | bool                                | 翻译为主歌词(获取)                     |  Y   |
-| setSecondShow      | bool                                | 显示副歌词                          |  Y   |
-| getSecondShow      | bool                                | 显示副歌词(获取)                      |  Y   |
-| setLyricSource     | [SongInfoKey](#SongInfoKey)         | 切换指定`key`歌词                    |  Y   |
-| getLyricList       | [SongInfoList](#SongInfoList)       | 获取搜索结果                         |  Y   |
-| getAllLyric        | [LyricLine[]](#LyricLine)           | 获取当前曲子完整歌词                     |  Y   |
-| setBlock           | null                                | 将当前曲子添加到黑名单中                   |  Y   |
-| setUnblock         | null                                | 将当前曲子从黑名单中移除                   |  Y   |
-| getBlockList       | [BlockItem[]](#BlockItem)           | 获取黑名单列表                        |  Y   |
-| getCacheCount      | number                              | 已缓存歌词的数量                       |  Y   |
-| setCacheClean      | null                                | 清空缓存                           |  Y   |
-| getLyricOffset     | number                              | 查看当前歌词的偏移                      |  Y   |
-| setLyricOffset     | number                              | 修改当前歌词的偏移                      |  Y   |
-
-### BaseLyricSetter
-
-基础配置的结构, 通常包含 主/副 歌词的单个配置
-
-| name   | type   | description | required |
-|:-------|:-------|:------------|:--------:|
-| first  | string | 主要歌词的配置     |    N     |
-| second | string | 次要歌词的配置     |    N     |
-
-### SongInfoKey
-
-歌曲 key
-
-| name | type   | description    | required |
-|:-----|:-------|:---------------|:--------:|
-| type | string | `QQ`/`Netease` |    Y     |
-| key  | string | 歌曲ID           |    Y     |
-
-### SongInfo
-
-歌曲信息
-
-| name   | type   | description | required |
-|:-------|:-------|:------------|:--------:|
-| title  | string | 曲名          |    Y     |
-| artist | string | 作者          |    Y     |
-| length | string | 时常(ms)      |    Y     |
-| key    | string | 歌曲ID        |    Y     |
-
-### SongInfoList
-
-歌曲信息列表
-
-| name    | type                    | description | required |
-|:--------|:------------------------|:------------|:--------:|
-| QQ      | [SongInfo[]](#SongInfo) | qq 歌词源      |    Y     |
-| Netease | [SongInfo[]](#SongInfo) | 网易源         |    Y     |
-
-### BlockItem
-
-黑名单
-
-| name  | type   | description | required |
-|:------|:-------|:------------|:--------:|
-| bid   | number | bid         |    N     |
-| sid   | number | sid         |    N     |
-| title | string | 名称          |    N     |
-
-## 其他 HTTP 接口:
-
-### GET - 查询歌曲时常
-
-查询当前歌曲的时间长度 (毫秒)
-
-- `/audio/len`
-
-参数:
-
-- `path`: 文件路径
-
-### POST - 上传字体
-
-上传字体文件
-
-- `/font/upload`
-
-使用 form 上传, 取第一个文件
-
-### GET - 下载字体
-
-- `/font/download`
-
-下载上次上传的文件
-
-### POST - 上传歌词
-
-上传歌词文件(.lrc / 文本), 绑定到当前播放歌曲并写入缓存
-
-- `/lyric/upload`
-
-使用 form 上传, 取第一个文件, 文件编码需为 UTF-8
+运行目录需要 `config.json5` 与前端产物（`index.html` / `assets/`），
+首次启动会自动创建 `config.json5` 与 `lyric.db`。详见仓库根目录的 README。

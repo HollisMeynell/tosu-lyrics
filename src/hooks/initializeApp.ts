@@ -1,30 +1,31 @@
-import cache from "@/utils/cache";
 import {
-    DEFAULT_TEXT_COLOR,
+    DEFAULT_SHADOW,
     setAlignment,
     setFont,
+    setFontSize,
+    setSecondFont,
+    setShadow,
     setShowSecond,
     setTextColor,
     setUseTranslationAsMain,
+    DEFAULT_TEXT_COLOR,
 } from "@/stores/settingsStore";
-import store from "@/stores/indexStore";
-import { blacklistStore } from "@/stores/blacklistStore";
-import { paramParse } from "@/utils/parseParams";
-import type { MessageHandler } from "@/services/webSocketService";
-import { configService } from "@/services/configService";
-import {
-    changeOrigin,
-    getLyricsByKey,
-    getMusicQueryResult,
-    getNowLyrics,
-    getNowTitle,
-} from "@/services/managers/tosuManager";
 import { Websocket } from "@/api/websocket.ts";
 import { BaseLyricSetter, WebsocketSetting } from "@/api/model.ts";
+import type { Shadow } from "@/types/globalTypes";
 import { applyLyricEvent, clearLyrics } from "@/stores/lyricStore";
+import { lyricBlink } from "@/pages/LyricsBox";
+import { initializeDarkMode } from "@/stores/settingsStore";
 
 /**
- * 后端设置广播 -> 展示页状态
+ * 后端设置广播 → 展示页状态。
+ *
+ * 这是**展示端**消费 WS 事件的唯一入口：后端在管理 HTTP 操作成功后会广播
+ * `setColor` / `setFont` / `setFontSize` / `setAlignment` /
+ * `setTranslationMain` / `setSecondShow` / `setShadow` / `setClear`。
+ *
+ * 注意：这里的 key 是**后端主动推给展示端的事件**，不是管理请求。
+ * 前端不通过 WS 发送任何管理命令（B-11 / F-10 之后管理一律走 HTTP）。
  */
 const handleSettingBroadcast = (data: WebsocketSetting) => {
     switch (data.key) {
@@ -46,9 +47,21 @@ const handleSettingBroadcast = (data: WebsocketSetting) => {
         }
         case "setFont": {
             const value = data.value as BaseLyricSetter | undefined;
-            const font = value?.first ?? value?.second;
-            if (font != null) {
-                setFont(font);
+            // 主副字体各自独立；缺一个时用另一个兜底
+            const first = value?.first ?? value?.second;
+            const second = value?.second ?? value?.first;
+            if (first != null) setFont(first);
+            if (second != null) setSecondFont(second);
+            break;
+        }
+        case "setFontSize": {
+            const value = data.value as
+                | { first?: number; second?: number }
+                | undefined;
+            const first = Number(value?.first);
+            const second = Number(value?.second);
+            if (Number.isFinite(first) && Number.isFinite(second)) {
+                setFontSize({ first, second });
             }
             break;
         }
@@ -64,6 +77,25 @@ const handleSettingBroadcast = (data: WebsocketSetting) => {
             }
             break;
         }
+        case "setShadow": {
+            const value = data.value as
+                | { first?: Shadow; second?: Shadow }
+                | undefined;
+            setShadow({
+                first: value?.first ?? DEFAULT_SHADOW,
+                second: value?.second ?? DEFAULT_SHADOW,
+            });
+            break;
+        }
+        case "setBlink": {
+            // 后端定向闪烁（B-08 / 本轮修复）。
+            //
+            // 旧实现通过 `wsService.registerHandler("blink-lyric", lyricBlink)`
+            // 接这个事件；F-09 删掉旧链后**没有再补上**，于是"点了测试按钮但
+            // 展示端毫无反应" —— 请求发出去了、后端也单播了，前端却静默忽略。
+            lyricBlink();
+            break;
+        }
         case "setClear": {
             clearLyrics();
             break;
@@ -74,117 +106,39 @@ const handleSettingBroadcast = (data: WebsocketSetting) => {
 };
 
 /**
- * 歌词展示页: 连接新版后端 WebSocket, 歌词推送写入 lyricStore, 设置广播写入 settingsStore
+ * 接入新版后端 WebSocket。
+ *
+ * 只做两件事：接收歌词推送、接收展示设置广播。
+ * **不发送任何管理请求** —— 管理页面全部走 HTTP。
  */
-const initializeLyricClient = () => {
+const connectBackend = () => {
     const ws = new Websocket();
     ws.setLyricHandler(applyLyricEvent);
     ws.setSettingHandler(handleSettingBroadcast);
 };
 
 /**
- * 控制面板: 沿用旧版 peer-to-peer 逻辑, 后续阶段接入新版协议后移除
+ * 应用初始化。
+ *
+ * 改造后不再区分"展示页 / 控制台"两套完全不同的初始化：
+ * - 展示页（LyricsBox）：接入后端 WS 接收推送
+ * - 控制台（Controller）：不接 WS，管理数据全部来自 HTTP
+ *
+ * 旧的 `initializeLegacy`（浏览器直连 tosu、IndexedDB 歌词缓存、
+ * 旧 `/api/config`、旧 WS 管理处理器注册）已随 F-09 / F-10 整体删除。
  */
-const initializeLegacy = async () => {
-    const [{ wsService }, { lyricBlink }] = await Promise.all([
-        import("@/services/webSocketService"),
-        import("@/pages/LyricsBox"),
-    ]);
-
-    try {
-        // 初始化存储适配器
-        cache.storageAdapter = await cache.getStorageAdapter();
-
-        // 注册缓存处理器
-        wsService.registerQueryHandler("query-cache-list", async (params) => {
-            const { page = 0, size = 50 } = params as {
-                page?: number;
-                size?: number;
-            };
-
-            const allKeys = await cache.getLyricsCacheList(page, size);
-
-            return allKeys ?? [];
-        });
-        wsService.registerHandler("remove-cache-item", (params) => {
-            const { key } = params as {
-                key: string | number;
-            };
-            cache.storageAdapter?.clearLyrics(key);
-        });
-        wsService.registerHandler("remove-all-cache", () =>
-            cache.storageAdapter?.clearLyrics()
-        );
-        wsService.registerHandler("change-lyric", changeOrigin);
-        wsService.registerQueryHandler("get-now-title", async () =>
-            getNowTitle()
-        );
-        wsService.registerQueryHandler("query-now-lyrics", async () =>
-            getNowLyrics()
-        );
-        wsService.registerQueryHandler("query-now-music-info", async () =>
-            getMusicQueryResult()
-        );
-        wsService.registerQueryHandler(
-            "query-lyrics-by-key",
-            async (params) => {
-                const { adapter, key } = params as {
-                    adapter: string;
-                    key: string | number;
-                };
-                return getLyricsByKey(adapter, key);
-            }
-        );
-
-        // 解析 URL 参数
-        const params = paramParse();
-        if (params["clear-cache"]) {
-            // 清除缓存
-            try {
-                await cache.clearLyricsCache();
-            } catch (e) {
-                console.error("Failed to clear IndexedDB cache:", e);
-            }
-        }
-
-        // 加载存储配置
-        const config = await configService.fetchConfig();
-        store.parseSettings(config);
-
-        // 注册设置处理器
-        wsService.registerHandler("text-color", setTextColor);
-        wsService.registerHandler(
-            "use-main-translation",
-            setUseTranslationAsMain
-        );
-        wsService.registerHandler(
-            "add-black-list",
-            blacklistStore.add as MessageHandler
-        );
-        wsService.registerHandler(
-            "delete-black-list",
-            blacklistStore.remove as MessageHandler
-        );
-        wsService.registerHandler("showSecond", setShowSecond);
-        wsService.registerHandler("alignment", setAlignment);
-
-        // 注册歌词闪烁处理器
-        wsService.registerHandler("blink-lyric", lyricBlink);
-    } catch (error) {
-        console.error("Failed to initialize:", error);
-    }
-};
-
 export const initializeApp = async () => {
     if (import.meta.env.MODE === "development") {
         document.body.style.backgroundColor = "#3d2932";
     }
 
-    // 歌词展示页接入新版后端 WebSocket, 控制面板暂沿用旧逻辑
-    if (!window.location.pathname.startsWith("/lyrics/controller")) {
-        initializeLyricClient();
+    // 夜间模式两端都需要
+    initializeDarkMode();
+
+    // 控制台不消费展示推送，因此不建立 WS 连接
+    if (window.location.pathname.startsWith("/lyrics/controller")) {
         return;
     }
 
-    await initializeLegacy();
+    connectBackend();
 };

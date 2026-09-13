@@ -1,142 +1,190 @@
-// 功能: 面板-显示当前歌曲搜索结果
+// 功能: 面板-显示当前歌曲搜索结果（B-05 走 HTTP）
 import { Component, For, Show, createSignal } from "solid-js";
-import { wsService } from "@/services/webSocketService";
-import { MusicInfo, MusicQueryInfoData } from "@/types/lyricTypes.ts";
-import { ToggleListExtends, Button, DragPanel } from "@/components/ui";
-import { parseUnifiedLyric } from "@/adapters/lyricAdapter.ts";
-import { Lyric } from "@/services/managers/lyricManager.ts";
+import { Button } from "@/components/ui";
+import { Candidate } from "@/services/lyricsContentService";
+import { createLyricsContentController } from "@/hooks/useLyricsContent";
 
+/**
+ * 搜索结果面板。
+ *
+ * - **每个候选按钮都携带自己的 (source, key)**：预览与应用都从按钮所属的
+ *   `Candidate` 取值，不依赖"上一次预览的那一个"
+ * - 排序由**后端统一给出**（标题匹配优先，其次时长差绝对值），
+ *   前端**不再按来源分组** —— 旧行为是 QQ 永远在前、网易云永远在后
+ * - 时长显示的是**与当前歌的差**（候选 - 当前），不是绝对时长
+ */
+
+/** 时长差显示：正=蓝、负=红、0=中性 */
+const deltaView = (deltaMs: number) => {
+    const seconds = Math.round(deltaMs / 1000);
+    if (seconds === 0) return { text: "0s", cls: "text-gray-500" };
+    if (seconds > 0)
+        return { text: `+${seconds}s`, cls: "text-blue-600 dark:text-blue-400" };
+    return { text: `${seconds}s`, cls: "text-red-600 dark:text-red-400" };
+};
+
+/** 翻译标记：只知道有/没有，未知时明确显示"读取中" */
+const translationBadge = (has: boolean | undefined) => {
+    if (has === undefined)
+        return { text: "读取中", cls: "bg-gray-100 dark:bg-gray-800 text-gray-500" };
+    if (has)
+        return {
+            text: "有翻译",
+            cls: "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300",
+        };
+    return {
+        text: "无翻译",
+        cls: "bg-gray-100 dark:bg-gray-800 text-gray-500",
+    };
+};
 const SearchResult: Component<{
-    musicInfo: () => MusicQueryInfoData;
-    setMusicInfo: (info: MusicQueryInfoData) => void;
-    setMusicTitle: (title: string) => void;
-}> = ({ musicInfo, setMusicInfo, setMusicTitle }) => {
-    // 这里的 title 与 bid 必须要传
-    // title 是添加到歌词第一行
-    let nowTitle = "";
-    // bid 用于判断是否被切歌, 防止切歌后歌词错乱
-    let nowBid = 0;
+    controller: ReturnType<typeof createLyricsContentController>;
+}> = (props) => {
+    const c = props.controller;
+    const [keyword, setKeyword] = createSignal("");
 
-    const [active, setActive] = createSignal(false);
-
-    const [nowLyric, setNowLyric] = createSignal<Lyric>();
-
-    const searchMusicInfo = async () => {
-        const result = await wsService.defaultClient?.queryNowMusicInfo();
-        if (!result) {
-            setMusicInfo({});
+    const doSearch = async () => {
+        const raw = keyword().trim();
+        // 不填条件 = 按当前播放歌曲搜索
+        if (!raw) {
+            await c.search();
             return;
         }
-        const { bid, title, data } = result; // 当前播放歌曲名, 以及搜索结果
-        nowTitle = title;
-        nowBid = bid;
-        setMusicInfo(data);
-        setMusicTitle(title);
-        loadPages();
+        const [title, artist] = raw.split("|").map((s) => s.trim());
+        await c.search(title || raw, artist || "");
     };
 
-    const getLyricsByKey = async (adapter: string, key: string | number) => {
-        const result = await wsService.defaultClient?.queryLyricsByKey(
-            adapter,
-            key
-        );
+    const previewOf = (candidate: Candidate) =>
+        c.previews()[c.candidateId(candidate)];
+    const translationOf = (candidate: Candidate) =>
+        c.translations()[c.candidateId(candidate)];
 
-        if (!result) return;
-        const lyric = parseUnifiedLyric(nowTitle, result);
-        setNowLyric(lyric);
-    };
+    /** 当前歌时长，用于把"候选绝对时长"解释成相对差 */
+    const currentLength = () => c.current()?.song.length ?? 0;
 
-    // 发送换源命令
-    const changeSearchResult = () => {
-        const lyric = nowLyric();
-        if (!lyric) {
-            alert("请先查看歌词");
-            return;
-        }
-        wsService.defaultClient?.changeLyric(nowBid, lyric);
-    };
+    return (
+        <div class="flex flex-col gap-3">
+            <div class="flex flex-row items-center flex-wrap gap-3">
+                <h3 class="text-xl font-normal">搜索结果</h3>
+                <input
+                    type="text"
+                    class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white min-w-64"
+                    placeholder="不填 = 按当前歌曲搜索；或填「标题 | 艺术家」"
+                    value={keyword()}
+                    onInput={(e) => setKeyword(e.currentTarget.value)}
+                />
+                <Button
+                    class="px-4 py-1"
+                    onClick={doSearch}
+                    disabled={c.searching()}
+                >
+                    {c.searching() ? "搜索中..." : "搜索"}
+                </Button>
+                <span class="text-sm text-gray-500">
+                    共 {c.candidates().length} 项
+                </span>
+            </div>
 
-    const SearchResultHeader = () => (
-        <div class="flex flex-row items-center">
-            <h2 class="text-2xl font-normal">当前歌曲搜索结果</h2>
-            <button
-                class="bg-[#ec4899] text-white border-none px-5 py-1 ml-4 rounded-md
-                 cursor-pointer text-base font-bold shadow-sm hover:bg-[#db2777]
-                 transition-colors duration-300"
-                onClick={searchMusicInfo}
-            >
-                搜索
-            </button>
-            <Show when={Object.keys(musicInfo()).length === 0}>
-                <p class="text-sm text-gray-500 ml-4">暂无搜索结果</p>
+            <Show when={c.candidates().length === 0}>
+                <p class="text-sm text-gray-500">
+                    暂无候选。点击「搜索」按当前播放歌曲查询。
+                </p>
             </Show>
-        </div>
-    );
 
-    const SearchResultItemList: Component<{ key: string }> = (props) => {
-        const items = () => musicInfo()[props.key];
-        return (
-            <div>
-                <For each={items()}>
-                    {(item: MusicInfo) => (
-                        <div
-                            class="w-full flex flex-row items-between justify-between p-2
-                            border-b border-gray-200 dark:border-gray-700"
-                        >
-                            <div class="flex flex-row w-[calc(100%-12rem)] items-center gap-2">
-                                <DragPanel
-                                    items={[item.title, item.artist]}
-                                    class="w-[calc(100%-7rem)]"
-                                />
-                                <p class="w-28 overflow-hidden text-ellipsis text-nowrap">
-                                    长度：{item.length}
-                                </p>
-                            </div>
-                            <div class="flex flex-row gap-2 w-44">
-                                <Button
-                                    onClick={() =>
-                                        getLyricsByKey(props.key, item.key)
+            <div class="flex flex-col gap-3 max-h-[420px] overflow-y-auto">
+                <For each={c.candidates()}>
+                    {(candidate) => (
+                        <div class="flex flex-col gap-2 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div class="flex flex-row items-center gap-3 flex-wrap">
+                                {/* 行首的翻译标记：来自真实取词，不是猜测 */}
+                                <span
+                                    class={`px-2 py-0.5 text-xs rounded shrink-0 ${translationBadge(translationOf(candidate)).cls}`}
+                                >
+                                    {translationBadge(translationOf(candidate)).text}
+                                </span>
+                                <span class="px-2 py-0.5 text-xs rounded bg-gray-100 dark:bg-gray-800">
+                                    {candidate.source}
+                                </span>
+                                <span class="text-base">
+                                    {candidate.title} — {candidate.artist}
+                                </span>
+                                <span class="text-xs text-gray-500">
+                                    {Math.round(candidate.length / 1000)}s
+                                </span>
+                                {/* 时长差：候选 - 当前。没有在播歌曲时后端给 0，这里显示为 0s */}
+                                <span
+                                    class={`text-xs font-medium ${deltaView(candidate.durationDelta).cls}`}
+                                    title={
+                                        currentLength() > 0
+                                            ? `当前 ${Math.round(currentLength() / 1000)}s，候选 ${Math.round(candidate.length / 1000)}s`
+                                            : "当前没有在播歌曲"
                                     }
                                 >
-                                    查看歌词
-                                </Button>
-                                <Button onClick={changeSearchResult}>
-                                    应用歌词
-                                </Button>
+                                    {deltaView(candidate.durationDelta).text}
+                                </span>
+                                <span class="text-xs text-gray-400">
+                                    key {candidate.key}
+                                </span>
+                                <Show when={candidate.active}>
+                                    <span class="px-2 py-0.5 text-xs rounded bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">
+                                        当前绑定
+                                    </span>
+                                </Show>
+                                <div class="flex flex-row gap-2 ml-auto">
+                                    <Button
+                                        class="px-3 py-1"
+                                        onClick={() => c.preview(candidate)}
+                                        disabled={
+                                            c.previewing() ===
+                                            c.candidateId(candidate)
+                                        }
+                                    >
+                                        {c.previewing() ===
+                                        c.candidateId(candidate)
+                                            ? "读取中..."
+                                            : "预览"}
+                                    </Button>
+                                    <Button
+                                        class="px-3 py-1"
+                                        onClick={() => c.apply(candidate)}
+                                        disabled={c.saving()}
+                                    >
+                                        应用
+                                    </Button>
+                                </div>
                             </div>
+
+                            {/* 预览只影响这一行，且内容确实来自这一行对应的候选 */}
+                            <Show when={previewOf(candidate)}>
+                                {(preview) => (
+                                    <div class="pl-3 border-l-2 border-gray-300 dark:border-gray-600 max-h-40 overflow-y-auto">
+                                        <p class="text-xs text-gray-500 mb-1">
+                                            预览 {preview().source} /{" "}
+                                            {preview().key}（{preview().lineCount} 行）
+                                        </p>
+                                        {/* 预览必须同时显示原文与翻译（如果有） */}
+                                        <For each={preview().lines.slice(0, 20)}>
+                                            {(line) => (
+                                                <div class="flex flex-col">
+                                                    <p class="text-sm">
+                                                        {line.origin}
+                                                    </p>
+                                                    <Show when={line.translation}>
+                                                        <p class="text-xs text-gray-500">
+                                                            {line.translation}
+                                                        </p>
+                                                    </Show>
+                                                </div>
+                                            )}
+                                        </For>
+                                    </div>
+                                )}
+                            </Show>
                         </div>
                     )}
                 </For>
             </div>
-        );
-    };
-
-    const [pages, setPages] = createSignal([
-        {
-            name: "未知源",
-            content: <div>Loading...</div>,
-        },
-    ]);
-
-    const loadPages = () => {
-        const keys = Object.keys(musicInfo());
-        const loadedPages = keys.map((key) => ({
-            name: key || "未知",
-            content: <SearchResultItemList key={key} />,
-        }));
-        setPages(loadedPages);
-        setActive(true);
-    };
-
-    return (
-        <>
-            <ToggleListExtends
-                show={active()}
-                setShow={setActive}
-                header={SearchResultHeader()}
-                pages={pages()}
-            />
-        </>
+        </div>
     );
 };
 
