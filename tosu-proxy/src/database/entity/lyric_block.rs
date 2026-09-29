@@ -178,28 +178,4 @@ impl Entity {
         Ok(None)
     }
 
-    /// 旧数据迁移：把 `lyric_config.disable = true` 的行转成 `bid` 作用域规则。
-    /// 幂等，可重复调用。
-    pub async fn migrate_from_legacy() -> Res<u64> {
-        use crate::database::LyricConfigEntity;
-        let legacy = LyricConfigEntity::find()
-            .filter(crate::database::entity::lyric_config::Column::Disable.eq(true))
-            .all(database())
-            .await?;
-
-        let mut migrated = 0;
-        for row in legacy {
-            let value = row.bid.to_string();
-            let exists = Self::find()
-                .filter(Column::Scope.eq(SCOPE_BID))
-                .filter(Column::Value.eq(&value))
-                .one(database())
-                .await?;
-            if exists.is_none() {
-                Self::upsert(SCOPE_BID, &value, &row.title, row.sid, "").await?;
-                migrated += 1;
-            }
-        }
-        Ok(migrated)
-    }
 }
