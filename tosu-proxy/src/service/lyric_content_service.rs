@@ -30,7 +30,7 @@ fn to_candidate(
         .map(|(st, sk)| st == source && sk == &song.key)
         .unwrap_or(false);
     let title_score = query
-        .map(|(title, _)| crate::lyric::score_title(title, &song.title))
+        .map(|(title, _)| crate::lyric::title_score(title, &song.title))
         .unwrap_or(0);
     let duration_delta = query
         .map(|(_, cur_len)| song.length as i64 - cur_len)

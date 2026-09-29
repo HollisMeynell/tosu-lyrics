@@ -466,11 +466,6 @@ fn is_short_title(title: &str) -> bool {
     count <= SHORT_TITLE_CHARS
 }
 
-/// 供内容服务做候选排序用的标题匹配分（0~100）
-pub fn score_title(query: &str, candidate: &str) -> i32 {
-    title_score(query, candidate)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

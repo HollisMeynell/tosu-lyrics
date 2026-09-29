@@ -14,15 +14,14 @@ pub async fn global_setting() -> &'static RwLock<LyricSettings> {
 pub async fn init_setting() {
     let lyric_setting = LyricSettings::load().await;
     if let Err(err) = lyric_setting.validate() {
-        // 数据库里存了非法值（例如手改过）时不 panic, 回退默认值
         tracing::error!("数据库中的设置非法({err}), 使用默认设置");
         if GLOBAL_SETTINGS.set(RwLock::new(LyricSettings::default())).is_err() {
-            panic!("无法初始化歌词配置")
+            panic!("无法初始化歌词配置, 请尝试删除数据库文件 (.db)")
         }
         return;
     }
     if GLOBAL_SETTINGS.set(RwLock::new(lyric_setting)).is_err() {
-        panic!("无法初始化歌词配置")
+        panic!("无法初始化歌词配置, 请尝试删除数据库文件 (.db)")
     }
     info!("初始化配置完成");
 }
