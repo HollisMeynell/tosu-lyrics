@@ -182,8 +182,11 @@ async fn apply_current_song_effects() {
         .is_some();
 
     if blocked {
-        let mut service = lyric_service().await;
-        service.clear_display().await;
+        crate::service::LYRIC_SERVICE.call(move |service| Box::pin(async move {
+            if service.get_now_song().is_some_and(|song| song.bid as i32 == ident.bid) {
+                service.clear_display().await;
+            }
+        })).await;
     } else {
         // 解除屏蔽: 重新载入当前歌的歌词
         LyricService::reload_current().await;

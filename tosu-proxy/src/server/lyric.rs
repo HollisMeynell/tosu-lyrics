@@ -109,8 +109,10 @@ pub async fn upload_lyric(req: &mut Request, res: &mut Response) {
 
     // 2) 提交：换到服务锁后再校验一次代际与身份。
     //    上传（尤其是大文件 / 慢网络）期间完全可能切歌，那时整份丢弃。
-    let mut service = lyric_service().await;
-    match service.apply_uploaded_lyric(ident.sid, lyric).await {
+    let sid = ident.sid;
+    match crate::service::LYRIC_SERVICE.call(move |service| Box::pin(async move {
+        service.apply_uploaded_lyric(sid, lyric).await
+    })).await {
         Ok(()) => res.render(Json(json!({
             "ok": true,
             "lines": line_count,

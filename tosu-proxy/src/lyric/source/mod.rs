@@ -332,7 +332,7 @@ pub trait LyricSource: Send + Sync {
             })
             .collect();
         // 分数降序; 排序稳定, 同分保持搜索结果原始顺序
-        ranked.sort_by(|a, b| b.1.cmp(&a.1));
+        ranked.sort_unstable_by_key(|(_, score)| std::cmp::Reverse(*score));
         ranked.into_iter().map(|(song, _)| song).collect()
     }
 
@@ -393,12 +393,10 @@ pub trait LyricSource: Send + Sync {
                 .first()
                 .map(|c| artist_score(artist, &c.artist) == 0)
                 .unwrap_or(false);
-        if need_extra {
-            if let Ok(extra) = self.search_music(&format!("{title} {artist}")).await {
-                for s in extra {
-                    if !song_all.iter().any(|m| m.key == s.key) {
-                        song_all.push(s);
-                    }
+        if need_extra && let Ok(extra) = self.search_music(&format!("{title} {artist}")).await {
+            for s in extra {
+                if !song_all.iter().any(|m| m.key == s.key) {
+                    song_all.push(s);
                 }
             }
         }

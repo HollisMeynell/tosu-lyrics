@@ -264,7 +264,7 @@ async fn connect(req: &mut Request, res: &mut Response) -> Result<()> {
             {
                 crate::service::send_settings_snapshot(&key).await;
                 // 无歌词时下发清屏，避免断线重连 / OBS 刷新后残留上一次歌词
-                match crate::service::LYRIC_SERVICE.lock().await.get_snapshot() {
+                match crate::service::LYRIC_SERVICE.call(|svc| Box::pin(async move { svc.get_snapshot() })).await {
                     Some(snapshot) => ALL_SESSIONS.send_message(&key, snapshot.into()).await,
                     None => {
                         let clean = crate::model::websocket::setting::SettingPayload::new(
