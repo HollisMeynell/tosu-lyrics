@@ -8,12 +8,6 @@ import { Select } from "@/components/ui";
 import { CurrentSong, fetchStatus } from "@/services/statusService";
 import { ApiError } from "@/services/settingsService";
 
-/**
- * 黑名单管理页（B-04）。
- *
- * "当前播放"来自 `GET /api/status`，"添加到黑名单"走 `POST /api/blocks`，
- * 都不再依赖旧 WS 的对端查询。
- */
 const BlackListLyrics: Component = () => {
     const controller = createBlocksController();
 
@@ -21,12 +15,6 @@ const BlackListLyrics: Component = () => {
     const [statusError, setStatusError] = createSignal<string | null>(null);
     const [statusLoading, setStatusLoading] = createSignal(false);
     const [notice, setNotice] = createSignal<string | null>(null);
-    /**
-     * 页面级作用域：控制**本页所有新增操作**用哪个作用域。
-     *
-     * 默认 `sid`（谱面集）—— 同一首歌的不同难度通常共享歌词，
-     * 按 bid 屏蔽往往只能挡住其中一张图。需要更精细时再切到 bid。
-     */
     const [scope, setScope] = createSignal<BlockScope>("sid");
 
     const refresh = async () => {
@@ -43,12 +31,7 @@ const BlackListLyrics: Component = () => {
         }
     };
 
-    /**
-     * 点击时**现查一次服务端状态**再拉黑。
-     *
-     * 不能依赖页面上缓存的"当前播放"：用户可能在进页面之前就已经在放歌，
-     * 也可能在看页面的过程中切了歌。以点击那一刻的后端状态为准才不会拉错歌。
-     */
+    // 现查一次服务端状态再拉黑，不依赖页面缓存（用户可能已切歌）
     const addTitleToBlackList = async () => {
         setNotice(null);
         setStatusError(null);
@@ -71,7 +54,6 @@ const BlackListLyrics: Component = () => {
         }
         const ok = await controller.add({
             ...defaultBlockInput(current),
-            // 用页面级作用域覆盖默认推断
             scope: scope(),
             value:
                 scope() === "title" ? current.title : String(
@@ -131,7 +113,6 @@ const BlackListLyrics: Component = () => {
                 </button>
             </div>
 
-            {/* 作用域：作用于本页所有新增项 */}
             <div class="flex flex-row items-center gap-3 text-sm">
                 <span>作用域：</span>
                 <Select

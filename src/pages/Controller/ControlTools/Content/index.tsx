@@ -3,11 +3,6 @@ import CurrentLyrics from "./CurrentLyrics";
 import SearchResult from "./SearchResult";
 import { createLyricsContentController } from "@/hooks/useLyricsContent";
 
-/**
- * 歌词内容控制（B-05）。
- *
- * 所有数据来自 `/api/lyrics/*`，不再通过旧 WS 向对端查询。
- */
 export default function Content() {
     const controller = createLyricsContentController();
 

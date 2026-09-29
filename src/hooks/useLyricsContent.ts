@@ -19,11 +19,8 @@ const message = (err: unknown) =>
     err instanceof ApiError ? err.message : String(err);
 
 /**
- * 歌词内容控制器（B-05）。
- *
- * 关键约束：**每个候选按钮必须携带自己的身份 (source, key)**。
- * 因此预览与应用都接收完整的 `Candidate`，而不是依赖"上一次预览的那一个" ——
- * 那正是"所有应用按钮其实都在用最后一首"这类缺陷的来源。
+ * 关键约束：每个候选按钮必须携带自己的身份 (source, key)，
+ * 而不是依赖"上一次预览的那一个"——那会导致所有应用按钮都在用最后一首。
  */
 export function createLyricsContentController() {
     const [current, setCurrent] = createSignal<CurrentLyricDto | null>(null);
@@ -72,11 +69,7 @@ export function createLyricsContentController() {
         }
     };
 
-    /**
-     * 搜索完成后**在后台**补齐"有没有翻译"。
-     *
-     * 单独一步：搜索本身立刻返回，标记慢慢填进来，不阻塞用户。
-     */
+    // 搜索完成后在后台补齐翻译标记，不阻塞用户
     const fillTranslations = async (items: Candidate[]) => {
         if (items.length === 0) return;
         try {

@@ -34,20 +34,9 @@ type WebsocketSetting<
     type: "setting";
     key: K;
     value?: WebsocketSettingTypeMap[K];
-    /**
-     * 管理请求的关联键。前端已不再通过 WS 发管理请求（管理走 HTTP），
-     * 因此这个字段只作为**兼容读取**保留：后端不会再产生它。
-     */
     echo?: string;
 };
 
-/**
- * 展示端会收到的设置事件（F-10）。
- *
- * 改造前这张表同时描述了**管理请求**（`getFont` / `setBlock` / `setCacheClean`
- * / `getCacheCount` …）和它们的返回值。管理走 HTTP 之后，这里只保留
- * **后端主动推给展示端**的事件 —— 前端不再发送任何 setting 消息。
- */
 interface WebsocketSettingTypeMap {
     setClear: null;
     setFont: BaseLyricSetter;
@@ -71,16 +60,12 @@ interface BaseLyricSetter {
 }
 
 
-
-
-
 interface SongInfo {
     title: string;
     artist: string;
     length: string;
     key: string;
 }
-
 
 
 export { isWebsocketMessage, isLyric, isSetting };

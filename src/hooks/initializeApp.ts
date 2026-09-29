@@ -17,16 +17,7 @@ import { applyLyricEvent, clearLyrics } from "@/stores/lyricStore";
 import { lyricBlink } from "@/pages/LyricsBox";
 import { initializeDarkMode } from "@/stores/settingsStore";
 
-/**
- * 后端设置广播 → 展示页状态。
- *
- * 这是**展示端**消费 WS 事件的唯一入口：后端在管理 HTTP 操作成功后会广播
- * `setColor` / `setFont` / `setFontSize` / `setAlignment` /
- * `setTranslationMain` / `setSecondShow` / `setShadow` / `setClear`。
- *
- * 注意：这里的 key 是**后端主动推给展示端的事件**，不是管理请求。
- * 前端不通过 WS 发送任何管理命令（B-11 / F-10 之后管理一律走 HTTP）。
- */
+/** 后端设置广播 → 展示页状态（展示端消费 WS 事件的唯一入口）。 */
 const handleSettingBroadcast = (data: WebsocketSetting) => {
     switch (data.key) {
         case "setColor": {
@@ -88,11 +79,6 @@ const handleSettingBroadcast = (data: WebsocketSetting) => {
             break;
         }
         case "setBlink": {
-            // 后端定向闪烁（B-08 / 本轮修复）。
-            //
-            // 旧实现通过 `wsService.registerHandler("blink-lyric", lyricBlink)`
-            // 接这个事件；F-09 删掉旧链后**没有再补上**，于是"点了测试按钮但
-            // 展示端毫无反应" —— 请求发出去了、后端也单播了，前端却静默忽略。
             lyricBlink();
             break;
         }
@@ -105,37 +91,21 @@ const handleSettingBroadcast = (data: WebsocketSetting) => {
     }
 };
 
-/**
- * 接入新版后端 WebSocket。
- *
- * 只做两件事：接收歌词推送、接收展示设置广播。
- * **不发送任何管理请求** —— 管理页面全部走 HTTP。
- */
 const connectBackend = () => {
     const ws = new Websocket();
     ws.setLyricHandler(applyLyricEvent);
     ws.setSettingHandler(handleSettingBroadcast);
 };
 
-/**
- * 应用初始化。
- *
- * 改造后不再区分"展示页 / 控制台"两套完全不同的初始化：
- * - 展示页（LyricsBox）：接入后端 WS 接收推送
- * - 控制台（Controller）：不接 WS，管理数据全部来自 HTTP
- *
- * 旧的 `initializeLegacy`（浏览器直连 tosu、IndexedDB 歌词缓存、
- * 旧 `/api/config`、旧 WS 管理处理器注册）已随 F-09 / F-10 整体删除。
- */
+/** 展示页接入 WS；控制台不接 WS，管理数据全部来自 HTTP。 */
 export const initializeApp = async () => {
     if (import.meta.env.MODE === "development") {
         document.body.style.backgroundColor = "#3d2932";
     }
 
-    // 夜间模式两端都需要
     initializeDarkMode();
 
-    // 控制台不消费展示推送，因此不建立 WS 连接
+    // 控制台不消费展示推送，不建立 WS 连接
     if (window.location.pathname.startsWith("/lyrics/controller")) {
         return;
     }

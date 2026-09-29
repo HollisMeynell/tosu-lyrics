@@ -9,13 +9,7 @@ export const describeError = (e: unknown): string => {
     return String(e);
 };
 
-/**
- * 控制台设置表单的状态机（B-03）。
- *
- * 只通过 HTTP 与后端交互：
- * - 成功 → 用**服务端返回值**覆盖本地状态（不保留乐观值）
- * - 失败 → 本地状态保持不变，把错误暴露给页面
- */
+/** 只通过 HTTP 交互：成功用服务端返回值覆盖本地，失败保持本地不变。 */
 export const createSettingsController = () => {
     const [loading, setLoading] = createSignal(true);
     const [saving, setSaving] = createSignal(false);

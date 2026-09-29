@@ -4,13 +4,6 @@ import { createBlocksController } from "@/hooks/useBlocks";
 import { Button } from "@/components/ui";
 import { Delete, Save, Cancel, Edit } from "@/assets/Icons";
 
-/**
- * 黑名单管理（B-04）。
- *
- * 数据全部来自 `GET /api/blocks`，写操作走 HTTP 后重新拉取。
- * 本地不再保存任何"看起来像真源"的副本。
- */
-
 const CustomTd = (props: { children: string }) => {
     return (
         <td class="py-3 px-4 text-sm text-gray-700 dark:text-gray-300">
@@ -37,7 +30,6 @@ const scopeLabel = (scope: BlockScope) => SCOPE_LABEL[scope] ?? scope;
 
 const BlacklistComponent: Component<{
     controller: ReturnType<typeof createBlocksController>;
-    /** 当前作用域由页面上方的选择器控制，新增项一律使用它 */
     scope: () => BlockScope;
 }> = (props) => {
     const c = props.controller;
@@ -56,7 +48,6 @@ const BlacklistComponent: Component<{
         const item = newItem();
         if (!item.value.trim()) return;
         const ok = await c.add({
-            // 作用域来自页面级选择器；本页默认 sid
             scope: props.scope(),
             value: item.value.trim(),
             title: item.title.trim(),
@@ -75,7 +66,6 @@ const BlacklistComponent: Component<{
     const handleSaveEdit = async () => {
         const id = editingId();
         if (id === null) return;
-        // 只提交展示用元数据；作用域与取值不参与，规则身份不变
         const ok = await c.update(id, {
             title: editingTitle(),
             reason: editingReason(),
@@ -84,7 +74,6 @@ const BlacklistComponent: Component<{
     };
 
     const handleRemove = async (rule: BlockRule) => {
-        // 删除失败（例如规则已被别处删掉）时也要让列表回到服务端真实状态
         await c.remove(rule.id);
     };
 

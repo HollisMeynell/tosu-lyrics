@@ -11,13 +11,6 @@ import {
 import { ApiError } from "@/services/settingsService";
 import { ms2str } from "@/utils/helpers";
 
-/**
- * 缓存管理（B-06）。
- *
- * 服务端是唯一真源：每页数据都来自 `GET /api/cache`，写操作后重新拉取。
- * 缓存是**纯缓存** —— 这里的删除不会影响来源绑定、偏移或黑名单。
- */
-
 const PAGE_SIZE = 20;
 
 function CacheItem({
@@ -71,7 +64,6 @@ function CacheItem({
 }
 
 export default function CacheManager() {
-    /** 从 1 开始，与后端一致 */
     const [page, setPage] = createSignal(1);
     const [items, setItems] = createSignal<CacheEntry[]>([]);
     const [total, setTotal] = createSignal(0);
@@ -91,8 +83,7 @@ export default function CacheManager() {
             setTotal(data.total);
             setPages(data.pages);
 
-            // 删除最后一页的最后一条之后，请求的页码会越界 ——
-            // 自动回退到最后一页，而不是停在一个空列表上。
+            // 删除最后一页最后一条后页码越界，自动回退到最后一页
             if (data.items.length === 0 && data.total > 0 && target > data.pages) {
                 setPage(data.pages);
                 return load(data.pages);
@@ -150,8 +141,6 @@ export default function CacheManager() {
                 <Button class="w-fit" onClick={() => load(1)} disabled={loading()}>
                     搜索
                 </Button>
-                {/* 纯 refresh：重新拉一次缓存列表并刷新本页。
-                    不修改缓存、不动 TTL、不删除、不重建。 */}
                 <Button
                     class="w-fit"
                     onClick={() => load(page())}

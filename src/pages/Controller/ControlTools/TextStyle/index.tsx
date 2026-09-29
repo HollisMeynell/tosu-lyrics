@@ -1,7 +1,3 @@
-// 功能: 面板-文字样式（颜色、字体、显示效果）
-//
-// B-03 纵向切片：设置全部通过 `/api/settings`（HTTP）读写，不再走旧 Config / wsService。
-// 保存成功用服务端返回值覆盖本地状态；失败时保留原值并显示错误。
 import { Show, onMount } from "solid-js";
 import { Button, ToggleSwitch, ToggleNSwitch } from "@/components/ui";
 import TextColor from "./TextColor";
@@ -17,15 +13,7 @@ import { createSettingsController } from "@/hooks/useSettings";
 import { DEFAULT_SHADOW } from "@/stores/settingsStore";
 import { SettingsPatch } from "@/types/globalTypes";
 
-/**
- * 原项目（tosu-lyrics-origin）默认文字样式。
- *
- * 逐项核对过 origin 的 `stores/settingsStore.ts` 与 `pages/LyricsBox/index.tsx`：
- * 颜色 `#ffffff` / `#e0e0e0`，字号 3em / 2em（active），字体名为空，
- * 居中对齐，翻译优先开启，显示副歌词开启，阴影关闭。
- *
- * **只覆盖文字样式相关字段**，不碰其它状态。
- */
+// 原项目默认：颜色 #ffffff/#e0e0e0，字号 3em/2em，居中，翻译优先，副歌词开，阴影关
 const DEFAULT_TEXT_STYLE: SettingsPatch = {
     textColor: { first: "#ffffff", second: "#e0e0e0" },
     fontSize: { first: 3, second: 2 },
@@ -71,7 +59,6 @@ export default function TextStyle() {
                 fallback={<p class="text-gray-500">正在读取设置…</p>}
             >
                 <div class="flex flex-col items-start gap-8 md:gap-4">
-                    {/* 对齐方式 */}
                     <div class="flex flex-col items-start md:flex-row md:items-center gap-4 md:gap-6">
                         <h2 class="text-2xl font-normal">对齐方式</h2>
                         <ToggleNSwitch
@@ -86,22 +73,18 @@ export default function TextStyle() {
                             }
                         />
                     </div>
-                    {/* 字体颜色 */}
                     <TextColor
                         update={settings.update}
                         disabled={settings.saving()}
                     />
-                    {/* 字体 */}
                     <Font
                         update={settings.update}
                         disabled={settings.saving()}
                     />
-                    {/* 字号 */}
                     <FontSize
                         update={settings.update}
                         disabled={settings.saving()}
                     />
-                    {/* 显示 */}
                     <div class="flex flex-row items-center gap-3">
                         <ToggleSwitch
                             disabled={settings.saving()}
