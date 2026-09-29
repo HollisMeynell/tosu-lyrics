@@ -47,10 +47,8 @@ async fn get_status(res: &mut Response) {
     // 黑名单**现查**，不使用任何缓存字段：
     // 规则可能在歌曲播放途中被增删，缓存会让状态在那一刻变得不真实。
     // 先取身份再放锁，避免在持锁期间去查数据库。
-    let song = {
-        let service = LYRIC_SERVICE.lock().await;
-        service.get_now_song().cloned()
-    };
+    let service = crate::service::lyric_service().await;
+    let song = service.get_now_song();
     let blocked = match &song {
         Some(song) => crate::service::block_service::blocked_rule(
             song.bid as i32,
@@ -64,7 +62,6 @@ async fn get_status(res: &mut Response) {
         None => false,
     };
 
-    let service = LYRIC_SERVICE.lock().await;
     let line_count = service
         .get_now_all_lyrics()
         .map(|lines| lines.len())
@@ -99,7 +96,7 @@ async fn get_status(res: &mut Response) {
 
 #[handler]
 async fn get_current_lyric(res: &mut Response) {
-    let service = LYRIC_SERVICE.lock().await;
+    let service = crate::service::lyric_service().await;
     let Some(song) = service.get_now_song() else {
         render_error(res, StatusCode::NOT_FOUND, "no_song", "当前没有播放中的歌曲");
         return;
@@ -127,8 +124,7 @@ async fn get_current_lyric(res: &mut Response) {
 /// 持续清屏，直到切歌 / 换源 / 上传歌词才恢复。保留当前歌曲信息。
 #[handler]
 async fn clear_display(res: &mut Response) {
-    let mut service = LYRIC_SERVICE.lock().await;
-    service.clear_display().await;
+    LYRIC_SERVICE.call(|service| Box::pin(async move { service.clear_display().await })).await;
     res.render(Json(json!({ "ok": true })));
 }
 

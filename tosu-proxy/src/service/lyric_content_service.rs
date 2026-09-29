@@ -79,11 +79,8 @@ async fn current_context() -> (Option<SongIdent>, Option<(String, String)>) {
 pub async fn candidates() -> Vec<Candidate> {
     let (ident, binding) = current_context().await;
     let _ = ident;
-    let query = query_of(&ident);
-    let svc = lyric_service().await;
-    let mut items: Vec<Candidate> = svc
-        .all_candidates()
-        .await
+    let query = query_of(&ident).await;
+    let mut items: Vec<Candidate> = crate::service::lyric_candidates().await
         .into_iter()
         .map(|(source, song)| {
             to_candidate(source, &song, binding.as_ref(), query.as_ref().map(|(t, l)| (t.as_str(), *l)))
@@ -93,19 +90,16 @@ pub async fn candidates() -> Vec<Candidate> {
     items
 }
 
-fn query_of(ident: &Option<SongIdent>) -> Option<(String, i64)> {
+async fn query_of(ident: &Option<SongIdent>) -> Option<(String, i64)> {
     let ident = ident.as_ref()?;
-    let svc = LYRIC_SERVICE.try_lock().ok()?;
+    let svc = lyric_service().await;
     let song = svc.get_now_song()?;
+    if song.bid as i32 != ident.bid { return None; }
     Some((ident.title.clone(), song.length as i64))
 }
 
-fn current_length() -> i64 {
-    LYRIC_SERVICE
-        .try_lock()
-        .ok()
-        .and_then(|svc| svc.get_now_song().map(|s| s.length as i64))
-        .unwrap_or(0)
+async fn current_length() -> i64 {
+    lyric_service().await.get_now_song().map_or(0, |song| song.length as i64)
 }
 
 /// title / artist 为空时使用当前播放歌曲；联网期间不持服务锁
@@ -127,7 +121,7 @@ pub async fn search(title: Option<String>, artist: Option<String>) -> Result<Vec
 
     let found = LyricService::search_now(title, artist).await?;
     let (ident, binding) = current_context().await;
-    let query = query_of(&ident);
+    let query = query_of(&ident).await;
     let mut items: Vec<Candidate> = found
         .into_iter()
         .map(|(source, song)| {
@@ -218,10 +212,10 @@ pub async fn apply_source(source: &str, key: &str) -> Result<Candidate> {
     )
     .await?;
 
-    let stale = {
-        let mut svc = lyric_service().await;
-        svc.apply_source_lyric(generation, ident.sid, lyric).await
-    };
+    let sid = ident.sid;
+    let stale = LYRIC_SERVICE.call(move |svc| Box::pin(async move {
+        svc.apply_source_lyric(generation, sid, lyric).await
+    })).await;
     if let Err(err) = stale {
         if err.to_string() == STALE_REQUEST {
             // 绑定已保存，只是这次没赶上播放上下文
@@ -239,14 +233,12 @@ pub async fn apply_source(source: &str, key: &str) -> Result<Candidate> {
         active: true,
         // 刚应用的就是当前绑定，标题必然匹配当前歌
         title_score: 100,
-        duration_delta: length as i64 - current_length(),
+        duration_delta: length as i64 - current_length().await,
     })
 }
 
 async fn find_candidate_meta(source: &str, key: &str) -> Option<(String, String, u32)> {
-    let svc = lyric_service().await;
-    svc.all_candidates()
-        .await
+    crate::service::lyric_candidates().await
         .into_iter()
         .find(|(name, song)| *name == source && song.key == key)
         .map(|(_, song)| (song.title, song.artist, song.length))
@@ -259,18 +251,16 @@ pub async fn clear_source() -> Result<bool> {
     };
     let removed = LyricBindingEntity::remove(ident.sid).await?;
 
-    {
-        let mut svc = lyric_service().await;
-        svc.clear_display_bump().await;
-    }
+    LYRIC_SERVICE.call(|svc| Box::pin(async move { svc.clear_display_bump().await })).await;
     LyricService::reload_current().await;
     Ok(removed)
 }
 
 pub async fn set_offset(offset: i32) -> i32 {
-    let mut svc = lyric_service().await;
-    svc.set_offset(offset).await;
-    svc.get_offset()
+    LYRIC_SERVICE.call(move |svc| Box::pin(async move {
+        svc.set_offset(offset).await;
+        svc.get_offset()
+    })).await
 }
 
 pub struct ContextSummary {

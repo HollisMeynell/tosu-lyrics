@@ -59,7 +59,7 @@ async fn parse_body<T: serde::de::DeserializeOwned>(req: &mut Request) -> Result
 async fn get_current(res: &mut Response) {
     // 先取快照再放锁，避免持锁期间做数据库查询
     let snapshot = {
-        let service = crate::service::LYRIC_SERVICE.lock().await;
+        let service = crate::service::lyric_service().await;
         let Some(song) = service.get_now_song() else {
             render_error(res, StatusCode::NOT_FOUND, CODE_NO_SONG, "当前没有播放中的歌曲");
             return;
