@@ -1,33 +1,16 @@
-// 功能: 面板-显示当前播放歌曲的歌词（B-05 走 HTTP / 本轮增强：阅读区 + duration + 拖动 offset）
 import { For, Show, Component, createSignal, createMemo, onCleanup } from "solid-js";
 import { Copy } from "@/assets/Icons";
 import { Button } from "@/components/ui";
 import { createLyricsContentController } from "@/hooks/useLyricsContent";
 import { LyricLineDto } from "@/services/lyricsContentService";
 
-/**
- * 当前歌词（Controller 侧）。
- *
- * ⚠️ 这里是**给人读歌词、挑歌词、调偏移**的管理界面，
- * **不是** LyricsBox。因此：
- * - 显示**完整**歌词，不裁剪成三行
- * - 页面上的"滚动"只是这个阅读区的显示方式，**不影响**展示端的播放同步滚动
- * - 不复制 LyricsBox 的三行窗口逻辑
- */
-
-/** 无歌词时按后端给的 `lyricState` 说明原因，而不是笼统说"暂无歌词" */
 const stateHint = (state: string | undefined, blocked: boolean) => {
     if (blocked || state === "blocked") return "这首歌已被拉黑，不会显示歌词";
     if (state === "none") return "暂时没有歌词（可能正在搜索，或该来源没有这首歌）";
     return "暂无歌词";
 };
 
-/**
- * 每行的**持续时间** = 下一行开始 - 本行开始（毫秒）。
- *
- * 最后一行没有下一行，返回 `null` 由调用方显示占位符 ——
- * 不编造一个假值（例如拿 0 或拿总时长硬凑）。
- */
+/** 最后一行返回 null，由调用方显示占位符 */
 export const lineDuration = (
     lines: LyricLineDto[],
     index: number
@@ -38,7 +21,6 @@ export const lineDuration = (
     return delta > 0 ? delta : null;
 };
 
-/** 拖动换算：1 像素 = 多少毫秒 */
 const MS_PER_PX = 10;
 
 const CurrentLyrics: Component<{
@@ -46,16 +28,13 @@ const CurrentLyrics: Component<{
 }> = (props) => {
     const c = props.controller;
     const [copied, setCopied] = createSignal(false);
-    /** 阅读区是否跟随当前行进度自动滚动 */
     const [follow, setFollow] = createSignal(true);
-    /** 拖动中的临时偏移（毫秒）；松手后写回后端 */
     const [draggingMs, setDraggingMs] = createSignal<number | null>(null);
     let listRef: HTMLDivElement | undefined;
 
     const lines = c.current()?.lyric ?? [];
     const noSong = () => c.noSong();
 
-    /** 输入框显示的值：拖动中显示拖动结果，否则显示服务端值 */
     const offsetShown = () =>
         draggingMs() ?? c.current()?.offset ?? 0;
 
@@ -87,17 +66,13 @@ const CurrentLyrics: Component<{
         await c.updateOffset(parsed);
     };
 
-    // ---------------- 拖动调整 offset ----------------
-    //
-    // 语义：把歌词内容**往下拖** = 希望歌词**晚一点**出现 = offset 变小。
-    // 拖动过程只更新本地预览，松手才写回后端，避免拖动途中打一堆请求。
+    // 拖动调整 offset：往下拖 = 希望歌词晚一点出现 = offset 变小
     let dragStartY = 0;
     let dragStartOffset = 0;
     let dragging = false;
 
     const onDragStart = (e: PointerEvent) => {
         if (noSong()) return;
-        // 只响应主键；避免和文本选择/滚轮打架
         if (e.button !== 0) return;
         const target = e.currentTarget as HTMLElement;
         target.setPointerCapture(e.pointerId);
@@ -110,7 +85,6 @@ const CurrentLyrics: Component<{
     const onDragMove = (e: PointerEvent) => {
         if (!dragging) return;
         const deltaPx = e.clientY - dragStartY;
-        // 向下拖 -> 需要更晚出现 -> offset 减小
         setDraggingMs(dragStartOffset - Math.round(deltaPx * MS_PER_PX));
     };
 
@@ -120,18 +94,14 @@ const CurrentLyrics: Component<{
         const target = e.currentTarget as HTMLElement;
         try {
             target.releasePointerCapture(e.pointerId);
-        } catch {
-            // 指针已经释放，忽略
-        }
+        } catch { /* 指针已释放 */ }
         const pending = draggingMs();
         setDraggingMs(null);
         if (pending === null) return;
         if (pending === (c.current()?.offset ?? 0)) return;
-        // 拖动结果与手动输入走**同一个** offset 数据源
         await c.updateOffset(pending);
     };
 
-    // 跟随当前行：只影响这个阅读区的滚动位置
     const scrollToCurrent = () => {
         if (!follow() || dragging) return;
         const cur = c.current()?.current ?? -1;
@@ -161,7 +131,6 @@ const CurrentLyrics: Component<{
                     </Button>
                 </Show>
 
-                {/* 阅读区的显示方式，与展示端的播放滚动无关 */}
                 <label class="flex flex-row items-center gap-2 text-sm">
                     <input
                         type="checkbox"
@@ -208,7 +177,6 @@ const CurrentLyrics: Component<{
                 </Show>
             </div>
 
-            {/* 来源绑定状态：绑定按 sid 归属 */}
             <Show when={c.current()?.source}>
                 {(binding) => (
                     <div class="flex flex-row items-center gap-3 text-sm">
@@ -253,7 +221,6 @@ const CurrentLyrics: Component<{
                 </div>
             </Show>
 
-            {/* 阅读区：完整歌词，可滚动；不裁剪成三行 */}
             <div
                 ref={listRef}
                 class="max-h-[520px] overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700 p-2"

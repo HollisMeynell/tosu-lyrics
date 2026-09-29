@@ -10,12 +10,7 @@ import {
 } from "@/services/blocksService";
 import { ApiError } from "@/services/settingsService";
 
-/**
- * 黑名单控制器（B-04）。
- *
- * 唯一真相是服务端：所有写操作成功之后**重新拉取列表**，而不是在本地拼一份
- * 可能和服务端不一致的结果。失败时保留原列表并把错误暴露给页面。
- */
+/** 所有写操作成功后重新拉取列表，保证与服务端一致。 */
 export function createBlocksController() {
     const [items, setItems] = createSignal<BlockRule[]>([]);
     const [loading, setLoading] = createSignal(false);
@@ -36,7 +31,6 @@ export function createBlocksController() {
         }
     };
 
-    /** 所有写操作的公共外壳：成功后强制重新拉取，保证与服务端一致 */
     const mutate = async (fn: () => Promise<unknown>): Promise<boolean> => {
         setSaving(true);
         setError(null);
@@ -67,7 +61,6 @@ export function createBlocksController() {
     };
 }
 
-/** 从当前歌曲信息推断默认作用域：有 bid 就按 bid，否则退回 title */
 export function defaultBlockInput(song: {
     bid: number;
     sid: number;

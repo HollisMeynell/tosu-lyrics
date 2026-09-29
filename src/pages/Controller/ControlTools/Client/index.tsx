@@ -12,20 +12,6 @@ import {
 import { createSettingsController } from "@/hooks/useSettings";
 import type { AlignType } from "@/types/globalTypes";
 
-/**
- * 在线展示端（本轮增强：全局 + 单独客户端调整）。
- *
- * 两种模式边界清晰：
- *
- * | 模式 | 触发 | 样式改动 | 测试按钮 |
- * |---|---|---|---|
- * | **全局** | 没有选中任何端 | `PATCH /api/settings`（持久 + 广播给全部） | 全部端闪烁 |
- * | **单独** | 选中某个端 | `POST /api/clients/{id}/settings`（只推给它，不落库） | 只有它闪烁 |
- *
- * 「单独」是**即时调整**，不是每客户端持久配置：后端不保存它，
- * 该端重连后回到全局设置。
- */
-
 const POLL_MS = 4000;
 
 export default function ClientList() {
@@ -38,7 +24,6 @@ export default function ClientList() {
     const [error, setError] = createSignal<string | null>(null);
     const [notice, setNotice] = createSignal<string | null>(null);
 
-    /** 单独模式下用于编辑的样式草稿 */
     const [draft, setDraft] = createSignal({
         first: "#ffffff",
         second: "#e0e0e0",
@@ -53,7 +38,6 @@ export default function ClientList() {
         try {
             const items = await fetchClients();
             setClients(items);
-            // 选中的端已离线 -> 自动回到全局模式，避免对不存在的目标操作
             if (selected() && !items.some((c) => c.id === selected())) {
                 setSelected("");
                 setNotice("选中的展示端已离线，已回到全局模式");
@@ -72,7 +56,6 @@ export default function ClientList() {
         setNotice(null);
         if (id === selected()) return;
         setSelected(id);
-        // 从全局设置起编，用户看到的是"当前样式"而不是空白
         const s = settings.settings();
         if (s) {
             setDraft({
@@ -84,7 +67,6 @@ export default function ClientList() {
         }
     };
 
-    /** 统一的操作入口：根据当前模式决定打到全局还是单个端 */
     const run = async (fn: () => Promise<string>, failLabel: string) => {
         setBusy(true);
         setError(null);

@@ -3,23 +3,9 @@ import { DEFAULT_SHADOW, shadow } from "@/stores/settingsStore";
 import { createSettingsController } from "@/hooks/useSettings";
 import type { Shadow } from "@/types/globalTypes";
 
-/**
- * 阴影（本轮简化）。
- *
- * 改动：
- * - 去掉「启用阴影」勾选框 → 改成**「关闭阴影」**，语义更直白
- * - 去掉 `inset`（内阴影在歌词上几乎用不到）
- * - 去掉**保存按钮** → 任何修改**立即生效**（走 `PATCH /api/settings`，
- *   后端成功后会广播 `setShadow` 给所有展示端）
- * - 偏移拆成 **X / Y** 两个数值，并增加**模糊**，都能用滑块调
- *
- * 主 / 副仍然各自独立。
- */
-
 const KIND_LABEL = { first: "主歌词", second: "副歌词" } as const;
 type Kind = keyof typeof KIND_LABEL;
 
-/** 与后端一致的取值范围（后端会再校验一次） */
 const OFFSET_MIN = -20;
 const OFFSET_MAX = 20;
 const BLUR_MAX = 30;
@@ -27,15 +13,8 @@ const BLUR_MAX = 30;
 export default function ShadowPage() {
     const settings = createSettingsController();
 
-    /** 当前值来自服务端确认的 store；未启用时用默认值显示滑块位置 */
     const value = (kind: Kind): Shadow => shadow()[kind];
 
-    /**
-     * 提交一次修改。
-     *
-     * 立即生效：没有保存按钮，任何一次调整都直接落库并广播。
-     * 失败时 `useSettings` 保留原值并把错误暴露出来，不会伪装成功。
-     */
     const commit = (kind: Kind, next: Partial<Shadow>) => {
         const merged = { ...value(kind), ...next };
         void settings.update({
@@ -88,7 +67,6 @@ export default function ShadowPage() {
                     </Show>
                 </div>
 
-                {/* 关闭时不显示无意义的滑块 */}
                 <Show when={v().enable}>
                     <div class="flex flex-col gap-3">
                         <For
