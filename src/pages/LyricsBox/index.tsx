@@ -31,7 +31,6 @@ import { measureLineWidth } from "@/utils/lyricScroll.ts";
 
 let blink = () => void 0;
 
-// 触发歌词闪烁三次
 export const lyricBlink = () => {
     blink();
 };
@@ -111,7 +110,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         }, 250);
     };
 
-    // 更新滚动
     const updateScroll = (p: HTMLLIElement) => {
         setLyricLIRef(p);
         // 按目标(active)字号补偿后再比较, 详见 utils/lyricScroll.ts。
@@ -127,8 +125,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
 
         if (maxWidth > clientWidth) {
             const ulPadding = 40;
-            // 计算偏移量(非常精细)
-
             if (alignmentStyle === "flex-start") {
                 const offset =
                     Math.round(maxWidth - clientWidth) + 2 * ulPadding;
@@ -155,7 +151,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         }
     };
 
-    // 更新歌词滚动
     createEffect(
         on(
             [lyrics, cursor],
@@ -170,8 +165,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         )
     );
 
-    // 确保内置默认字体已加载。
-    // 字体族现在由 MainLyric / SecondLyric 各自的 inline style 负责（主副可不同）。
     createEffect(
         on([font, secondFont], () => {
             if (!lyricUL) return;
@@ -181,7 +174,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         })
     );
 
-    // 初始化歌词
     onMount(() => {
         if (isDebug) {
             setLyrics([
@@ -194,12 +186,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     });
 
 
-    /**
-     * 由设置生成 CSS filter（B-09）。
-     *
-     * 未启用阴影时返回 undefined —— 不写 filter，保持"完全没有阴影"的原始外观，
-     * 而不是写一个空 filter。
-     */
+    // 未启用阴影时返回 undefined，不写空 filter
     const shadowFilter = (which: "first" | "second") => {
         const s = which === "first" ? shadow().first : shadow().second;
         if (!s.enable) return undefined;
@@ -207,7 +194,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         return `drop-shadow(${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.color})`;
     };
 
-    // 子组件
     const MainLyric: Component<MainLyricProps> = (props) => (
         <p
             class="font-tLRC whitespace-nowrap text-4xl font-bold transition-[font-size] duration-300"
@@ -216,7 +202,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 color: textColor().first,
                 "font-family": font() || undefined,
                 "text-align": props.align || "center",
-                // active 用设置字号, 非 active 保持 2:1 比例(与 lyricScroll 的补偿一致)
                 "font-size": `${props.active ? fontSize().first : fontSize().first / 2}em`,
             }}
         >
@@ -244,7 +229,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         </p>
     );
 
-    // 歌词对齐样式
     const lyricAlignmentStyle = () => {
         let alignmentStyle = "";
         let transformOrigin = "";
@@ -270,7 +254,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         };
     };
 
-    // 渲染歌词行
     const lines = (lyric: Accessor<LyricLine>, index: number) => {
         const getMainLyric = () =>
             useTranslationAsMain()

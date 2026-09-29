@@ -1,15 +1,3 @@
-//! 歌词内容管理 HTTP 接口（B-05）。
-//!
-//! - `GET    /api/lyrics/current`        当前歌词 + 身份 + 偏移 + 绑定
-//! - `GET    /api/lyrics/search-results` 已有候选
-//! - `POST   /api/lyrics/search`         主动搜索（可带条件，缺省用当前歌）
-//! - `GET    /api/lyrics/preview`        预览某候选（**不改播放**）
-//! - `PUT    /api/lyrics/source`         应用来源绑定
-//! - `DELETE /api/lyrics/source`         恢复自动匹配
-//! - `PUT    /api/lyrics/offset`         设置偏移
-//!
-//! 陈旧请求统一返回 409 `song_changed`：切歌后旧操作被拒绝，而不是悄悄写坏状态。
-
 use crate::config::{
     CONFIG_ENDPOINT_LYRICS, CONFIG_ENDPOINT_LYRICS_CURRENT, CONFIG_ENDPOINT_LYRICS_OFFSET,
     CONFIG_ENDPOINT_LYRICS_PREVIEW, CONFIG_ENDPOINT_LYRICS_SEARCH,
@@ -65,17 +53,8 @@ async fn parse_body<T: serde::de::DeserializeOwned>(req: &mut Request) -> Result
     crate::util::to_json::<T>(text).map_err(|e: Error| format!("请求体格式错误: {e}"))
 }
 
-// ---------------------------------------------------------------- 当前歌词
-
-/// `GET /api/lyrics/current`
-///
-/// **契约变更（B-05）**：旧实现把"有歌但暂时没歌词"也当成 404 `no_lyric`。
-/// 但那是**正常且瞬时的状态**（正在搜索 / 已清屏 / 被拉黑 / 没有这个源），
-/// 不是错误；而且恰恰在这种状态下 Controller 最需要读 `blocked` 与 `source`。
-/// 现在改为：
-/// - 没有播放中的歌        -> 404 `no_song`
-/// - 有歌但没有可用歌词    -> 200，`lyric: null`，并带 `lyricState` 说明原因
-/// - 有歌且有歌词          -> 200，`lyric: [...]`
+/// 没有播放中的歌 -> 404 no_song；有歌但没歌词 -> 200 + lyric:null + lyricState；
+/// 有歌且有歌词 -> 200 + lyric:[...]
 #[handler]
 async fn get_current(res: &mut Response) {
     // 先取快照再放锁，避免持锁期间做数据库查询
@@ -129,8 +108,6 @@ async fn get_current(res: &mut Response) {
     res.render(Json(body));
 }
 
-// ---------------------------------------------------------------- 候选 / 搜索
-
 #[handler]
 async fn get_search_results(res: &mut Response) {
     let items = content::candidates().await;
@@ -157,8 +134,6 @@ async fn post_search(req: &mut Request, res: &mut Response) {
     }
 }
 
-// ---------------------------------------------------------------- 预览
-
 #[derive(Debug, Deserialize)]
 struct PreviewQuery {
     source: String,
@@ -182,8 +157,6 @@ async fn get_preview(req: &mut Request, res: &mut Response) {
         Err(err) => render_content_error(res, err),
     }
 }
-
-// ---------------------------------------------------------------- 来源绑定
 
 #[derive(Debug, Deserialize)]
 struct SourceBody {
@@ -223,11 +196,8 @@ async fn delete_source(res: &mut Response) {
     }
 }
 
-// ---------------------------------------------------------------- 偏移
-
 #[derive(Debug, Deserialize)]
 struct OffsetBody {
-    /// 毫秒
     offset: i32,
 }
 
@@ -254,10 +224,6 @@ async fn put_offset(req: &mut Request, res: &mut Response) {
     res.render(Json(json!({ "ok": true, "offset": effective })));
 }
 
-/// `POST /api/lyrics/translation-check`
-///
-/// 批量询问"这些候选有没有翻译"。内容来自真实取词；
-/// 单次请求的条数有上限，避免前端一次把上游打满。
 #[handler]
 async fn post_translation_check(req: &mut Request, res: &mut Response) {
     #[derive(serde::Deserialize)]
@@ -316,7 +282,6 @@ pub fn get_lyrics_route() -> Router {
                 .delete(delete_source),
         )
         .push(Router::with_path(CONFIG_ENDPOINT_LYRICS_OFFSET).put(put_offset))
-        // LRC 上传与其它内容接口同一前缀，避免出现 /lyric 与 /lyrics 两套
         .push(Router::with_path(CONFIG_ENDPOINT_LYRICS_UPLOAD).post(crate::server::lyric::upload_lyric))
         .push(Router::with_path(CONFIG_ENDPOINT_LYRICS_TRANSLATION_CHECK).post(post_translation_check))
 }

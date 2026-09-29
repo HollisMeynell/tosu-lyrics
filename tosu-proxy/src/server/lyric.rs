@@ -1,13 +1,3 @@
-//! LRC 上传（B-07）。
-//!
-//! - `POST /api/lyrics/upload`  上传 LRC 并绑定到当前播放歌曲
-//!
-//! 与旧实现的差别：
-//! - 统一错误体 `{"error":{"code","message"}}`，不再返回纯文本
-//! - 上传前校验编码与格式；**非法文件不替换旧歌词**
-//! - 提交前做代际 + 身份校验：上传期间切歌则整份丢弃（409 `song_changed`）
-//! - 有效歌词按当前播放进度立即刷新，不回到第 0 行
-
 use crate::config::{CONFIG_ENDPOINT_LYRIC, CONFIG_ENDPOINT_LYRIC_UPLOAD};
 use crate::error::Error;
 use crate::lyric::Lyric;
@@ -19,10 +9,8 @@ use salvo::http::StatusCode;
 use salvo::prelude::*;
 use serde_json::json;
 
-/// 上传体积上限：1 MiB。歌词文本远超这个量级，超过基本可以确定传错了文件。
 const MAX_UPLOAD_BYTES: usize = 1024 * 1024;
 
-/// 取出上传内容：优先取 multipart 文件，其次取原始请求体。
 async fn read_payload(req: &mut Request) -> Result<Vec<u8>, (StatusCode, &'static str, String)> {
     if let Some(file) = req.first_file().await {
         return tokio::fs::read(file.path()).await.map_err(|e| {
@@ -92,7 +80,6 @@ fn parse_upload(bytes: &[u8]) -> Result<Lyric, (StatusCode, &'static str, String
 
 #[handler]
 pub async fn upload_lyric(req: &mut Request, res: &mut Response) {
-    // 0) 必须先有正在播放的歌
     let Some(ident) = LyricService::now_ident().await else {
         render_error(
             res,
@@ -149,7 +136,6 @@ pub fn get_lyric_route() -> Router {
         .push(Router::with_path(CONFIG_ENDPOINT_LYRIC_UPLOAD).post(upload_lyric))
 }
 
-/// 让 `Error` 在本模块可被构造（保留给后续扩展）
 #[allow(dead_code)]
 fn runtime_error(message: String) -> Error {
     Error::Runtime(message)

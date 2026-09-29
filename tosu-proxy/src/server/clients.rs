@@ -1,15 +1,3 @@
-//! 在线展示端与定向事件（B-08）。
-//!
-//! - `GET  /api/clients`              在线展示端列表
-//! - `POST /api/clients/{id}/blink`   让**指定**展示端闪烁
-//! - `POST /api/clients/blink`        让全部展示端闪烁
-//!
-//! 只有**展示端**（`ClientType::Client`）会出现在列表里：管理 / setter 连接
-//! 没有画面，让它们参与"在线客户端"既没意义也会误导用户。
-//!
-//! 定向事件只走 WS 单播 —— 这就是 WS 在本项目里的定位：
-//! **展示事件传输**，而不是管理 RPC。管理一律走 HTTP。
-
 use crate::config::{
     CONFIG_ENDPOINT_CLIENTS, CONFIG_ENDPOINT_CLIENTS_BLINK, CONFIG_ENDPOINT_CLIENTS_SETTINGS,
 };
@@ -24,8 +12,6 @@ use salvo::websocket::Message;
 use salvo::prelude::*;
 use serde_json::json;
 
-/// 让一个展示端闪烁：复用展示事件通道（与 `setClear` 同一类消息），
-/// 不引入新的管理消息类型。
 fn blink_message() -> Message {
     let payload = SettingPayload::new("setBlink".to_string());
     Into::<WebSocketMessage>::into(payload).into()
@@ -79,13 +65,7 @@ async fn blink_client(req: &mut Request, res: &mut Response) {
     res.render(Json(json!({ "ok": true, "blinked": targets.len() })));
 }
 
-/// `POST /api/clients/{id}/settings`
-///
-/// **只推给目标展示端，不落库。**
-///
-/// 这是"单独客户端调整"的实现：选中某个端之后改样式，只有它变，
-/// 其余端与全局设置都不受影响。它**不是**每客户端持久配置系统 ——
-/// 后端不保存任何 per-client 状态，重连后回到全局设置。
+/// 只推给目标展示端，不落库。重连后回到全局设置。
 #[handler]
 async fn apply_client_settings(req: &mut Request, res: &mut Response) {
     let Some(target) = req.param::<String>("id") else {
@@ -121,7 +101,6 @@ async fn apply_client_settings(req: &mut Request, res: &mut Response) {
         return;
     }
 
-    // 以**当前全局设置**为基准算出目标值，但不保存
     let base = current_settings().await;
     let next = match base.with_patch(patch) {
         Ok(next) => next,
@@ -131,7 +110,6 @@ async fn apply_client_settings(req: &mut Request, res: &mut Response) {
         }
     };
 
-    // 只推送真正变化的项，且推的是**完整的该项取值**，展示端直接套用即可
     let keys = keys_of(&base, &next);
     let mut sent = 0;
     for key in &keys {

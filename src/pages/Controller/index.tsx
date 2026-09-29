@@ -38,14 +38,6 @@ const CustomA: Component<CustomAProps> = (props) => {
 };
 
 const Controller: Component<ControllerProps> = (props) => {
-    // 这里原先有一层"必须先选择一个客户端才能管理"的遮罩，依赖旧前端的
-    // `wsService.clientSignal()`（靠旧协议的 online/互查消息维护）。
-    // 新版后端是**全局单一状态**（一首当前歌曲 + 一份全局设置），
-    // 根本不存在"其他浏览器客户端"这个概念，那个信号因此恒为 false，
-    // 遮罩会把所有管理页都盖住、真实用户点不动任何控件。
-    // 迁移到 HTTP 的全局管理页不需要这个前置条件，故移除（F-01 的最小前置修复）。
-    // `/lyrics/controller/client` 页面本身保持原样，留给 B-08 / F-07。
-
     // 导航栏配置
     const navItems = [
         { href: "/lyrics/controller/client", icon: "default" },

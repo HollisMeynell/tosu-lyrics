@@ -1,14 +1,3 @@
-//! 歌词缓存管理 HTTP 接口（B-06）。
-//!
-//! - `GET    /api/cache?page=&size=&q=`  分页 + 标题过滤
-//! - `GET    /api/cache/count`           总数
-//! - `DELETE /api/cache/{bid}`           删除单条
-//! - `DELETE /api/cache?title=`          按标题（模糊）删除
-//! - `DELETE /api/cache`                 清空全部
-//! - `POST   /api/cache/cleanup`         清理过期条目
-//!
-//! **本模块不触碰来源绑定 / 偏移 / 黑名单** —— 那是用户数据，缓存只是缓存。
-
 use crate::config::{
     CONFIG_ENDPOINT_CACHE, CONFIG_ENDPOINT_CACHE_CLEANUP, CONFIG_ENDPOINT_CACHE_COUNT,
 };

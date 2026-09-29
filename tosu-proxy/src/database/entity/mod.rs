@@ -47,8 +47,7 @@ init_entity! {
     init_lyric_binding(LyricBindingEntity),
 }
 
-/// 复合唯一索引：同一 `(scope, value)` 只能有一行，是幂等 upsert 的依据。
-/// DeriveEntityModel 的 `indexed` 只给单列非唯一索引，这里手工补。
+/// DeriveEntityModel 的 indexed 只给单列非唯一索引，这里手工补复合唯一索引
 async fn ensure_block_unique_index() -> Result<()> {
     let db = super::database();
     let backend = db.get_database_backend();
@@ -75,10 +74,8 @@ pub(super) async fn init_all_table_and_migrate() -> Result<()> {
     Ok(())
 }
 
-/// B-06：给旧库的 `lyric_cache` 补 `updated_at` 列。
-///
-/// `init_entity!` 只负责"表不存在就建表"，**不会给已存在的表加列**，
-/// 所以这里显式检查并 ALTER。旧行回填为迁移时刻，避免一启动就全部被判过期。
+/// init_entity! 只负责建表，不会给已存在的表加列，所以这里显式检查并 ALTER。
+/// 旧行回填为迁移时刻，避免一启动就全部被判过期。
 async fn migrate_cache_updated_at() -> Result<()> {
     let db = super::database();
     if !column_exists("lyric_cache", "updated_at").await? {
@@ -109,7 +106,6 @@ async fn migrate_cache_updated_at() -> Result<()> {
     Ok(())
 }
 
-/// B-10：给旧库的 `lyric_block` 补 `reason` 列（幂等）。
 async fn migrate_block_reason() -> Result<()> {
     let db = super::database();
     if !column_exists("lyric_block", "reason").await? {
@@ -123,7 +119,6 @@ async fn migrate_block_reason() -> Result<()> {
     Ok(())
 }
 
-/// 表里是否存在某一列（SQLite: PRAGMA table_info）
 async fn column_exists(table: &str, column: &str) -> Result<bool> {
     use sea_orm::ConnectionTrait;
     let db = super::database();
@@ -140,7 +135,7 @@ async fn column_exists(table: &str, column: &str) -> Result<bool> {
     }))
 }
 
-/// 把旧 `lyric_config.disable = true` 的行迁成 `bid` 作用域的黑名单规则，
+/// 把旧 lyric_config.disable = true 的行迁成 bid 作用域的黑名单规则，
 /// 然后清掉旧标志。可重复执行，不会产生重复规则。
 async fn migrate_legacy_block() -> Result<()> {
     let legacy = LyricConfigEntity::legacy_disabled().await?;

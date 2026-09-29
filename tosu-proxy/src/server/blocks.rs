@@ -1,14 +1,3 @@
-//! 黑名单 HTTP 管理接口（B-04）。
-//!
-//! - `GET    /api/blocks`        列出全部规则
-//! - `POST   /api/blocks`        新增（幂等：同一 scope+value 重复添加只更新标题）
-//! - `PATCH  /api/blocks/{id}`   修改展示用标题
-//! - `DELETE /api/blocks/{id}`   删除单条（不存在返回 404 `not_found`）
-//! - `DELETE /api/blocks`        清空全部（幂等，返回删除条数）
-//!
-//! 后端是唯一真相来源：这些接口写完状态后，副作用（清屏 / 恢复展示）由
-//! `block_service` 统一施加，Controller 不需要自己再推一遍。
-
 use crate::config::CONFIG_ENDPOINT_BLOCKS;
 use crate::error::Error;
 use crate::server::response::{

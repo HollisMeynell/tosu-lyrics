@@ -1,14 +1,6 @@
 import { BACKEND_API_BASE } from "@/config/constants";
 import { SettingsDto, SettingsPatch } from "@/types/globalTypes";
 
-/**
- * 设置相关的 HTTP 客户端（B-03）。
- *
- * 走相对路径 `/api/settings`：开发时由 vite 代理到后端，生产时页面由后端自身提供，
- * 两种情况都不需要写死主机端口。
- */
-
-/** 后端统一错误结构 `{"error":{"code","message"}}` 在前端的表示 */
 export class ApiError extends Error {
     constructor(
         public readonly code: string,
@@ -37,7 +29,6 @@ async function toApiError(res: Response): Promise<ApiError> {
     return new ApiError(code, message, res.status);
 }
 
-/** 读取完整设置（含默认值） */
 export async function fetchSettings(): Promise<SettingsDto> {
     const res = await fetch(SETTINGS_URL);
     if (!res.ok) throw await toApiError(res);

@@ -1,10 +1,3 @@
-//! 管理 HTTP 的第一批接口: 状态查询与展示控制。
-//!
-//! 设计约定(对应 Plan §6.2):
-//! - 路径挂在 `/api` 下
-//! - 时间单位统一为**毫秒**(旧 WS `getAllLyric` 仍是秒, 迁移完成后移除)
-//! - 错误统一为 `{"error":{"code":"...","message":"..."}}` + 对应 HTTP 状态码
-
 use crate::config::{
     CONFIG_ENDPOINT_DISPLAY, CONFIG_ENDPOINT_DISPLAY_CLEAR, CONFIG_ENDPOINT_LYRICS,
     CONFIG_ENDPOINT_LYRICS_CURRENT, CONFIG_ENDPOINT_STATUS,
@@ -49,7 +42,6 @@ fn lyric_lines_json(lines: &[LyricLine]) -> Vec<Value> {
         .collect()
 }
 
-/// GET /api/status — 当前歌曲与歌词展示状态
 #[handler]
 async fn get_status(res: &mut Response) {
     // 黑名单**现查**，不使用任何缓存字段：
@@ -105,7 +97,6 @@ async fn get_status(res: &mut Response) {
     })));
 }
 
-/// GET /api/lyrics/current — 当前完整歌词 + 有效偏移 + 当前行
 #[handler]
 async fn get_current_lyric(res: &mut Response) {
     let service = LYRIC_SERVICE.lock().await;
@@ -133,10 +124,7 @@ async fn get_current_lyric(res: &mut Response) {
     res.render(Json(body));
 }
 
-/// POST /api/display/clear — 清空所有展示端
-///
-/// 语义: **持续清屏**, 直到切歌或重新换源 / 上传歌词才会恢复(与旧 setClear 一致)。
-/// 保留当前歌曲信息, 因此清屏后 `/api/status` 仍能查到正在播放的歌。
+/// 持续清屏，直到切歌 / 换源 / 上传歌词才恢复。保留当前歌曲信息。
 #[handler]
 async fn clear_display(res: &mut Response) {
     let mut service = LYRIC_SERVICE.lock().await;

@@ -1,12 +1,3 @@
-//! 字体资源 HTTP 接口（B-07）。
-//!
-//! - `GET  /api/font/info`       主 / 副字体的版本信息
-//! - `GET  /api/font/{kind}`     下载字体（kind = main / sub）
-//! - `POST /api/font/{kind}`     上传并覆盖（**幂等覆盖，可连续上传**）
-//!
-//! 旧的 `/api/font/upload` 与 `/api/font/download` 保留，内部改走同一实现，
-//! 因此不再有 R10 的只读句柄问题。
-
 use crate::config::{
     CONFIG_ENDPOINT_FONT, CONFIG_ENDPOINT_FONT_DOWNLOAD, CONFIG_ENDPOINT_FONT_UPLOAD,
 };
@@ -18,7 +9,6 @@ use salvo::http::StatusCode;
 use salvo::prelude::*;
 use serde_json::json;
 
-/// 根据扩展名 / 魔数挑一个字体 MIME
 fn font_content_type(bytes: &[u8]) -> &'static str {
     match bytes.get(..4) {
         Some(b"wOFF") => "font/woff",
@@ -143,7 +133,6 @@ async fn legacy_download(req: &mut Request, res: &mut Response) {
 pub fn get_font_route() -> Router {
     Router::with_path(CONFIG_ENDPOINT_FONT)
         .push(Router::with_path("info").get(font_info))
-        // 旧入口保留，但不再有只读句柄缺陷
         .push(Router::with_path(CONFIG_ENDPOINT_FONT_UPLOAD).post(upload_font))
         .push(Router::with_path(CONFIG_ENDPOINT_FONT_DOWNLOAD).get(legacy_download))
         .push(
