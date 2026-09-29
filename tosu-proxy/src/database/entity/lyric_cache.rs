@@ -6,7 +6,6 @@ use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{PaginatorTrait, QueryOrder, QuerySelect};
 
-/// 当前时间（毫秒时间戳）
 pub fn now_ms() -> i64 {
     sea_orm::sqlx::types::chrono::Utc::now().timestamp_millis()
 }
@@ -27,10 +26,8 @@ pub struct Model {
     #[sea_orm(column_type = "Blob")]
     pub cache: Vec<u8>,
     pub title: String,
-    /// ms
     pub audio_length: i32,
-    /// 写入 / 刷新时间（毫秒时间戳）。用于 TTL 过期判定。
-    /// 旧库没有这一列，迁移时补上并回填为迁移时刻。
+    /// 用于 TTL 过期判定；旧库没有这一列，迁移时补上并回填
     #[sea_orm(default_value = 0)]
     pub updated_at: i64,
 }
@@ -67,7 +64,6 @@ impl Entity {
             .await?)
     }
 
-    /// 分页列表。`query` 非空时按标题模糊过滤。
     pub async fn page(query: Option<&str>, offset: u64, limit: u64) -> crate::error::Result<Vec<Model>> {
         let mut select = Self::find();
         if let Some(q) = query.filter(|q| !q.is_empty()) {
@@ -101,7 +97,6 @@ impl Entity {
         Ok(result.rows_affected)
     }
 
-    /// 按标题（模糊）删除，返回删除条数
     pub async fn delete_by_title_like(title: &str) -> crate::error::Result<u64> {
         let result = Self::delete_many()
             .filter(Column::Title.contains(title))
@@ -110,7 +105,6 @@ impl Entity {
         Ok(result.rows_affected)
     }
 
-    /// 删除全部，返回删除条数
     pub async fn delete_all() -> crate::error::Result<u64> {
         let result = Self::delete_many().exec(database()).await?;
         Ok(result.rows_affected)
@@ -129,11 +123,6 @@ impl Entity {
         Ok(result.rows_affected)
     }
 
-    /// - `sid`：sid
-    /// - `bid`：bid
-    /// - `title`：title
-    /// - `audio_length`：毫秒
-    /// - `lyric`：歌词
     pub async fn save(
         sid: i32,
         bid: i32,
@@ -154,7 +143,6 @@ impl Entity {
     }
 
     pub async fn save_model(model: ActiveModel) -> crate::error::Result<()> {
-        // 如果存在相同的 bid，则更新记录
         let mut on_conflict = OnConflict::column(Column::Bid);
         on_conflict
             .update_column(Column::Sid)

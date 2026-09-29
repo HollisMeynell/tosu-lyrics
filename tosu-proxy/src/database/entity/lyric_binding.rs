@@ -1,12 +1,3 @@
-//! 歌词来源绑定表（B-05 / B-00 契约 ④）。
-//!
-//! **与缓存彻底分离**：`lyric_cache` 是可随时清空的缓存，本表是用户显式选择的
-//! 来源绑定。删缓存不得删绑定，删绑定也不影响缓存与偏移。
-//!
-//! 归属按 **sid**（歌曲级歌词资源），不是 bid：
-//! 同一谱面集的 Easy / Hard 共享同一份来源绑定，这与"当前播放身份看 bid"
-//! 并不矛盾 —— 前者是资源归属，后者是播放上下文。
-
 use crate::database::database;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
@@ -17,14 +8,10 @@ type Res<T> = crate::error::Result<T>;
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "lyric_binding")]
 pub struct Model {
-    /// 谱面集 id —— 歌曲级歌词资源的归属键
     #[sea_orm(primary_key, auto_increment = false)]
     pub sid: i32,
-    /// 来源类型，与 `LyricSource::name()` 一致（QQ / Netease）
     pub source_type: String,
-    /// 该来源内部的候选标识
     pub source_key: String,
-    /// 便于展示
     #[sea_orm(default_value = "")]
     pub title: String,
     #[sea_orm(default_value = "")]
@@ -98,7 +85,6 @@ impl Entity {
         Ok(Self::find().count(database()).await?)
     }
 
-    /// 排查 / 迁移用
     pub async fn list_all() -> Res<Vec<Model>> {
         Ok(Self::find()
             .filter(Column::Sid.gt(0))

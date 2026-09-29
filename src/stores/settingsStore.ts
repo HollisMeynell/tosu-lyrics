@@ -23,7 +23,6 @@ export const DEFAULT_SHADOW: Shadow = {
     offsetY: 2,
 };
 
-// 同步信息
 export const [font, setFont] = createSignal("");
 /** 副歌词字体（后端 font.second；为空时回落到主字体） */
 export const [secondFont, setSecondFont] = createSignal("");
@@ -41,17 +40,10 @@ export const [alignment, setAlignment] = createSignal<AlignType>(
     alignmentOptions[1].value
 );
 
-// 非同步信息
 export const [darkMode, setDarkMode] = createSignal(
     localStorage.getItem("darkMode") === "true"
 );
 
-/**
- * 用**服务端返回的完整设置**覆盖本地展示状态。
- *
- * 无论是 `GET/PATCH /api/settings` 的响应，还是 WS 下发的完整快照，
- * 都通过这里写入，避免出现"本地乐观值"和"服务端真实值"两套状态。
- */
 export const applySettings = (settings: SettingsDto) => {
     batch(() => {
         setTextColor({
@@ -74,7 +66,6 @@ export const applySettings = (settings: SettingsDto) => {
     });
 };
 
-/** 把持久化的夜间模式应用到 <html> class（两端初始化时调用） */
 export const initializeDarkMode = () => {
     applyDarkMode(darkMode());
 };

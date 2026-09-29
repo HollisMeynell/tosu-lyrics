@@ -1,17 +1,3 @@
-//! 黑名单服务（B-04）。
-//!
-//! 后端是黑名单的**唯一真相来源**：Controller 只能通过 HTTP 读写，
-//! 本地不再维护一份可能和后端不一致的副本。
-//!
-//! 作用域规则（B-00 契约）见 `database::entity::lyric_block`：
-//! 一条规则只属于 `bid` / `sid` / `title` 三者之一，不做跨作用域回退，
-//! 因此「标题恰好相同的另一首歌」不会被误伤。
-//!
-//! 副作用（本轮要求）：
-//! - 拉黑**当前正在播放**的歌   -> 立即清屏（所有展示端），不等切歌
-//! - 解除当前正在播放的歌的黑名单 -> 立即重新加载歌词
-//! - 两者都幂等：重复添加 / 重复删除不会重复触发
-
 use crate::database::lyric_block::{is_valid_scope, Model};
 use crate::database::{LyricBlockEntity, SCOPE_BID, SCOPE_SID, SCOPE_TITLE};
 use crate::error::Error;
@@ -20,17 +6,10 @@ use serde::{Deserialize, Serialize};
 
 pub type Result<T> = std::result::Result<T, BlockError>;
 
-/// 黑名单服务的错误分类。
-///
-/// 用独立枚举而不是复用 `Error` + 字符串前缀，是为了让 HTTP 层能精确映射
-/// 到错误码与状态码，而不是靠解析错误文本猜。
 #[derive(Debug)]
 pub enum BlockError {
-    /// 参数非法（作用域未知 / 取值不是正整数）
     InvalidParam(String),
-    /// 目标资源不存在
     NotFound(String),
-    /// 其它内部错误（数据库等）
     Internal(Error),
 }
 
@@ -49,18 +28,14 @@ impl From<Error> for BlockError {
     }
 }
 
-/// HTTP 黑名单规则（唯一对外形态）
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockRule {
     pub id: i32,
-    /// `bid` / `sid` / `title`
     pub scope: String,
-    /// 作用域取值
     pub value: String,
     pub title: String,
     pub sid: i32,
-    /// 备注（B-10）
     pub reason: String,
     pub created_at: i64,
 }
@@ -79,7 +54,6 @@ impl From<Model> for BlockRule {
     }
 }
 
-/// 新增规则的请求体
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockRuleInput {
@@ -93,12 +67,10 @@ pub struct BlockRuleInput {
     pub reason: String,
 }
 
-/// 修改规则的请求体（只允许改展示用标题）
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockRulePatch {
     pub title: Option<String>,
-    /// 备注（B-10）：只是元数据，改了不影响命中判定
     pub reason: Option<String>,
 }
 
@@ -114,7 +86,7 @@ pub async fn count() -> Result<u64> {
     Ok(LyricBlockEntity::count().await?)
 }
 
-/// 新增（幂等）。同一 `(scope, value)` 重复添加只会更新标题。
+/// 幂等：同一 (scope, value) 重复添加只会更新标题
 pub async fn add(input: BlockRuleInput) -> Result<BlockRule> {
     validate(&input.scope, &input.value)?;
     let model = LyricBlockEntity::upsert(
@@ -136,7 +108,6 @@ pub async fn update(id: i32, patch: BlockRulePatch) -> Result<BlockRule> {
     let Some(existing) = LyricBlockEntity::get_by_id(id).await? else {
         return Err(BlockError::NotFound(format!("黑名单规则 {id} 不存在")));
     };
-    // 标题与备注都只是展示字段，不影响命中判定，因此不需要重算当前歌曲状态
     if patch.title.is_some() || patch.reason.is_some() {
         LyricBlockEntity::update_meta(id, patch.title.as_deref(), patch.reason.as_deref()).await?;
     }
@@ -149,7 +120,7 @@ pub async fn update(id: i32, patch: BlockRulePatch) -> Result<BlockRule> {
     }))
 }
 
-/// 删除（幂等）。规则本来就不存在时返回 `Ok(None)`，由 HTTP 层决定是否 404。
+/// 幂等删除。规则不存在时返回 Ok(None)，由 HTTP 层决定是否 404。
 pub async fn delete(id: i32) -> Result<Option<BlockRule>> {
     let existing = LyricBlockEntity::get_by_id(id).await?;
     LyricBlockEntity::remove_by_id(id).await?;
@@ -160,7 +131,6 @@ pub async fn delete(id: i32) -> Result<Option<BlockRule>> {
     Ok(existing.map(BlockRule::from))
 }
 
-/// 清空（幂等），返回删除条数
 pub async fn clear_all() -> Result<u64> {
     let removed = LyricBlockEntity::delete_all().await?;
     if removed > 0 {
@@ -169,7 +139,6 @@ pub async fn clear_all() -> Result<u64> {
     Ok(removed)
 }
 
-/// 当前歌曲是否被屏蔽（返回命中的规则）
 pub async fn blocked_rule(bid: i32, sid: i32, title: &str) -> Result<Option<BlockRule>> {
     Ok(LyricBlockEntity::is_blocked(bid as i64, sid as i64, title)
         .await?
@@ -221,7 +190,6 @@ async fn apply_current_song_effects() {
     }
 }
 
-/// 默认作用域：从当前歌曲信息推断（UI 未显式指定 scope 时使用）
 pub fn default_scope(scope: Option<&str>) -> &'static str {
     match scope.unwrap_or(SCOPE_BID) {
         SCOPE_SID => SCOPE_SID,

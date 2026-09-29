@@ -1,25 +1,14 @@
 import { BACKEND_API_BASE } from "@/config/constants";
 import { ApiError } from "@/services/settingsService";
 
-/**
- * 黑名单相关的 HTTP 客户端（B-04）。
- *
- * 后端是**唯一真相来源**：这里不做本地副本、不做乐观更新。
- * 每次写操作都返回服务端最终状态或抛出 `ApiError`，由调用方决定怎么展示。
- */
-
-/** 作用域：一条规则只属于其中之一 */
 export type BlockScope = "bid" | "sid" | "title";
 
 export interface BlockRule {
     id: number;
     scope: BlockScope;
-    /** 作用域取值：bid / sid 是数字字符串，title 是标题本身 */
     value: string;
-    /** 展示用标题 */
     title: string;
     sid: number;
-    /** 备注（B-10，真正持久化） */
     reason: string;
     createdAt: number;
 }
@@ -43,9 +32,7 @@ async function toApiError(res: Response): Promise<ApiError> {
             code = body.error.code;
             message = body.error.message ?? message;
         }
-    } catch {
-        // 后端不是 JSON 错误体时保留默认信息
-    }
+    } catch {}
     return new ApiError(code, message, res.status);
 }
 

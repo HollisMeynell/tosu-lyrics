@@ -1,16 +1,3 @@
-//! 黑名单规则表（B-04）。
-//!
-//! 取代旧 `lyric_config` 里 `disable` 与 `offset` 混在一行、且读取时
-//! 按 `bid → title → sid` 逐级回退的做法（R7）：
-//! 一条规则**只属于一个明确的作用域**，不会再因为标题同名或同谱面集而误伤。
-//!
-//! 作用域（B-00 契约）：
-//! - `bid`   —— 只屏蔽这一张谱面（最精确，优先）
-//! - `sid`   —— 屏蔽整个谱面集
-//! - `title` —— 屏蔽某个标题（用户显式创建的规则，跨 bid/sid 生效）
-//!
-//! 同一 `(scope, value)` 只会有一行，重复添加是幂等的。
-
 use crate::database::database;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
@@ -20,7 +7,6 @@ use sea_orm::{ActiveValue, ColumnTrait, QueryFilter, QueryOrder};
 // `Result` 别名, 因此这里全部用 `crate::error::Result` 全限定书写。
 type Res<T> = crate::error::Result<T>;
 
-/// 规则作用域
 pub const SCOPE_BID: &str = "bid";
 pub const SCOPE_SID: &str = "sid";
 pub const SCOPE_TITLE: &str = "title";
@@ -34,23 +20,18 @@ pub fn is_valid_scope(scope: &str) -> bool {
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    /// `bid` / `sid` / `title`
     #[sea_orm(indexed)]
     pub scope: String,
     /// 作用域的取值：bid / sid 存数字字符串，title 存标题本身
     #[sea_orm(indexed)]
     pub value: String,
-    /// 便于展示的标题（bid/sid 规则也记下当时的标题）
     #[sea_orm(default_value = "")]
     pub title: String,
-    /// 创建规则时的谱面集 id（仅用于展示与旧 WS 协议兼容，不参与匹配）
+    /// 仅用于展示与旧 WS 协议兼容，不参与匹配
     #[sea_orm(default_value = 0)]
     pub sid: i32,
-    /// 备注（B-10）。旧 UI 一直有这个输入框，但从来没被持久化过；
-    /// 这里补上真正的存储，而不是让它继续当一次性本地状态。
     #[sea_orm(default_value = "")]
     pub reason: String,
-    /// 创建时间（毫秒时间戳）
     #[sea_orm(default_value = 0)]
     pub created_at: i64,
 }
@@ -117,9 +98,7 @@ impl Entity {
             .ok_or(crate::error::Error::Impossible)
     }
 
-    /// 更新展示用元数据（标题 / 备注）。
-    ///
-    /// **不改作用域与取值**：规则身份不变，因此不需要重算当前歌曲是否被屏蔽。
+    /// 不改作用域与取值：规则身份不变，不需要重算当前歌曲是否被屏蔽。
     pub async fn update_meta(id: i32, title: Option<&str>, reason: Option<&str>) -> Res<bool> {
         let mut update = Self::update_many();
         if let Some(title) = title {
@@ -146,7 +125,7 @@ impl Entity {
         Ok(result.rows_affected > 0)
     }
 
-    /// 按作用域取值删除（幂等）。只影响这一个作用域，不动其它规则。
+    /// 幂等删除，只影响这一个作用域
     pub async fn delete_by_scope_value(scope: &str, value: &str) -> Res<u64> {
         let result = Self::delete_many()
             .filter(Column::Scope.eq(scope))
@@ -217,7 +196,6 @@ impl Entity {
                 .one(database())
                 .await?;
             if exists.is_none() {
-                // 旧表没有 reason，迁移时一律为空备注
                 Self::upsert(SCOPE_BID, &value, &row.title, row.sid, "").await?;
                 migrated += 1;
             }

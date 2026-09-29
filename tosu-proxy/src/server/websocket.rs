@@ -14,13 +14,10 @@ pub static ALL_SESSIONS: LazyLock<WebsocketSession> = LazyLock::new(WebsocketSes
 
 type LyricWebsocketMessage = String;
 
-/// 对外暴露的在线展示端信息（B-08）
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientSnapshot {
-    /// 会话标识 —— 每次连接都不同
     pub key: String,
-    /// 客户端自报的稳定身份；匿名为 null
     pub identity: Option<String>,
     pub connected_at: i64,
     pub user_agent: Option<String>,
@@ -30,33 +27,20 @@ fn lyric_message_to_str(msg: LyricWebsocketMessage) -> Message {
     Message::text(msg)
 }
 
-// B-11：`ClientType` 已删除。
-//
-// 它原本用来区分"展示端"与"setter / 管理连接"。管理通道移除后，
-// 一个 WS 连接除了接收展示事件之外没有任何用途，因此**所有连接都是展示端**。
-// 客户端仍然可以带 `?setter=true`，但那只是个被忽略的参数 —— 它不再开启任何特权。
-
 fn display_channel(channel: UnboundedSender<Message>) -> UnboundedSender<Message> {
     channel
 }
 
-/// 一个在线会话（B-08）。
-///
-/// **在线会话 ≠ 持久身份**：
-/// - `key` 是每次连接随机生成的**会话标识**，断线重连就换一个
-/// - `identity` 是客户端通过 `?id=<名字>` **自报的稳定身份**，同一台展示端
-///   重连后仍然是它；没自报就是匿名会话（`identity` 为 `None`）
+/// key 是每次连接随机生成的会话标识；identity 是客户端通过 ?id= 自报的稳定身份。
 #[derive(Debug)]
 pub struct SessionEntry {
     channel: UnboundedSender<Message>,
-    /// 客户端自报的稳定身份
     identity: Option<String>,
     connected_at: i64,
     user_agent: Option<String>,
 }
 
 impl SessionEntry {
-    /// B-11 之后所有连接都是展示端（见上方注释）
     pub fn is_display(&self) -> bool {
         true
     }
@@ -105,7 +89,6 @@ impl WebsocketSession {
         key
     }
 
-    /// 在线展示端列表（**不含管理/setter 连接**）
     pub async fn display_clients(&self) -> Vec<(String, ClientSnapshot)> {
         self.0
             .read()
@@ -126,7 +109,6 @@ impl WebsocketSession {
             .collect()
     }
 
-    /// 按**会话 key 或自报身份**找展示端；返回匹配到的会话 key 列表
     pub async fn resolve_display_targets(&self, target: &str) -> Vec<String> {
         self.0
             .read()
@@ -147,7 +129,6 @@ impl WebsocketSession {
     async fn find_clients<F: Fn(&String, &SessionEntry) -> bool>(&self, message: Message, f: F) {
         let sessions = self.0.read().await;
 
-        // 收集发送失败的客户端 key
         let failed_keys: Vec<String> = sessions
             .iter()
             .filter(|(key, client)| f(key, client))
@@ -160,7 +141,6 @@ impl WebsocketSession {
 
         drop(sessions); // 释放读锁
 
-        // 移除失效的客户端
         for key in failed_keys {
             self.remove_client(&key).await;
             debug!("Removed dead client: {key}");
@@ -168,7 +148,6 @@ impl WebsocketSession {
     }
 
     pub async fn send_to_all_client(&self, message: Message) {
-        // 所有连接都是展示端
         self.find_clients(message, |_, _| true).await;
     }
     pub async fn send_to_one_client<T>(&self, key: &T, message: Message)
@@ -212,11 +191,7 @@ impl WebsocketSession {
     }
 }
 
-/// 处理展示端发来的 WS 消息（B-11 之后）。
-///
-/// **WS 不再是管理通道**：客户端发来的任何文本都只被记录，不做任何业务操作。
-/// 管理一律走 HTTP。这里保留函数是为了心跳与后续可能的展示端上报，
-/// 但**没有**任何 dispatch 到管理逻辑的分支。
+/// WS 不再是管理通道：客户端发来的任何文本只记录，不做业务操作。
 async fn on_ws_message(key: &str, message: Message) {
     if message.is_ping() {
         ALL_SESSIONS.send_pong(&key, message).await;
@@ -228,8 +203,6 @@ async fn on_ws_message(key: &str, message: Message) {
         return;
     }
 
-    // 明确不作为管理请求处理：只记一条 debug 日志。
-    // 这样"向 WS 发旧管理 key"既查不到也改不了任何业务状态。
     if let Ok(text) = message.as_str() {
         debug!("忽略展示端上行消息(WS 管理已移除, id={key}): {}", &text[..text.len().min(80)]);
     }
@@ -252,7 +225,6 @@ async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message
         let key = key.clone();
         match data {
             Ok(message) => {
-                // 提前处理关闭消息
                 if message.is_close() {
                     break;
                 }
@@ -269,14 +241,11 @@ async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message
     ALL_SESSIONS.remove_client(&key).await;
 }
 
-/// is setter client if url "ws://(ip:port)?setter=true"
 #[handler]
 async fn connect(req: &mut Request, res: &mut Response) -> Result<()> {
     use salvo::websocket::WebSocketUpgrade;
-    // B-11：`?setter=true` 仍然被接受，但**不再有任何特权** ——
-    // 管理通道已经移除，所有连接一律是展示端。这个参数只为兼容旧客户端保留。
+    // ?setter=true 仍被接受但不再有一任何特权，仅为兼容旧客户端保留
     let _legacy_setter_param = req.query::<bool>(CONFIG_ENDPOINT_WEBSOCKET_NO_LYRIC_POINT);
-    // 客户端可自报稳定身份：ws://host/ws?id=obs-main
     let identity = req
         .query::<String>("id")
         .map(|s| s.trim().to_string())
@@ -292,12 +261,9 @@ async fn connect(req: &mut Request, res: &mut Response) -> Result<()> {
             let key = ALL_SESSIONS
                 .add_client(tx, identity, user_agent)
                 .await;
-            // 展示端接入后立即下发完整当前状态, 无需等待下一次歌词变化
             {
-                // 1. 已保存的展示样式(主副颜色/字体/字号/对齐/翻译为主/副歌词显隐)
                 crate::service::send_settings_snapshot(&key).await;
-                // 2. 歌词快照; 后端当前无歌词时明确下发清屏,
-                //    避免断线重连/OBS 刷新后残留上一次的歌词
+                // 无歌词时下发清屏，避免断线重连 / OBS 刷新后残留上一次歌词
                 match crate::service::LYRIC_SERVICE.lock().await.get_snapshot() {
                     Some(snapshot) => ALL_SESSIONS.send_message(&key, snapshot.into()).await,
                     None => {

@@ -1,26 +1,14 @@
-//! 展示设置的**唯一**数据模型。
-//!
-//! 取代原先两套 key（`LyricSetting` 宏用 `trans_main` / `align` / `show_second`，
-//! WS 管理命令用 `translation-main` / `alignment` / `second-show`）——这就是 R8。
-//! 现在整份设置以**一条**数据库记录（key = [`SETTINGS_DB_KEY`]）保存，
-//! WS 管理命令与新的 HTTP 接口都读写这一份内存状态。
-
 use crate::database::SettingEntity;
 use crate::error::{Error, Result};
 use serde::{Deserialize, Serialize};
 
-/// 整份设置在数据库里的 key
 pub const SETTINGS_DB_KEY: &str = "settings";
 
-/// 允许的对齐方式
 pub const ALIGNMENTS: [&str; 3] = ["left", "center", "right"];
-/// 允许的字号范围（em）
 pub const MIN_FONT_SIZE: f32 = 0.5;
 pub const MAX_FONT_SIZE: f32 = 12.0;
-/// 字体名最大长度
 pub const MAX_FONT_NAME_LEN: usize = 128;
 
-/// 主 / 副一对值，序列化后就是前端消费的 `{ first, second }`
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Pair<T> {
     pub first: T,
@@ -49,42 +37,25 @@ impl<T: Clone> Pair<T> {
 }
 
 impl Pair<f32> {
-    /// 非 active（未唱到）时的字号：保持 2:1 的 active/inactive 比例，
-    /// 与 `LyricsBox` / `utils/lyricScroll.ts` 的假设一致
+    /// 保持 2:1 的 active/inactive 比例，与 LyricsBox / utils/lyricScroll.ts 一致
     pub fn inactive(&self) -> Pair<f32> {
         self.map(|size| size / 2.0)
     }
 }
 
-/// 歌词展示设置
-/// 阴影设置。
-///
-/// 简化为 **开关 + 颜色 + 模糊 + X/Y 偏移**：
-/// 去掉了 `inset`（内阴影在歌词上几乎用不到）和"保存按钮"（改为即时生效），
-/// 偏移也从"CSS 字符串"改成两个数值，UI 才能用滑块/数字框调。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ShadowSettings {
-    /// 是否启用阴影（UI 上是"关闭阴影"的反面）
     pub enable: bool,
-    /// 阴影颜色，`#rrggbb` / `#rrggbbaa`
     pub color: String,
-    /// 模糊半径（px）
     pub blur: f32,
-    /// X 偏移（px）
     pub offset_x: f32,
-    /// Y 偏移（px）
     pub offset_y: f32,
 }
 
 impl Default for ShadowSettings {
-    /// 默认**开启**阴影，颜色纯黑。
-    ///
-    /// 这四处必须保持一致，否则会出现"新装开启、恢复默认后又关掉"这类矛盾：
-    /// 1. 这里（后端默认值）
-    /// 2. 前端 `DEFAULT_SHADOW`（stores/settingsStore.ts）
-    /// 3. 「恢复默认样式」按钮（它直接用前端那份常量）
-    /// 4. 展示端 `LyricsBox` 的 filter 生成（由 `enable` 驱动）
+    /// 必须与前端 DEFAULT_SHADOW（stores/settingsStore.ts）保持一致，
+    /// 否则新装与"恢复默认样式"会给出不同结果
     fn default() -> Self {
         Self {
             enable: true,
@@ -99,19 +70,15 @@ impl Default for ShadowSettings {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LyricSettings {
-    /// 主 / 副歌词颜色，`#rrggbb`
     pub text_color: Pair<String>,
-    /// 主 / 副歌词字号（em，指 active 时的字号）
+    /// em，指 active 时的字号
     pub font_size: Pair<f32>,
-    /// 主 / 副歌词字体名，空串表示用默认字体
+    /// 空串表示用默认字体
     pub font: Pair<String>,
-    /// 对齐方式（整体，不支持主副分别设置）
+    /// 整体对齐，不支持主副分别设置
     pub alignment: String,
-    /// 是否以翻译为主
     pub translation_main: bool,
-    /// 是否显示副歌词
     pub second_show: bool,
-    /// 主 / 副歌词阴影
     pub shadow: Pair<ShadowSettings>,
 }
 
@@ -129,7 +96,7 @@ impl Default for LyricSettings {
     }
 }
 
-/// 局部更新载荷：只处理出现过的字段，未出现的保持原值
+/// 只处理出现过的字段，未出现的保持原值
 #[derive(Debug, Default, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LyricSettingsPatch {
@@ -142,7 +109,6 @@ pub struct LyricSettingsPatch {
     pub shadow: Option<Pair<ShadowSettings>>,
 }
 
-/// 会触发 WS 广播的设置项
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingKey {
     TextColor,
@@ -155,7 +121,7 @@ pub enum SettingKey {
 }
 
 impl SettingKey {
-    /// 展示端消费的 WS 广播 key（与前端 `handleSettingBroadcast` 一致）
+    /// 与前端 handleSettingBroadcast 一致
     pub fn ws_key(&self) -> &'static str {
         match self {
             SettingKey::TextColor => "setColor",
@@ -169,7 +135,6 @@ impl SettingKey {
     }
 }
 
-/// 所有设置项，按展示端关心的顺序
 pub const ALL_SETTING_KEYS: [SettingKey; 7] = [
     SettingKey::TextColor,
     SettingKey::FontSize,
@@ -204,11 +169,6 @@ fn validate_font_size(value: f32) -> Result<()> {
     Ok(())
 }
 
-/// 阴影数值范围。
-///
-/// 按"相对字号的一个合理比例"来定：字号范围是 0.5~12em，
-/// 阴影偏移 ±20px、模糊 0~30px 足够覆盖正常观感，又不至于让用户把
-/// 歌词推到看不见的地方。
 pub const MIN_SHADOW_OFFSET: f32 = -20.0;
 pub const MAX_SHADOW_OFFSET: f32 = 20.0;
 pub const MAX_SHADOW_BLUR: f32 = 30.0;
@@ -241,7 +201,6 @@ fn validate_font_name(value: &str) -> Result<()> {
 }
 
 impl LyricSettings {
-    /// 从数据库读取；没有记录时返回默认值
     pub async fn load() -> Self {
         let Some(raw) = SettingEntity::get_config(SETTINGS_DB_KEY)
             .await
@@ -259,7 +218,7 @@ impl LyricSettings {
         }
     }
 
-    /// 写入数据库；失败会把错误原样返回（调用方**不得**在失败时广播）
+    /// 失败时调用方不得广播，必须把错误原样返回
     pub async fn save(&self) -> Result<()> {
         let raw = serde_json::to_string(self)?;
         SettingEntity::save_config(SETTINGS_DB_KEY.to_string(), raw).await
@@ -283,7 +242,7 @@ impl LyricSettings {
         Ok(())
     }
 
-    /// 应用局部更新并校验；不落库、不改内存
+    /// 不落库、不改内存，只返回新值
     pub fn with_patch(&self, patch: LyricSettingsPatch) -> Result<Self> {
         let mut next = self.clone();
         if let Some(value) = patch.text_color {
@@ -311,7 +270,6 @@ impl LyricSettings {
         Ok(next)
     }
 
-    /// 相对 `before` 发生了变化的设置项
     pub fn changed_keys(&self, before: &Self) -> Vec<SettingKey> {
         let mut changed = Vec::new();
         if self.text_color != before.text_color {
@@ -338,13 +296,11 @@ impl LyricSettings {
         changed
     }
 
-    /// 单个设置项对应的 WS 广播值
     pub fn key_value(&self, key: SettingKey) -> serde_json::Value {
         match key {
             SettingKey::TextColor => serde_json::json!(self.text_color),
             SettingKey::FontSize => serde_json::json!(self.font_size),
             SettingKey::Font => serde_json::json!(self.font),
-            // 对齐只有单一取值，主副填同一个，兼容前端读 first ?? second
             SettingKey::Alignment => serde_json::json!(Pair::same(&self.alignment)),
             SettingKey::TranslationMain => serde_json::json!(self.translation_main),
             SettingKey::SecondShow => serde_json::json!(self.second_show),

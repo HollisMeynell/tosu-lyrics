@@ -9,23 +9,11 @@ import {
     uploadLrc,
 } from "@/services/uploadService";
 
-/**
- * 上传与字体（F-06）。
- *
- * 原来只有一个孤立的 `<form action="/api/font/upload">`，且**不显示任何结果**；
- * 字体也必须用户手工把文件放到运行目录。现在两件事都走 HTTP：
- * - LRC 上传绑定到当前播放歌曲的 sid，成功按当前进度立即刷新
- * - 字体主 / 副各自独立上传，使用后端给的**版本化 URL**
- *
- * 失败一律显示为可重试状态，不会伪装成成功。
- */
-
 const KIND_LABEL: Record<"main" | "sub", string> = {
     main: "主字体",
     sub: "副字体",
 };
 
-/** 用后端版本化 URL 试加载一次，验证展示端确实能取到该字体 */
 async function probeFont(info: FontInfo): Promise<string> {
     if (!info.exists || !info.url) return "尚未上传";
     try {
@@ -81,19 +69,12 @@ export default function Upload() {
             const message = await fn();
             setNotice(message);
         } catch (err) {
-            // 失败必须显式可见，且不改变任何"看起来已保存"的状态
             setError(`${failLabel}：${err instanceof ApiError ? err.message : String(err)}`);
         } finally {
             setBusy(false);
         }
     };
 
-    /**
-     * **唯一**的 LRC 上传入口。
-     *
-     * 文件选择与拖拽都调用它 —— 不复制两套实现，
-     * 也就不会出现"拖进去的能用、点选的不能用"这种分叉。
-     */
     const uploadLrcFile = (file: File) =>
         run(async () => {
             const result = await uploadLrc(file);
@@ -101,7 +82,6 @@ export default function Upload() {
             return `已上传并应用：${file.name}（${result.lines} 行）`;
         }, "LRC 上传失败");
 
-    /** **唯一**的字体上传入口，主 / 副共用 */
     const uploadFontFor = (kind: "main" | "sub") => (file: File) =>
         run(async () => {
             const info = await uploadFontFile(kind, file);
@@ -112,7 +92,7 @@ export default function Upload() {
     const onLrc = (e: Event) => {
         const input = e.currentTarget as HTMLInputElement;
         const file = input.files?.[0];
-        input.value = ""; // 允许再次选择同一个文件重试
+        input.value = "";
         if (file) void uploadLrcFile(file);
     };
 
@@ -123,7 +103,6 @@ export default function Upload() {
         if (file) void uploadFontFor(kind)(file);
     };
 
-    /** 生成拖拽处理器：与文件选择走同一个 upload 入口 */
     const dropHandler =
         (onFile: (f: File) => void) => (e: DragEvent) => {
             e.preventDefault();

@@ -36,7 +36,6 @@ async fn on_time_update(time: i32) {
 
 async fn on_song_update(song: OsuSongInfo) {
     if song.sid < 0 && song.artist == "nekodex" {
-        // 忽略掉首页音乐
         return;
     }
     let mut handle = BEFORE_HANDLE.lock().await;
@@ -76,7 +75,6 @@ async fn on_clean() {
         handle.abort();
     }
 
-    // 回到菜单: 清空展示并忘掉当前歌曲, 并向所有歌词页广播清空
     let mut lyric_service = LYRIC_SERVICE.lock().await;
     lyric_service.song_clean().await;
 }

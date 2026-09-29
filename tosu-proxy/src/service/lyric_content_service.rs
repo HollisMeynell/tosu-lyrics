@@ -1,15 +1,3 @@
-//! 歌词内容管理服务（B-05）。
-//!
-//! 覆盖：当前歌词 / 候选列表 / 主动搜索 / 预览 / 应用来源 / 恢复自动匹配 / 偏移。
-//!
-//! **异步正确性**（B-00 契约 ②）：所有会联网的操作（搜索、取词、应用来源）
-//! 都在发起时取一份 `ticket()`（代际 + 歌曲身份），提交前重新校验。
-//! 不匹配就返回 `STALE_REQUEST`，由 HTTP 层转成 409 `song_changed`。
-//! `abort` 只是尽力而为，这里的校验才是正确性保证。
-//!
-//! **来源绑定与缓存分离**（契约 ④）：绑定写在 `lyric_binding`（按 sid 归属），
-//! 与 `lyric_cache` 完全独立，清缓存不会丢绑定。
-
 use crate::database::LyricBindingEntity;
 use crate::error::{Error, Result};
 use crate::lyric::{Lyric, LyricLine, LyricSource, LyricSourceEnum, SongInfo};
@@ -18,26 +6,17 @@ use crate::service::lyric_service::{lyric_service, LyricService, SongIdent, STAL
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-/// 搜索候选 —— 每一项都带**自己的身份**。
-///
-/// 前端必须按这里返回的 `(source, key)` 去应用 / 预览，
-/// 不能复用"上一次预览的对象"，否则会出现"所有按钮都应用同一首"的经典缺陷。
+/// 每一项都带自己的身份，前端必须按 (source, key) 去应用 / 预览
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Candidate {
-    /// 来源类型（QQ / Netease）
     pub source: String,
-    /// 该来源内部的候选标识
     pub key: String,
     pub title: String,
     pub artist: String,
-    /// 毫秒
     pub length: u32,
-    /// 是否与当前生效的来源绑定一致
     pub active: bool,
-    /// 标题匹配分（0~100），越大越匹配当前歌
     pub title_score: i32,
-    /// 候选时长 - 当前歌时长（毫秒）。没有在播歌曲时为 0。
     pub duration_delta: i64,
 }
 
@@ -50,11 +29,9 @@ fn to_candidate(
     let active = binding
         .map(|(st, sk)| st == source && sk == &song.key)
         .unwrap_or(false);
-    // 标题匹配分：与当前歌标题比。没有在播歌曲时给 0（前端据此不做排序假设）
     let title_score = query
         .map(|(title, _)| crate::lyric::score_title(title, &song.title))
         .unwrap_or(0);
-    // 时长差：候选 - 当前。没有在播歌曲时为 0，避免前端显示 NaN
     let duration_delta = query
         .map(|(_, cur_len)| song.length as i64 - cur_len)
         .unwrap_or(0);
@@ -70,10 +47,7 @@ fn to_candidate(
     }
 }
 
-/// 统一排序：**标题匹配优先，其次时长差的绝对值**。
-///
-/// 刻意**不按来源分组** —— 旧行为是 QQ 永远排前面、网易云永远排后面，
-/// 那让"哪个候选最像当前这首歌"这件事被来源顺序盖住了。
+/// 标题匹配优先，其次时长差的绝对值；不按来源分组
 fn sort_candidates(items: &mut [Candidate]) {
     items.sort_by(|a, b| {
         b.title_score
@@ -85,7 +59,6 @@ fn sort_candidates(items: &mut [Candidate]) {
     });
 }
 
-/// 当前生效的来源绑定
 async fn current_binding(sid: i32) -> Option<(String, String)> {
     LyricBindingEntity::get(sid)
         .await
@@ -94,7 +67,6 @@ async fn current_binding(sid: i32) -> Option<(String, String)> {
         .map(|m| (m.source_type, m.source_key))
 }
 
-/// 当前歌曲身份 + 绑定（供各接口复用）
 async fn current_context() -> (Option<SongIdent>, Option<(String, String)>) {
     let ident = LyricService::now_ident().await;
     let binding = match &ident {
@@ -104,7 +76,6 @@ async fn current_context() -> (Option<SongIdent>, Option<(String, String)>) {
     (ident, binding)
 }
 
-/// 已有候选（来自内存搜索结果）
 pub async fn candidates() -> Vec<Candidate> {
     let (ident, binding) = current_context().await;
     let _ = ident;
@@ -122,7 +93,6 @@ pub async fn candidates() -> Vec<Candidate> {
     items
 }
 
-/// 当前歌的「标题 + 时长」，作为候选评分与时长差的基准
 fn query_of(ident: &Option<SongIdent>) -> Option<(String, i64)> {
     let ident = ident.as_ref()?;
     let svc = LYRIC_SERVICE.try_lock().ok()?;
@@ -130,7 +100,6 @@ fn query_of(ident: &Option<SongIdent>) -> Option<(String, i64)> {
     Some((ident.title.clone(), song.length as i64))
 }
 
-/// 当前歌时长（毫秒）；拿不到锁或没有歌时返回 0
 fn current_length() -> i64 {
     LYRIC_SERVICE
         .try_lock()
@@ -139,9 +108,7 @@ fn current_length() -> i64 {
         .unwrap_or(0)
 }
 
-/// 主动搜索。`title` / `artist` 为空时使用当前播放歌曲。
-///
-/// 联网期间不持服务锁；提交前校验代际，切歌后旧搜索会被拒绝。
+/// title / artist 为空时使用当前播放歌曲；联网期间不持服务锁
 pub async fn search(title: Option<String>, artist: Option<String>) -> Result<Vec<Candidate>> {
     let (title, artist) = match (title, artist) {
         (Some(t), Some(a)) if !t.is_empty() && !a.is_empty() => (t, a),
@@ -171,13 +138,11 @@ pub async fn search(title: Option<String>, artist: Option<String>) -> Result<Vec
     Ok(items)
 }
 
-/// 预览结果：只回结构化歌词，**不修改任何播放状态**
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreviewDto {
     pub source: String,
     pub key: String,
-    /// 行数
     pub line_count: usize,
     pub lines: Vec<Value>,
 }
@@ -187,7 +152,6 @@ fn lines_to_json(lines: &[LyricLine]) -> Vec<Value> {
         .iter()
         .map(|line| {
             let mut item = serde_json::Map::new();
-            // 毫秒，与展示 WS 时间单位一致
             item.insert("time".into(), json!((line.time * 1000.0).round() as i64));
             if let Some(origin) = &line.origin {
                 item.insert("origin".into(), json!(origin));
@@ -200,7 +164,6 @@ fn lines_to_json(lines: &[LyricLine]) -> Vec<Value> {
         .collect()
 }
 
-/// 取某个候选的歌词内容（不提交、不写缓存、不广播）
 pub async fn preview(source: &str, key: &str) -> Result<PreviewDto> {
     let lyric = fetch(source, key).await?;
     let lines = lines_to_json(lyric.get_lyrics());
@@ -212,7 +175,6 @@ pub async fn preview(source: &str, key: &str) -> Result<PreviewDto> {
     })
 }
 
-/// 按来源 + key 取回并解析歌词
 async fn fetch(source: &str, key: &str) -> Result<Lyric> {
     let Some(source_impl) = LyricSourceEnum::get_by_name(source) else {
         return Err(Error::Runtime(format!(
@@ -231,9 +193,7 @@ async fn fetch(source: &str, key: &str) -> Result<Lyric> {
     Ok(lyric)
 }
 
-/// 应用来源绑定：取词 → 校验代际与 sid → 提交 → 广播
-///
-/// 绑定按 **sid** 归属：同谱面集的其它难度共享这份绑定。
+/// 绑定按 sid 归属：同谱面集的其它难度共享这份绑定
 pub async fn apply_source(source: &str, key: &str) -> Result<Candidate> {
     let (generation, ident) = LyricService::ticket().await;
     let Some(ident) = ident else {
@@ -247,8 +207,7 @@ pub async fn apply_source(source: &str, key: &str) -> Result<Candidate> {
         .await
         .unwrap_or_else(|| (ident.title.clone(), String::new(), 0));
 
-    // 先落绑定再提交歌词：即使随后因代际失效没提交，
-    // 下一次进入这首歌（同 sid）也会按这份绑定取词，用户的选择不会丢。
+    // 先落绑定再提交歌词：即使代际失效没提交，下次进入同 sid 也会按这份绑定取词
     LyricBindingEntity::upsert(
         ident.sid,
         source,
@@ -284,7 +243,6 @@ pub async fn apply_source(source: &str, key: &str) -> Result<Candidate> {
     })
 }
 
-/// 从内存候选里找元信息；找不到就回落到空值（不影响正确性）
 async fn find_candidate_meta(source: &str, key: &str) -> Option<(String, String, u32)> {
     let svc = lyric_service().await;
     svc.all_candidates()
@@ -294,21 +252,13 @@ async fn find_candidate_meta(source: &str, key: &str) -> Option<(String, String,
         .map(|(_, song)| (song.title, song.artist, song.length))
 }
 
-/// 恢复自动匹配：删除绑定并重新走一遍自动搜索。
-///
-/// **没有播放中的歌曲时也必须能清除绑定**：绑定是持久化数据，
-/// 用户可能想在没放歌的时候先把它删掉。旧实现直接返回 `no_song`，
-/// 会让"清不掉"变成一个假的功能可用性问题。
-/// 此时只删数据、不做任何播放态副作用。
+/// 没有播放中的歌曲时也能清除绑定（绑定是持久化数据）
 pub async fn clear_source() -> Result<bool> {
     let Some(ident) = LyricService::now_ident().await else {
-        // 菜单状态：没有当前 sid 可删。清空所有绑定过于粗暴，
-        // 因此返回"没有可清除的绑定"而不是报错。
         return Ok(false);
     };
     let removed = LyricBindingEntity::remove(ident.sid).await?;
 
-    // 换了来源，当前歌词必须重新判定；换代 + 清屏后再重新加载
     {
         let mut svc = lyric_service().await;
         svc.clear_display_bump().await;
@@ -317,16 +267,13 @@ pub async fn clear_source() -> Result<bool> {
     Ok(removed)
 }
 
-/// 设置偏移（毫秒），返回最终生效值。偏移与黑名单、缓存互相独立。
 pub async fn set_offset(offset: i32) -> i32 {
     let mut svc = lyric_service().await;
     svc.set_offset(offset).await;
     svc.get_offset()
 }
 
-/// 当前状态摘要：给 `/api/lyrics/current` 用，说明"为什么没有歌词"
 pub struct ContextSummary {
-    /// `ok` | `blocked` | `none`
     pub state: &'static str,
     pub blocked: bool,
 }
@@ -359,7 +306,6 @@ pub async fn current_context_summary() -> ContextSummary {
     }
 }
 
-/// 当前来源绑定（可能为 None）
 pub async fn binding() -> Option<Value> {
     let (ident, binding) = current_context().await;
     let ident = ident?;
@@ -430,12 +376,7 @@ mod test {
 }
 
 
-/// 批量检查候选**是否带翻译**。
-///
-/// 结果来自**真实取词**（不是猜测）：对每个候选取一次歌词，看是否存在
-/// 翻译行。并发受限，避免一次搜索就把上游打满。
-///
-/// 返回与输入**同序**，前端按 `(source,key)` 对应回各行。
+/// 结果来自真实取词，不是猜测；并发受限避免把上游打满
 pub async fn check_translations(items: Vec<(String, String)>) -> Vec<(String, String, bool)> {
     use futures_util::stream::{self, StreamExt};
 
@@ -448,7 +389,6 @@ pub async fn check_translations(items: Vec<(String, String)>) -> Vec<(String, St
                     .get_lyrics()
                     .iter()
                     .any(|line| line.translation.as_deref().is_some_and(|t| !t.trim().is_empty())),
-                // 取不到就按"无翻译"处理，不编造
                 Err(_) => false,
             };
             (source, key, has)

@@ -1,8 +1,3 @@
-//! 展示设置 HTTP 接口（B-03）。
-//!
-//! - `GET   /api/settings` 读取完整设置（含默认值）
-//! - `PATCH /api/settings` 局部更新；校验 + 落库成功后才广播，返回最终服务端状态
-
 use crate::config::CONFIG_ENDPOINT_SETTINGS;
 use crate::error::Error;
 use crate::model::setting::LyricSettingsPatch;
@@ -27,7 +22,6 @@ async fn patch_settings(req: &mut Request, res: &mut Response) {
     };
 
     match apply_settings_patch(patch).await {
-        // mutation 返回最终服务端状态，前端直接用它覆盖本地状态
         Ok((settings, _changed)) => res.render(Json(settings)),
         Err(err) => render_service_error(res, err),
     }

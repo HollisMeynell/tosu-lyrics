@@ -1,8 +1,3 @@
-//! 展示设置的业务层：校验 → 落库 → 更新内存 → 广播。
-//!
-//! HTTP（`/api/settings`）与旧 WS 管理命令都走这里，保证只有一份状态、一套 key，
-//! 并且**写入失败时绝不广播**。
-
 use crate::error::Result;
 use crate::model::setting::{ALL_SETTING_KEYS, LyricSettings, LyricSettingsPatch, SettingKey};
 use crate::model::websocket::WebSocketMessage;
@@ -11,7 +6,6 @@ use crate::server::ALL_SESSIONS;
 use crate::setting::global_setting;
 use tracing::debug;
 
-/// 当前生效的设置快照
 pub async fn current_settings() -> LyricSettings {
     global_setting().await.read().await.clone()
 }
@@ -39,7 +33,6 @@ pub async fn patch_settings(patch: LyricSettingsPatch) -> Result<(LyricSettings,
     Ok((next, changed))
 }
 
-/// 把指定设置项广播给所有展示端
 pub async fn broadcast_settings(settings: &LyricSettings, keys: &[SettingKey]) {
     for key in keys {
         let mut payload = SettingPayload::new(key.ws_key().to_string());
@@ -51,7 +44,6 @@ pub async fn broadcast_settings(settings: &LyricSettings, keys: &[SettingKey]) {
     }
 }
 
-/// 展示端接入时下发**完整**设置快照（不只是变化项）
 pub async fn send_settings_snapshot(session_key: &str) {
     let settings = current_settings().await;
     for key in ALL_SETTING_KEYS {
@@ -67,7 +59,6 @@ pub async fn send_settings_snapshot(session_key: &str) {
 mod test {
     use crate::model::setting::{LyricSettings, LyricSettingsPatch, SettingKey};
 
-    /// 不依赖数据库: 直接验证「变化字段」的判定与 WS key 映射
     #[test]
     fn changed_keys_map_to_frontend_ws_keys() {
         let before = LyricSettings::default();
@@ -112,17 +103,10 @@ mod test {
 }
 
 
-// ---------------- 供"单独客户端调整"复用的小助手 ----------------
-
-/// 相对 `before` 发生变化的设置项（转发到 `LyricSettings::changed_keys`）
 pub fn keys_of(before: &LyricSettings, after: &LyricSettings) -> Vec<SettingKey> {
     after.changed_keys(before)
 }
 
-/// 某一设置项在当前设置里的完整取值。
-///
-/// 单独客户端调整时推送的是**完整取值**而不是差量 —— 展示端拿到就能直接套用，
-/// 不需要自己合并，也就不会出现"半边更新"。
 pub fn key_value_of(settings: &LyricSettings, key: SettingKey) -> serde_json::Value {
     settings.key_value(key)
 }
