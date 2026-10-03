@@ -6,6 +6,9 @@ export const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
 export const [cursor, setCursor] = createSignal(0);
 // 距离下一行开始的毫秒数, 末行为 -1(展示时按 0 处理)
 export const [nextTime, setNextTime] = createSignal(0);
+// 歌词是否正在加载 / 搜索: 由后端 `setLyricLoading` 广播驱动。
+// 与歌词数据分开, 不参与 applyLyricEvent 的批处理, 避免影响正常歌词显示。
+export const [lyricLoading, setLyricLoading] = createSignal(false);
 
 const toDisplayLine = (line: {
     origin?: string;

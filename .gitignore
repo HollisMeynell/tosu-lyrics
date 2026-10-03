@@ -73,3 +73,6 @@ trace.json
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# 打包流程填充的内嵌资源目录（由 build.rs 扫描，可空）
+/embed/

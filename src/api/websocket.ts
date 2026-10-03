@@ -11,14 +11,22 @@ import { BACKEND_WEBSOCKET_URL } from "@/config/constants.ts";
 export type SettingHandler = (data: WebsocketSetting) => void;
 export type LyricHandler = (data: WebsocketLyric) => void;
 
-/** 只接收展示端事件，不发送任何管理请求。 */
+/**
+ * 只接收展示端事件，不发送任何管理请求。
+ *
+ * `identity` 会作为后端 `?id=` 自报身份，只影响"在线展示端"列表里显示的名字
+ * （控制台接进来时用得上），不改变任何推送内容。
+ */
 export class Websocket {
     private ws: ReconnectingWebSocket;
     private lyricHandler: LyricHandler | undefined;
     private settingHandler: SettingHandler | undefined;
 
-    constructor() {
-        this.ws = new ReconnectingWebSocket(BACKEND_WEBSOCKET_URL);
+    constructor(identity?: string) {
+        const url = identity
+            ? `${BACKEND_WEBSOCKET_URL}?id=${encodeURIComponent(identity)}`
+            : BACKEND_WEBSOCKET_URL;
+        this.ws = new ReconnectingWebSocket(url);
         this.setupWebsocket();
     }
 

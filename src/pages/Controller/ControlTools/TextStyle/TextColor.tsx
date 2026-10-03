@@ -17,7 +17,7 @@ export default function TextColor(props: TextColorProps) {
 
     return (
         <div class="flex flex-col items-start md:flex-row md:items-center gap-4 md:gap-9">
-            <h2 class="text-2xl font-normal">文字颜色</h2>
+            <h2 class="text-xl font-normal">文字颜色</h2>
             <div class="flex flex-row items-center gap-4">
                 <p>主歌词:</p>
                 <ColorSelector

@@ -8,6 +8,7 @@ import {
     uploadFontFile,
     uploadLrc,
 } from "@/services/uploadService";
+import { loadFont } from "@/utils/fonts.ts";
 
 const KIND_LABEL: Record<"main" | "sub", string> = {
     main: "主字体",
@@ -86,6 +87,10 @@ export default function Upload() {
         run(async () => {
             const info = await uploadFontFile(kind, file);
             await refreshFonts();
+            // 让新字体立刻生效：重新注册 FontFace。
+            // loadFont 内部按版本号判断是否需要重新拉取，同版本不会重复加载；
+            // 之前只刷新了字体列表，上传成功后展示端仍用旧字体（或静态回退）。
+            await loadFont();
             return `${KIND_LABEL[kind]}已覆盖：${file.name}（版本 ${info.version}）`;
         }, `${KIND_LABEL[kind]}上传失败`);
 
@@ -121,7 +126,7 @@ export default function Upload() {
     return (
         <div class="flex flex-col gap-4">
             <div class="header space-x-4">
-                <h2 class="text-2xl font-medium inline">上传与字体</h2>
+                <h2 class="text-xl font-medium inline">上传字体或歌词文件</h2>
                 <p class="text-sm inline text-gray-500">
                     LRC 绑定到当前歌曲；字体上传后按版本 URL 加载，无需手工放文件
                 </p>

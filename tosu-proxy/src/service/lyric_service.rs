@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
 use std::sync::{Arc, LazyLock};
 use tokio::sync::{mpsc, oneshot};
+use tokio::task::JoinSet;
 use futures_util::future::BoxFuture;
 use tracing::{debug, error};
 
@@ -205,6 +206,8 @@ impl LyricService {
         self.clear_state();
         self.invalidate_async();
         Self::broadcast_clear().await;
+        // 换歌即进入"加载中": 展示端据此开始显示 `.` 增长的提示
+        Self::broadcast_loading(true).await;
         let generation = self.generation;
         let task = tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -244,17 +247,30 @@ impl LyricService {
         Self::load_plan(plan).await
     }
 
+    /// 搜索并提交, 结束时统一清掉"加载中"状态。
+    ///
+    /// 命中缓存 / 命中黑名单 / 取词失败 / 没有歌词都会走到这里, 所以把
+    /// `broadcast_loading(false)` 放在最外层: 任何一种结束方式都不该让展示端的
+    /// 加载提示一直转下去。
     async fn load_plan(plan: Option<SearchPlan>) -> Result<()> {
+        let result: Result<()> = async {
+            let Some(plan) = plan else {
+                return Ok(()); // 命中黑名单 / 命中缓存, 阶段 1 内已完成
+            };
 
-        let Some(plan) = plan else {
-            return Ok(()); // 命中黑名单 / 命中缓存, 阶段 1 内已完成
-        };
-
-        let mut results = Self::search_sources(&plan).await;
-        let lyric = Self::fetch_search_lyric(&plan, &mut results).await?;
-        LYRIC_SERVICE.call(move |svc| Box::pin(async move {
-            svc.commit_search(plan, results, lyric).await
-        })).await
+            let mut results = Self::search_sources(&plan).await;
+            // 搜索结果一到位就把候选写进共享缓存：让前端尽早看到候选列表，
+            // 不必等下面的取词（fetch_search_lyric 实测 50ms~2.5s，偶发触及 5s 超时）。
+            // clone 一次 results 只为把数据 move 进服务任务（几十条以内，可忽略）。
+            Self::publish_candidates(&plan, results.clone()).await?;
+            let lyric = Self::fetch_search_lyric(&plan, &mut results).await?;
+            LYRIC_SERVICE.call(move |svc| Box::pin(async move {
+                svc.commit_search(plan, results, lyric).await
+            })).await
+        }
+        .await;
+        Self::broadcast_loading(false).await;
+        result
     }
 
     async fn fetch_search_lyric(
@@ -346,6 +362,47 @@ impl LyricService {
         Self::search_raw(&plan.ident.title, &plan.artist).await
     }
 
+    /// 搜索结果一到位就写入共享候选缓存 `music_cache`。
+    ///
+    /// 原先这一步在 `commit_search()` 内、排在 `fetch_search_lyric()` 之后，
+    /// 于是"候选列表必须等主歌词流程结束才可见"。前移到搜索完成处后：
+    /// 候选与主歌词彻底解耦 —— 搜索完成即可被 `/api/lyrics/search-results` 读到，
+    /// 且主歌词匹配失败不会影响候选。
+    ///
+    /// 两道校验与原先完全一致（代次 + 当前歌曲身份），
+    /// 保证 A→B→C 快速切歌时旧搜索结果不会污染新歌。
+    async fn publish_candidates(
+        plan: &SearchPlan,
+        results: HashMap<&'static str, Vec<SongInfo>>,
+    ) -> Result<()> {
+        let ident = plan.ident.clone();
+        let generation = plan.generation;
+        let title = plan.ident.title.clone();
+        LYRIC_SERVICE
+            .call(move |svc| {
+                Box::pin(async move {
+                    if !svc.generation_matches(generation) {
+                        debug!("丢弃过期候选: {} 的代次 {} != 当前 {}", title, generation, svc.generation);
+                        return Ok(());
+                    }
+                    match &svc.now_ident {
+                        Some(cur) if cur == &ident => {}
+                        _ => {
+                            debug!("丢弃无主候选: {}", title);
+                            return Ok(());
+                        }
+                    }
+                    let cache = &mut svc.music_cache;
+                    for (name, musics) in results {
+                        if let Some(slot) = cache.get_mut(name) {
+                            slot.extend(musics);
+                        }
+                    }
+                    Ok(())
+                })
+            })
+            .await
+    }
     async fn commit_search(
         &mut self,
         plan: SearchPlan,
@@ -369,14 +426,6 @@ impl LyricService {
             }
         }
 
-        {
-            let cache = &mut self.music_cache;
-            for (name, musics) in results {
-                if let Some(slot) = cache.get_mut(name) {
-                    slot.extend(musics);
-                }
-            }
-        }
 
         if let Some(lyric) = lyric {
             if let Some(save_key) = self.now_save_cache.as_ref() {
@@ -489,6 +538,8 @@ impl LyricService {
         self.generation = self.generation.wrapping_add(1);
         self.clear_state();
         Self::broadcast_clear().await;
+        // 主动清屏 = 本次加载被取消, 立刻结束展示端的加载提示
+        Self::broadcast_loading(false).await;
     }
 
     pub async fn song_clean(&mut self) {
@@ -499,12 +550,26 @@ impl LyricService {
         self.now_save_cache = None;
         self.now_ident = None;
         Self::broadcast_clear().await;
+        // 回到菜单: 没有加载中的歌词了
+        Self::broadcast_loading(false).await;
     }
 
     pub async fn broadcast_clear() {
         let clean_message = SettingPayload::new("setClear".to_string());
         ALL_SESSIONS
             .send_to_all_client(Into::<WebSocketMessage>::into(clean_message).into())
+            .await;
+    }
+
+    /// 通知展示端"歌词加载中 / 加载结束", 供展示端显示 `.` 增长的加载提示。
+    ///
+    /// 与 `broadcast_clear` 同级: 只往 WS 播一条设置消息, **不参与搜索时序,
+    /// 也不改变任何请求并发**。展示端收到歌词或收到 `false` 都会清掉提示。
+    pub async fn broadcast_loading(loading: bool) {
+        let mut message = SettingPayload::new("setLyricLoading".to_string());
+        message.value = Some(Value::Bool(loading));
+        ALL_SESSIONS
+            .send_to_all_client(Into::<WebSocketMessage>::into(message).into())
             .await;
     }
 
@@ -826,11 +891,17 @@ impl LyricService {
         self.offset
     }
 
+    /// 写入歌词缓存。标题记**原文**(`title_unicode`)，而不是 tosu 上报的
+    /// ascii / 罗马字标题(`title`)：缓存页直接展示这个字段，而搜索与黑名单
+    /// 本来就用原文标题，记 ascii 会让同一首歌在两处显示成不同名字。
+    ///
+    /// 只改写入值：不新增字段、不改表结构；`save` 的 upsert 会一并更新
+    /// `title`，所以已缓存的歌在下次播放重新缓存时也会自动变为原文标题。
     async fn save_lyric(this: &OsuSongInfo, lyric: &Lyric) -> Result<()> {
         LyricCacheEntity::save(
             this.sid as i32,
             this.bid as i32,
-            this.title.as_ref(),
+            this.title_unicode.as_ref(),
             this.length,
             lyric,
         )
@@ -902,24 +973,62 @@ impl LyricService {
     }
 
     /// 返回结果但不写任何共享状态
+    ///
+    /// 每个源一个**独立的 tokio 任务**，两路请求真正并行执行；`tokio::join!` 只能
+    /// 在同一个任务里轮流推进，会把两个源的 JSON 解析、正则评分等 CPU 工作串行化，
+    /// 且任意一侧的同步工作都会拖住另一侧。单源 panic 由 `catch_unwind` 捕获，不影响
+    /// 另一个源；调用方被取消时 `JoinSet` 随本函数 drop，子任务一并取消。
     async fn search_raw(title: &str, artist: &str) -> HashMap<&'static str, Vec<SongInfo>> {
-        // 借用查询参数并发搜索，调用方取消时两个 future 一并释放。
-        // 保留原 JoinSet 的 panic 隔离，单个源异常不影响另一个源。
-        let (qq, netease) = tokio::join!(
-            AssertUnwindSafe(QQ_LYRIC_SOURCE.search_all_music(title, artist)).catch_unwind(),
-            AssertUnwindSafe(NETEASE_LYRIC_SOURCE.search_all_music(title, artist)).catch_unwind(),
-        );
+        let mut tasks: JoinSet<Option<(&'static str, Vec<SongInfo>)>> = JoinSet::new();
+
+        let (qq_title, qq_artist) = (title.to_string(), artist.to_string());
+        tasks.spawn(async move {
+            let name = QQ_LYRIC_SOURCE.name();
+            match AssertUnwindSafe(QQ_LYRIC_SOURCE.search_all_music(&qq_title, &qq_artist))
+                .catch_unwind()
+                .await
+            {
+                Ok(Ok(songs)) => Some((name, songs)),
+                Ok(Err(err)) => {
+                    debug!("{name} 搜索失败: {err}");
+                    None
+                }
+                Err(_) => {
+                    error!("{name} 搜索发生 panic，忽略该源");
+                    None
+                }
+            }
+        });
+
+        let (netease_title, netease_artist) = (title.to_string(), artist.to_string());
+        tasks.spawn(async move {
+            let name = NETEASE_LYRIC_SOURCE.name();
+            match AssertUnwindSafe(
+                NETEASE_LYRIC_SOURCE.search_all_music(&netease_title, &netease_artist),
+            )
+            .catch_unwind()
+            .await
+            {
+                Ok(Ok(songs)) => Some((name, songs)),
+                Ok(Err(err)) => {
+                    debug!("{name} 搜索失败: {err}");
+                    None
+                }
+                Err(_) => {
+                    error!("{name} 搜索发生 panic，忽略该源");
+                    None
+                }
+            }
+        });
+
         let mut out = HashMap::with_capacity(2);
-        for (name, result) in [
-            (QQ_LYRIC_SOURCE.name(), qq),
-            (NETEASE_LYRIC_SOURCE.name(), netease),
-        ] {
-            match result {
-                Ok(Ok(songs)) => {
+        while let Some(res) = tasks.join_next().await {
+            match res {
+                Ok(Some((name, songs))) => {
                     out.insert(name, songs);
                 }
-                Ok(Err(err)) => debug!("{name} 搜索失败: {err}"),
-                Err(_) => error!("{name} 搜索发生 panic，忽略该源"),
+                Ok(None) => {}
+                Err(err) => error!("歌词源搜索任务异常: {err}"),
             }
         }
         out

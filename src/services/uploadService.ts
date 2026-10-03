@@ -9,7 +9,10 @@ export interface UploadResult {
 
 export interface FontInfo {
     kind: "main" | "sub";
+    /** FontFace 名（`LRC` / `LRC-Sub`）：注册与实际渲染用的就是它 */
     family: string;
+    /** 字体文件内部的真实名称，**仅供 UI 显示**（后端解析 name 表得到） */
+    displayName: string;
     exists: boolean;
     version: string;
     size: number;

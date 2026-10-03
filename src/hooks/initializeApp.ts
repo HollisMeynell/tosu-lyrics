@@ -6,6 +6,7 @@ import {
     setSecondFont,
     setShadow,
     setShowSecond,
+    setLyricLines,
     setTextColor,
     setUseTranslationAsMain,
     DEFAULT_TEXT_COLOR,
@@ -13,9 +14,10 @@ import {
 import { Websocket } from "@/api/websocket.ts";
 import { BaseLyricSetter, WebsocketSetting } from "@/api/model.ts";
 import type { Shadow } from "@/types/globalTypes";
-import { applyLyricEvent, clearLyrics } from "@/stores/lyricStore";
+import { applyLyricEvent, clearLyrics, setLyricLoading } from "@/stores/lyricStore";
 import { lyricBlink } from "@/pages/LyricsBox";
 import { initializeDarkMode } from "@/stores/settingsStore";
+import { normalizeLyricLines } from "@/utils/lyricLines";
 
 /** 后端设置广播 → 展示页状态（展示端消费 WS 事件的唯一入口）。 */
 const handleSettingBroadcast = (data: WebsocketSetting) => {
@@ -68,6 +70,11 @@ const handleSettingBroadcast = (data: WebsocketSetting) => {
             }
             break;
         }
+        case "setLyricLines": {
+            // 与 HTTP 快照同一条归一化路径：缺失 / 偶数 / 越界都收敛成合法奇数
+            setLyricLines(normalizeLyricLines(data.value));
+            break;
+        }
         case "setShadow": {
             const value = data.value as
                 | { first?: Shadow; second?: Shadow }
@@ -86,18 +93,31 @@ const handleSettingBroadcast = (data: WebsocketSetting) => {
             clearLyrics();
             break;
         }
+        case "setLyricLoading": {
+            // 后端在换歌/搜索期间置 true, 加载结束(含"没有歌词")置 false
+            if (typeof data.value === "boolean") {
+                setLyricLoading(data.value);
+            }
+            break;
+        }
         default:
             break;
     }
 };
 
-const connectBackend = () => {
-    const ws = new Websocket();
+const connectBackend = (identity?: string) => {
+    const ws = new Websocket(identity);
     ws.setLyricHandler(applyLyricEvent);
     ws.setSettingHandler(handleSettingBroadcast);
 };
 
-/** 展示页接入 WS；控制台不接 WS，管理数据全部来自 HTTP。 */
+/**
+ * 接入展示端 WS。
+ *
+ * 控制台的管理数据仍然全部来自 HTTP，但它顶部的歌词预览与加载动画必须与
+ * `/lyrics` 完全一致，所以同样订阅展示端推送 —— 两边共用同一份 `lyricStore`
+ * 与 `lyricLoading`，动画自然同步，不存在第二套实现。
+ */
 export const initializeApp = async () => {
     if (import.meta.env.MODE === "development") {
         document.body.style.backgroundColor = "#3d2932";
@@ -105,10 +125,10 @@ export const initializeApp = async () => {
 
     initializeDarkMode();
 
-    // 控制台不消费展示推送，不建立 WS 连接
-    if (window.location.pathname.startsWith("/lyrics/controller")) {
-        return;
-    }
-
-    connectBackend();
+    // 控制台顶部要显示与 /lyrics 完全一致的歌词与加载动画（同一份 lyricStore /
+    // lyricLoading），所以也接入展示端推送；用 id 自报身份，便于在"在线展示端"
+    // 列表里区分出这是控制台而不是一个展示端。
+    const isController =
+        window.location.pathname.startsWith("/lyrics/controller");
+    connectBackend(isController ? "controller" : undefined);
 };

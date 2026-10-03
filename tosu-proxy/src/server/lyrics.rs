@@ -210,16 +210,8 @@ async fn put_offset(req: &mut Request, res: &mut Response) {
             return;
         }
     };
-    // 合理范围：±30 秒。超出基本可以确定是误输入
-    if body.offset.abs() > 30_000 {
-        render_error(
-            res,
-            StatusCode::BAD_REQUEST,
-            CODE_INVALID_PARAM,
-            "offset 必须在 ±30000 毫秒以内",
-        );
-        return;
-    }
+    // 偏移不设上限：整首歌长度级别的偏移也允许（例如 +60000 / -60000 毫秒），
+    // 由使用者自己决定，服务端只做原样保存与生效。
     let effective = content::set_offset(body.offset).await;
     res.render(Json(json!({ "ok": true, "offset": effective })));
 }

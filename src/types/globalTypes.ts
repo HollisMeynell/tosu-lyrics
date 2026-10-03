@@ -19,6 +19,11 @@ export type SettingsDto = {
     translationMain: boolean;
     /** 是否显示副歌词 */
     secondShow: boolean;
+    /**
+     * 歌词行数（可见窗口）：只允许 1 / 3 / 5 / 7 / 9 / 11 / 13 / 15，
+     * 默认 3，当前歌词始终位于窗口中心。
+     */
+    lyricLines: number;
     /** 主 / 副歌词阴影 */
     shadow: Pair<Shadow>;
 };

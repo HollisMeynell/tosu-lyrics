@@ -1,5 +1,6 @@
-import { For, Show, onMount } from "solid-js";
-import { DEFAULT_SHADOW, shadow } from "@/stores/settingsStore";
+import { ColorSelector } from "@/components/ui";
+import { createSignal, For, Show, onMount } from "solid-js";
+import { shadow } from "@/stores/settingsStore";
 import { createSettingsController } from "@/hooks/useSettings";
 import type { Shadow } from "@/types/globalTypes";
 
@@ -53,16 +54,7 @@ export default function ShadowPage() {
                     <Show when={v().enable}>
                         <label class="flex flex-row items-center gap-2 text-sm ml-auto">
                             颜色
-                            <input
-                                type="color"
-                                value={v().color}
-                                disabled={settings.saving()}
-                                onChange={(e) =>
-                                    commit(props.kind, {
-                                        color: e.currentTarget.value,
-                                    })
-                                }
-                            />
+                            <ColorSelector                                 value={v().color}                                 disabled={settings.saving()}                                 onCommit={(value) => commit(props.kind, { color: value })}                             />
                         </label>
                     </Show>
                 </div>
@@ -102,28 +94,26 @@ export default function ShadowPage() {
                             )}
                         </For>
                     </div>
-
-                    <div
-                        class="px-4 py-2 rounded-md bg-gray-100 dark:bg-gray-800 text-2xl"
-                        style={{
-                            filter: `drop-shadow(${v().offsetX}px ${v().offsetY}px ${v().blur}px ${v().color})`,
-                        }}
-                    >
-                        预览文字 Preview
-                    </div>
                 </Show>
             </div>
         );
     };
 
+    const [expanded, setExpanded] = createSignal(false);
+
     return (
         <div class="flex flex-col gap-4">
             <div class="header space-x-4">
-                <h2 class="text-2xl font-medium inline">阴影</h2>
-                <p class="text-sm inline text-gray-500">
-                    主 / 副独立；**改动立即生效**，无需保存，所有展示端同步
-                </p>
+            <button
+                type="button"
+                class="flex flex-row items-center gap-2 cursor-pointer w-fit"
+                onClick={() => setExpanded((v) => !v)}
+            >
+                <h2 class="text-xl font-medium inline">阴影</h2>
+                <span class="text-sm text-gray-500">{expanded() ? "收起 ▾" : "展开 ▸"}</span>
+            </button>
             </div>
+            <Show when={expanded()}>
             <hr class="w-24 border-gray-400 dark:border-gray-600" />
 
             <Show when={settings.error()}>
@@ -138,11 +128,7 @@ export default function ShadowPage() {
             >
                 <KindEditor kind="first" />
                 <KindEditor kind="second" />
-                <p class="text-xs text-gray-500">
-                    取值范围：偏移 ±{OFFSET_MAX} px，模糊 0~{BLUR_MAX} px。
-                    默认值：关闭 / {DEFAULT_SHADOW.offsetX}px {DEFAULT_SHADOW.offsetY}px
-                    / 模糊 {DEFAULT_SHADOW.blur}px。
-                </p>
+            </Show>
             </Show>
         </div>
     );

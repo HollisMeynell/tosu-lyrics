@@ -23,6 +23,9 @@ const GOOD_LENGTH_DIFF: u32 = 8000;
 const SHORT_TITLE_CHARS: usize = 6;
 /// 排名第一的候选标题+版本评分低于该值视为与目标歌曲明显无关, 不采用
 const MIN_TITLE_SCORE: i32 = 45;
+/// 标题达到该分数即视为"强匹配"(完全一致 / 候选含完整目标标题 / 只差一个附录),
+/// 此时 artist 只参与排序, 不再能否决候选
+const TITLE_STRONG_SCORE: i32 = 85;
 
 macro_rules! static_source {
     ($($name:ident : $t:ident),* $(,)?) => {
@@ -72,10 +75,14 @@ static_source! {
     NETEASE_LYRIC_SOURCE: NeteaseLyricSource,
 }
 
-/// 版本标识关键词(remix/live/tv size/sped up 等), 用于区分同曲不同版本
+/// 版本标识关键词(remix/remaster/live/tv size/version 等), 用于区分同曲不同版本。
+///
+/// 词表收边统一用 `\b`, 因此**不要把 `\.` 这类非词字符写进词条** —— `ver.`
+/// 这种写法由 `ver` 命中即可; 把 `\.` 放进 `\b...\b` 之间反而会因为句点后
+/// 不再是词边界而永远匹配不上。
 static VERSION_TAG_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)\b(remix|live|tv[ -]size|instrumental|acoustic|cover|edit|short ver|game ver|original|sped up|slowed|nightcore)\b",
+        r"(?i)\b(remastered|remaster|remix|live|tv[ -]?size|tv[ -]?ver|short[ -]?ver|game[ -]?ver|full[ -]?ver|version|ver|instrumental|inst|off[ -]?vocal|acoustic|cover|edit|original|sped[ -]?up|slowed|nightcore)\b",
     )
     .unwrap()
 });
@@ -86,6 +93,34 @@ fn normalize_title(s: &str) -> String {
         .filter(|c| c.is_alphanumeric())
         .flat_map(|c| c.to_lowercase())
         .collect()
+}
+
+/// 剥掉版本标识后的"核心标题"(已归一化)。
+///
+/// 用来判断"同一首歌的两种版本标注": 核心标题一致时, 版本差异交给
+/// `version_adjust` 决定排序, 而不是让候选因为版本词字面不同直接出局。
+fn core_title(s: &str) -> String {
+    normalize_title(&VERSION_TAG_RE.replace_all(s, " "))
+}
+
+/// 去掉标题里成对括号及其内容(版本 / 混音 / 出处等附录), 保留主干。
+///
+/// `os-宇宙人(Asterisk Makina Remix)` -> `os-宇宙人`
+///
+/// 为什么不能只靠 `core_title`: 括号里常带**混音师名**(如 `Asterisk Makina`),
+/// 那不是版本词, 剥版本词后主干仍与目标不同, 于是候选被压到 60 分。
+fn strip_bracket_content(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut depth = 0usize;
+    for ch in s.chars() {
+        match ch {
+            '(' | '（' | '[' | '【' | '{' | '｛' => depth += 1,
+            ')' | '）' | ']' | '】' | '}' | '｝' => depth = depth.saturating_sub(1),
+            _ if depth == 0 => out.push(ch),
+            _ => {}
+        }
+    }
+    out
 }
 
 /// 提取标题中的版本标识
@@ -128,6 +163,25 @@ pub(crate) fn title_score(query: &str, candidate: &str) -> i32 {
     if c.contains(&q) {
         return 90;
     }
+    // 只有附录/版本标注不同: 核心标题一致即视为同一首歌并进入评分, 具体
+    // 版本差异交给 version_adjust 排序。不给 100 是为了让标注完全一致的候选
+    // 仍然优先。
+    //
+    // 两种情况都要覆盖:
+    // - 括号附录不同: `os-宇宙人(Asterisk Makina Remix)` 对 `os-宇宙人`
+    //   (括号里常常只是混音师名, 剥版本词剥不掉)
+    // - 没有括号、只是版本词不同: `Song - Remastered` 对 `Song`
+    let (qb, cb) = (
+        normalize_title(&strip_bracket_content(query)),
+        normalize_title(&strip_bracket_content(candidate)),
+    );
+    if !qb.is_empty() && qb == cb {
+        return 85;
+    }
+    let (qc, cc) = (core_title(query), core_title(candidate));
+    if !qc.is_empty() && qc == cc {
+        return 85;
+    }
     // 查询包含候选(候选缺少查询中的版本标签, 如 Remix 查到了原版)
     if q.contains(&c) {
         return 60;
@@ -136,55 +190,75 @@ pub(crate) fn title_score(query: &str, candidate: &str) -> i32 {
     20 + (bigram_similarity(&q, &c) * 50.0) as i32
 }
 
-/// artist 相似度软评分(0-20), 只用于排序, 不硬过滤
-fn artist_score(query: &str, candidate: &str) -> i32 {
-    let q = query.to_lowercase();
-    if q.trim().is_empty() {
-        return 0;
-    }
-    // 拆分 feat./vs. 与常见分隔符, 得到多个歌手片段, 任一命中即可得分
-    let parts: Vec<&str> = q
-        .split(|ch: char| {
-            ch == '&'
-                || ch == ','
-                || ch == '/'
-                || ch == '、'
-                || ch == ';'
-                || ch == '；'
-                || ch == '('
-                || ch == ')'
-        })
-        .flat_map(|part| {
-            let mut segs: Vec<&str> = Vec::new();
-            let mut rest = part.trim();
-            while let Some(idx) = rest.find(" feat.") {
-                let (head, tail) = rest.split_at(idx);
-                if !head.trim().is_empty() {
-                    segs.push(head.trim());
-                }
-                rest = tail[" feat.".len()..].trim();
-            }
-            if let Some(idx) = rest.find(" vs.") {
-                let (head, tail) = rest.split_at(idx);
-                if !head.trim().is_empty() {
-                    segs.push(head.trim());
-                }
-                rest = tail[" vs.".len()..].trim();
-            }
-            if !rest.is_empty() {
-                segs.push(rest);
-            }
-            segs
-        })
+/// artist 串里视为"分隔"的标点。
+///
+/// 全角括号/方括号必须在内: osu 的 `ArtistUnicode` 常用
+/// `篠澤広（CV: 川村玲奈）` 这种写法, 不拆开就会要求候选 artist 完整包含
+/// `篠澤広cv川村玲奈`, 命中率几乎为 0。
+const ARTIST_SEPARATORS: [char; 18] = [
+    '&', ',', '/', '、', ';', '；', '(', ')', '（', '）', '[', ']', '【', '】', '×', '・', '·', '|',
+];
+
+/// 视为"合作连接词"的整词, 只要求**前导**空格。
+///
+/// 两点原因:
+/// - 不拆裸 `x`/`X`: `Xceon`、`xi` 这类名字里的字母会被误伤, 只有两侧带空格的
+///   ` x ` 才是 "A x B" 式的合作署名
+/// - 不要求尾随空格: `Xceon feat.森永真由美` 这种中日文写法里 `feat.` 后面直接
+///   接名字, 要求尾空格会完全匹配不上(旧实现用的就是 `find(" feat.")`)
+const ARTIST_JOINERS: [&str; 7] = [
+    " feat.", " feat ", " vs.", " vs ", " x ", " with ", " meets ",
+];
+
+/// 把 artist 串切成多个可比片段(任一命中即可得分)。
+fn artist_parts(query: &str) -> Vec<String> {
+    query
+        .to_lowercase()
+        .split(|ch: char| ARTIST_SEPARATORS.contains(&ch))
+        .flat_map(split_artist_joiners)
+        .map(|s| s.trim().to_string())
         .filter(|t| t.chars().count() >= 2)
-        .collect();
+        .collect()
+}
+
+/// 拆分 ` feat. ` / ` x ` / ` with ` 这类合作连接词。
+///
+/// 先把片段统一小写再取索引: `find` 返回的字节下标必须与切片的字符串一致
+/// (`to_lowercase` 有可能改变字节长度, 用原串下标会切在字符中间而 panic)。
+fn split_artist_joiners(part: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut rest = part.trim().to_lowercase();
+    loop {
+        let hit = ARTIST_JOINERS
+            .iter()
+            .filter_map(|joiner| rest.find(joiner).map(|idx| (idx, joiner.len())))
+            .min_by_key(|(idx, _)| *idx);
+        let Some((idx, len)) = hit else { break };
+        let head = rest[..idx].trim().to_string();
+        if !head.is_empty() {
+            out.push(head);
+        }
+        rest = rest[idx + len..].trim().to_string();
+    }
+    if !rest.is_empty() {
+        out.push(rest);
+    }
+    out
+}
+
+/// artist 相似度软评分(0-20): 命中片段比例越高分越高, 不做任何硬性判定
+fn artist_score(query: &str, candidate: &str) -> i32 {
+    let parts = artist_parts(query);
     if parts.is_empty() {
         return 0;
     }
     let c = normalize_title(candidate);
     let hit = parts
         .iter()
-        .filter(|t| c.contains(&normalize_title(t)))
+        .filter(|t| {
+            let normalized = normalize_title(t);
+            !normalized.is_empty() && c.contains(&normalized)
+        })
         .count();
     (hit * 20 / parts.len()) as i32
 }
@@ -205,8 +279,14 @@ fn length_score(candidate: u32, audio: u32) -> i32 {
 }
 
 /// 版本标识一致性调整(-10..10):
-/// 只有确认候选与目标歌曲本身相关(标题相等/包含)时版本信息才参与评分,
-/// 避免完全无关的歌曲因为词面含 "remix" 等关键词而获得加分
+/// 只有确认候选与目标歌曲本身相关(标题相等/包含/核心标题一致)时版本信息才参与评分,
+/// 避免完全无关的歌曲因为词面含 "remix" 等关键词而获得加分。
+///
+/// 三种不对称情况需要分开处理:
+/// - 目标无版本词、候选有(平台常自行标注 Remastered / TV Size 等): 不能据此判定
+///   "版本不同", 保持中性; 版本差异已由 `title_score` 的 100 与 90 之分体现
+/// - 目标要特定版本、候选没有: 候选很可能是原版, 轻度降权让版本一致的候选优先
+/// - 双方都有版本词: 有交集加分, 无交集(如 Remix 对上 Live)降权
 fn version_adjust(query: &str, candidate: &str, title_s: i32) -> i32 {
     if title_s < 60 {
         return 0;
@@ -215,6 +295,12 @@ fn version_adjust(query: &str, candidate: &str, title_s: i32) -> i32 {
     let ct = version_tags(candidate);
     if qt.is_empty() && ct.is_empty() {
         return 0;
+    }
+    if qt.is_empty() {
+        return 0;
+    }
+    if ct.is_empty() {
+        return -10;
     }
     if qt.iter().any(|t| ct.contains(t)) {
         10
@@ -225,13 +311,25 @@ fn version_adjust(query: &str, candidate: &str, title_s: i32) -> i32 {
 
 /// 判断候选是否与首选属于同一首歌(抓词失败后的回退范围):
 /// 标题高度一致(相等或候选包含首选标题)且歌手相关;
-/// 同名但歌手完全无关的候选不算同一首歌
+/// 同名但歌手完全无关的候选不算同一首歌。
+///
+/// 例外: 标题归一化后完全一致、且时长不冲突时, 即使 artist 写法不同
+/// (CV 标注 / 罗马字 / 只写了合作者之一)也视为同一首 —— 否则同曲的其它候选
+/// 会因为 artist 的表述差异被全部跳过, 正确歌词失去回退机会。
 fn is_same_song(anchor: &SongInfo, candidate: &SongInfo) -> bool {
     if anchor.key == candidate.key {
         return true;
     }
-    title_score(&anchor.title, &candidate.title) >= 90
-        && artist_score(&anchor.artist, &candidate.artist) > 0
+    if title_score(&anchor.title, &candidate.title) < 90 {
+        return false;
+    }
+    if artist_score(&anchor.artist, &candidate.artist) > 0 {
+        return true;
+    }
+    normalize_title(&anchor.title) == normalize_title(&candidate.title)
+        && (anchor.length == NO_LENGTH
+            || candidate.length == NO_LENGTH
+            || anchor.length.abs_diff(candidate.length) <= GOOD_LENGTH_DIFF)
 }
 
 /// 通用署名(合集/未知), 此类 artist 不参与补充搜索与 artist 筛选,
@@ -350,9 +448,18 @@ pub trait LyricSource: Send + Sync {
         };
 
         if artist_usable && is_short_title(title) {
-            let mut merged = self.search_music(title).await?;
-            let with = self.search_music(&with_artist).await?;
-            for song in with {
+            // 两次搜索**并发**发出。
+            //
+            // 原先这里是 `search_music(title).await?` 之后再 `search_music(&with_artist).await?`，
+            // 单个源要串行等两次网络往返（实测该分支让 search_sources 达到 ≈4.5s，而单次
+            // 搜索只要 ≈2.2s）。改成 join 后墙钟时间降到一次往返。
+            // 请求参数、合并去重逻辑、错误传播顺序（先 title 后 artist）与返回结果都不变。
+            let (by_title, by_artist) = tokio::join!(
+                self.search_music(title),
+                self.search_music(&with_artist)
+            );
+            let mut merged = by_title?;
+            for song in by_artist? {
                 if !merged.iter().any(|m| m.key == song.key) {
                     merged.push(song);
                 }
@@ -408,7 +515,7 @@ pub trait LyricSource: Send + Sync {
 
         // 首选候选须可靠才采用:
         // - 标题+版本评分过低(与目标歌曲明显无关)不采用
-        // - artist 完全无关的候选不采用(避免同名歌冒充; 通用署名除外)
+        // - 标题不够强时才要求 artist 命中(避免同名歌冒充; 通用署名除外)
         // 豁免: 候选是补充搜索前的原始第一名、时长差 <=8s 且标题非完全一致,
         // 兼容跨写法等平台命名差异(同名歌不在豁免范围内)
         let top = song.first().expect("ranked list is not empty");
@@ -416,11 +523,23 @@ pub trait LyricSource: Send + Sync {
         let version_s = version_adjust(title, &top.title, title_s);
         let artist_required = !artist.trim().is_empty() && !is_generic_artist(artist);
         let artist_ok = !artist_required || artist_score(artist, &top.artist) > 0;
+        // 标题强匹配(完全一致 / 候选含完整目标标题 / 只差一个附录)时 artist 只参与
+        // 排序、不再否决: `篠澤広（CV: 川村玲奈）` 这类 CV 标注、罗马字/假名差异、
+        // 平台只写合作者之一的情况很常见, 不应该因为 artist 字面不同就把标题已经
+        // 对上的候选丢掉。
+        let title_strong = title_s >= TITLE_STRONG_SCORE;
         let exempt = length != NO_LENGTH
-            && title_s < 90
+            && title_s < TITLE_STRONG_SCORE
             && top.key == original_first_key
             && top.length.abs_diff(length) <= GOOD_LENGTH_DIFF;
-        if (title_s + version_s < MIN_TITLE_SCORE || !artist_ok) && !exempt {
+        if title_s + version_s < MIN_TITLE_SCORE {
+            debug!(
+                "首选候选与目标差异过大(标题{title_s} 版本{version_s}), 放弃该源: {}",
+                top.title
+            );
+            return Ok(None);
+        }
+        if !artist_ok && !title_strong && !exempt {
             debug!(
                 "首选候选不可靠(标题{title_s} 版本{version_s} 歌手匹配{artist_ok}), 放弃该源: {}",
                 top.title
@@ -470,6 +589,149 @@ mod tests {
 
     const TITLE: &str = "Clair de lune";
     const ARTIST: &str = "Debussy";
+
+    // ---------- 评分算法（纯逻辑, 不联网） ----------
+    //
+    // 覆盖"标题/artist 写法差异导致正确歌词被丢掉"的几类真实输入,
+    // 其中带曲名的用例取自实际反馈的谱面 (TitleUnicode / ArtistUnicode)。
+
+    /// 标题完全一致 → 满分
+    #[test]
+    fn title_exact_match_is_full_score() {
+        assert_eq!(title_score("メクルメ", "メクルメ"), 100);
+        assert_eq!(title_score("Yumemi Sunrise", "yumemi sunrise"), 100);
+    }
+
+    /// 候选带平台自行追加的说明 → 90, 仍属"强匹配"
+    #[test]
+    fn title_candidate_with_suffix_is_strong() {
+        assert_eq!(title_score("メクルメ", "メクルメ (Game Ver.)"), 90);
+        assert_eq!(title_score("Song", "Song (Remastered)"), 90);
+    }
+
+    /// 只有附录/版本标注不同 → 85: 进入评分, 不再被压到 60
+    #[test]
+    fn title_differing_only_by_appendix_is_85() {
+        // 括号里是混音师名(不是版本词), 只能靠"剥括号"识别
+        assert_eq!(
+            title_score("os-宇宙人(Asterisk Makina Remix)", "os-宇宙人"),
+            85
+        );
+        assert_eq!(
+            title_score(
+                "World's End, Girl's Rondo (Asterisk DnB Remix)",
+                "World's End, Girl's Rondo"
+            ),
+            85
+        );
+        // 没有括号、只是版本词不同
+        assert_eq!(title_score("Song - Remastered", "Song"), 85);
+    }
+
+    /// 版本词表的覆盖面: 反馈里出现的几类写法都要识别
+    #[test]
+    fn version_tags_cover_reported_forms() {
+        assert!(!version_tags("os-宇宙人(Asterisk Makina Remix)").is_empty());
+        assert!(!version_tags("Song (Remastered)").is_empty());
+        assert!(!version_tags("Song (TV Size)").is_empty());
+        assert!(!version_tags("Song (Short Ver.)").is_empty());
+        assert!(!version_tags("Song (Game Version)").is_empty());
+        assert!(version_tags("メクルメ").is_empty());
+        // 普通单词里含 ver/inst 字母不应被误判
+        assert!(version_tags("Veronica").is_empty());
+        assert!(version_tags("Instinct").is_empty());
+    }
+
+    /// 主干标题: 剥括号 / 剥版本词
+    #[test]
+    fn title_trunk_helpers() {
+        assert_eq!(
+            strip_bracket_content("os-宇宙人(Asterisk Makina Remix)"),
+            "os-宇宙人"
+        );
+        assert_eq!(strip_bracket_content("Song（TV Size）"), "Song");
+        assert_eq!(core_title("Song - Remastered"), core_title("Song"));
+    }
+
+    /// 无关标题仍应低分(放宽后不能误匹配)
+    #[test]
+    fn unrelated_title_stays_low() {
+        assert!(title_score("メクルメ", "夜に駆ける") < MIN_TITLE_SCORE);
+        assert!(title_score("Yumemi Sunrise", "Wah Wah World") < MIN_TITLE_SCORE);
+    }
+
+    /// 全角括号的 CV 标注必须拆开: 否则候选只写主 artist 时命中率恒为 0
+    #[test]
+    fn artist_cv_annotation_is_split() {
+        let score = artist_score("篠澤広（CV: 川村玲奈）", "篠澤広");
+        assert!(score > 0, "CV 标注应拆成独立片段, 实际得分 {score}");
+    }
+
+    /// ` feat.` / ` feat ` / ` x ` 形式的合作署名要能部分命中
+    #[test]
+    fn artist_cooperation_forms_hit_partially() {
+        assert!(artist_score("Xceon feat.森永真由美", "Xceon") > 0);
+        assert!(artist_score("Xceon feat.森永真由美", "森永真由美") > 0);
+        assert!(artist_score("Giga x Mitchie M", "Giga") > 0);
+        assert!(artist_score("Giga x Mitchie M", "Mitchie M") > 0);
+    }
+
+    /// 连接词只在独立成词时拆分, 不能拆散 `Xceon`
+    #[test]
+    fn artist_joiners_keep_embedded_letters() {
+        assert_eq!(artist_parts("Xceon"), vec!["xceon".to_string()]);
+        assert_eq!(artist_score("Xceon", "Xceon"), 20);
+    }
+
+    /// artist 分数边界
+    #[test]
+    fn artist_score_bounds() {
+        assert_eq!(artist_score("歌組雪月花", "歌組雪月花"), 20);
+        assert_eq!(artist_score("分島花音", "Someone Else"), 0);
+        assert_eq!(artist_score("", "Anyone"), 0);
+    }
+
+    /// 版本调整的几种不对称情况
+    #[test]
+    fn version_adjust_is_asymmetric() {
+        // 目标没有版本词、候选有(平台自行标注): 中性, 不再扣 10
+        assert_eq!(version_adjust("Song", "Song (Remastered)", 90), 0);
+        // 目标要特定版本、候选没有: 降权
+        assert_eq!(version_adjust("Song (Remix)", "Song", 85), -10);
+        // 双方都有且一致: 加分
+        assert_eq!(version_adjust("Song (Remix)", "Song (Remix)", 100), 10);
+        // 双方都有但冲突: 降权
+        assert_eq!(version_adjust("Song (Remix)", "Song (Live)", 85), -10);
+        // 标题本身就不相关时不参与版本评分
+        assert_eq!(version_adjust("Song (Remix)", "Other (Live)", 30), 0);
+    }
+
+    /// 抓词回退: artist 写法不同但标题完全一致时仍视为同一首
+    #[test]
+    fn same_song_tolerates_artist_wording() {
+        let anchor = SongInfo {
+            title: "メクルメ".into(),
+            artist: "篠澤広（CV: 川村玲奈）".into(),
+            length: 100_000,
+            key: "a".into(),
+        };
+        let candidate = SongInfo {
+            title: "メクルメ".into(),
+            artist: "篠澤広".into(),
+            length: 100_500,
+            key: "b".into(),
+        };
+        assert!(is_same_song(&anchor, &candidate));
+
+        // 标题不同则不算同一首
+        let other = SongInfo {
+            title: "別の曲".into(),
+            artist: "篠澤広".into(),
+            length: 100_000,
+            key: "c".into(),
+        };
+        assert!(!is_same_song(&anchor, &other));
+    }
 
     #[tokio::test]
     async fn test_qq_lyric_source() -> Result<()> {
