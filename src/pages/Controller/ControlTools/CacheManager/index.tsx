@@ -120,7 +120,7 @@ export default function CacheManager() {
     return (
         <div class="flex flex-col gap-4">
             <div class="header space-x-4">
-                <h2 class="text-2xl font-medium inline">歌词缓存</h2>
+                <h2 class="text-xl font-medium inline">歌词缓存</h2>
                 <p class="text-sm inline text-gray-500">
                     缓存只是缓存 —— 删除它不会影响来源绑定、偏移或黑名单
                 </p>

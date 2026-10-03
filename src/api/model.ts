@@ -45,8 +45,12 @@ interface WebsocketSettingTypeMap {
     setColor: BaseLyricSetter;
     setTranslationMain: boolean;
     setSecondShow: boolean;
+    /** 歌词行数：1 / 3 / 5 / … / 15（标量，不是 Pair） */
+    setLyricLines: number;
     setBlink: null;
     setShadow: { first?: Shadow; second?: Shadow };
+    /** 歌词加载中 / 加载结束: 展示端的 `.` 提示据此显示与清除 */
+    setLyricLoading: boolean;
 }
 
 interface LyricLine {

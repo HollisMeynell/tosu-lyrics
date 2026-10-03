@@ -71,7 +71,7 @@ const BlackListLyrics: Component = () => {
     return (
         <div class="flex flex-col gap-4">
             <div class="header space-x-4">
-                <h2 class="text-2xl inline">黑名单管理</h2>
+                <h2 class="text-xl inline">黑名单管理</h2>
                 <p class="text-sm inline text-gray-500">
                     被你拉黑的歌曲以后将不会被显示
                 </p>

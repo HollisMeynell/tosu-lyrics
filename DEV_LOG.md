@@ -2129,3 +2129,697 @@ npx vite build --outDir dist-new && 并入 dist/     # 1. 前端
 cargo build -r --features=new                       # 2. 后端
 cp tosu-proxy/target/release/osu-lyric.exe dist/    # 3. 覆盖 exe
 ```
+
+---
+
+# 29. 最终开发交接（dev → 当前工作区）
+
+> 本章是本轮长周期开发的**最终交接记录**，写在 §1 ~ §28 之后。
+> §1 ~ §28 记录的是更早阶段的开发过程，**历史内容原样保留、未改写**。
+> 本章只描述一件事：**相对于 GitHub `dev` 分支基线，本轮实际改了什么**。
+
+## 29.1 基线与对比方法
+
+| 项 | 值 |
+| --- | --- |
+| 基线 | GitHub `dev` 分支 = 本地 `HEAD` = `72816a2 优化代码` |
+| 远端 | `https://github.com/EmitPots/tosu-lyrics.git` |
+| 对比方式 | `git diff HEAD`（工作区 vs dev）、`git diff --stat HEAD`、`git diff --name-status HEAD`、`git ls-files --others --exclude-standard` |
+| 当前状态 | 改动**全部未提交**（工作区 + 未跟踪文件），没有 commit / push |
+| 新增文件 | 10 个（`git diff` 不含未跟踪文件，随 §29.1 一并列出） |
+| 删除文件 | **0 个**（`git diff --diff-filter=D` 为空） |
+
+```bash
+# 复现本节结论
+cd D:\osu-lyric-github-ready
+git diff --stat HEAD
+git diff --name-status HEAD
+git ls-files --others --exclude-standard
+```
+
+## 29.2 改动规模总览
+
+```
+38 files changed, 2643 insertions(+), 546 deletions(-)
+```
+
+分布：前端 `src/` 30 个文件、后端 `tosu-proxy/` 8 个文件，另有 10 个新增文件。
+改动覆盖 9 个主题：**歌词行数、展示端加载提示、字体系统（含一次 Bug 修复）、
+候选歌词时机、搜索匹配算法、单文件发行与启动链、日志、offset、控制台 UI 重排**。
+
+| 主题 | 主要文件 |
+| --- | --- |
+| 歌词行数（lyricLines） | `src/utils/lyricLines.ts`(新)、`src/pages/.../TextStyle/LyricLines.tsx`(新)、`model/setting.rs`、`LyricsBox`、`settingsStore` |
+| 展示端加载提示 | `lyricStore.ts`、`initializeApp.ts`、`LyricsBox`、`service/lyric_service.rs` |
+| 字体系统 + Bug 修复 | `utils/fonts.ts`、`FontPicker.tsx`(新)、`fontModeStore.ts`(新)、`FontModeToggle.tsx`(新)、`service/font_service.rs`、`server/font.rs` |
+| 候选歌词时机 | `service/lyric_service.rs`、`hooks/useLyricsContent.ts`、`Content/index.tsx` |
+| 搜索匹配算法 | `lyric/source/mod.rs` |
+| 单文件发行 + 启动链 | `server/mod.rs`、`bin/new.rs`、`build.rs`(新)、`config.rs`、`justfile`、`scripts/`(新) |
+| 日志（tosu 风格） | `config.rs` |
+| offset | `server/lyrics.rs`、`Content/CurrentLyrics.tsx` |
+| 控制台 UI 重排 | `pages/Controller/index.tsx`、`routes/index.tsx`、`TextStyle/index.tsx`、`Shadow/index.tsx`、`Client/index.tsx` |
+
+## 29.3 歌词行数 `lyricLines`（新增设置项，前后端对称）
+
+**改了什么**：新增一个「歌词行数」设置项，允许 1/3/5/7/9/11/13/15 行，默认 3 行，
+当前歌词始终落在可见窗口**正中间**。
+
+**为什么改**：原先窗口固定 3 行（`h-[300px]`，位移写死 `-(cursor - 1) * 100`），
+用户无法调整；同时还存在"界面改了行数、渲染不跟随"的风险，因为行数语义没有单一出处。
+
+**最终实现**：把行数语义收敛到**唯一一份实现** `src/utils/lyricLines.ts`，
+8 套行数不复制 8 套渲染代码，全部由共享计算驱动。
+
+| 常量 / 函数 | 值 / 语义 |
+| --- | --- |
+| `LYRIC_LINE_OPTIONS` | `[1,3,5,7,9,11,13,15]`（**只允许奇数**） |
+| `DEFAULT_LYRIC_LINES` / `MIN` / `MAX` | `3` / `1` / `15` |
+| `LYRIC_LINE_HEIGHT` | `100`（必须与每个 `<li>` 实际高度一致） |
+| `normalizeLyricLines(v)` | 缺失→3；非有限数→3；`<1`→1；`>15`→15；**偶数→相邻奇数（向上优先，15 封顶时向下）** |
+| `visibleSideCount(lines)` | 上下各显示多少行：`(lines-1)/2` |
+| `visibleWindowStart(cursor, lines)` | `cursor - visibleSideCount(lines)` |
+| `windowTranslateY(cursor, lines)` | 列表纵向位移，让当前行居中 |
+| `lineDistance(index, cursor)` | `abs(index - cursor)` |
+| `lineLevel(distance)` | 距离 0→**0**；距离 1→**1**；距离 ≥2→**2**（只有 3 级，不随距离无限细分） |
+| `LINE_LEVEL_FONT_SCALE` | `{0:1, 1:0.5, 2:0.5}` —— 层级 1 与 2 **相同**，15 行时不会越缩越小 |
+| `lyricBoxHeight(lines)` | `lines × 100` |
+| `CONTROLLER_VIEWPORT_LINES` | `3`（见 §29.4） |
+
+**兼容性（硬性要求，勿破坏）**：
+`font-size` 由原先的 `active ? size : size/2` 改为 `size * lineLevelScale(level)`。
+由于层级 1 与 2 都是 `0.5`，**3 行模式下与改动前逐像素一致**（1 与 1/2）。
+`windowTranslateY(3 行)` 等价于原来的 `-(cursor - 1) * 100`。
+
+**前后端一致性**（两侧必须同步，改一处要改另一处）：
+
+| 位置 | 内容 |
+| --- | --- |
+| 前端类型 | `SettingsDto.lyricLines: number`（`src/types/globalTypes.ts`） |
+| 前端 store | `settingsStore` 的 `lyricLines` signal；`applySettings()` 经 `normalizeLyricLines` |
+| 前端 UI | `TextStyle/LyricLines.tsx`（下拉，只列合法奇数） |
+| 后端常量 | `MIN_LYRIC_LINES=1`、`MAX_LYRIC_LINES=15`、`DEFAULT_LYRIC_LINES=3` |
+| 后端归一化 | `normalize_lyric_lines(i32)` —— 与前端同一套规则 |
+| 后端校验 | `validate_lyric_lines()`：越界或偶数直接报 `invalid_param` |
+| 后端落库 | `LyricSettings::load()` 读旧数据时也过一遍归一化 |
+| WS 广播 | `SettingKey::LyricLines` → `ws_key() == "setLyricLines"`（标量，**不是 Pair**） |
+
+> ⚠️ `ALL_SETTING_KEYS` 从 **7 项变为 8 项**。任何依赖该数组长度或顺序的代码都要一起看。
+> 前端 `WebsocketSettingTypeMap` 已同步新增 `setLyricLines: number`
+> 与 `setLyricLoading: boolean`。
+
+**测试**：`model/setting.rs` 新增 `lyric_lines_normalization`（含 `-20..=40` 全区间
+归一化后必为合法奇数的不变量断言）与 `lyric_lines_patch_roundtrip`
+（PATCH → 落库 → 广播 key/value 全链路，并断言"只影响这一个设置"）。
+
+## 29.4 Controller 固定 3 行 viewport（`/lyrics` 不受影响）
+
+**改了什么**：`LyricsBox` 新增可选 prop `viewportLines`；Controller 顶部预览传
+`CONTROLLER_VIEWPORT_LINES = 3`，`/lyrics` **不传**。
+
+**为什么改**：Controller 的面板位置必须恒定。若预览高度跟随 `lyricLines` 变高，
+用户把行数调到 15 行时，下方面板会被挤动，操作时控件"乱跳"。
+
+**最终实现**：
+
+| 函数 | 作用 |
+| --- | --- |
+| `boxLineCount(lines, viewportLines?)` | 窗口高度与居中位移所用行数：传了 viewport 就恒用它 |
+| `windowLineCount(lines, viewportLines?)` | 允许显示的最大行数 = `min(设置, viewport)` |
+| `clipped()` | Controller 下 `distance > visibleSide` 的行**整行隐藏** |
+
+两个关键细节：
+
+1. 超出范围的行用 **`visibility: hidden`（`invisible` 类）而不是 `display:none`** ——
+   每行仍占满 100px，居中位移与相邻行位置完全不变（15 行时 Controller 显示的
+   仍是与 3 行时相同的三行）。
+2. `routes/index.tsx` 抽出 `ControllerLayout` 组件：顶部 `<LyricsBox viewportLines={3} />`
+   + 下方 `<Controller>`，路由表因此更清晰（`/controller` 直接挂 layout）。
+
+**结果**：`/lyrics` 行为与改动前完全一致（窗口高度 = `lyricLines`，按设置完整显示）；
+Controller 面板位置永远与 3 行时一致，且两边共用同一个 `LyricsBox` 组件 ——
+不存在两套渲染实现。
+
+## 29.5 展示端加载提示（`.` 递增动画）
+
+**改了什么**：换歌 / 搜索期间，展示端显示 `1 → 5` 个点递增的加载提示（每 0.5s 加一个，
+到顶回到 1 个循环）；歌词一到就消失。
+
+**为什么改**：搜索 + 取词实测需要 50ms ~ 2.5s（偶发触及 5s 超时）。此前这段时间
+屏幕完全空白，用户无法区分"正在加载"和"没有歌词"。
+
+**最终实现**：新增 WS 事件 `setLyricLoading`（bool），与 `setClear` 同级的纯广播。
+
+- 置 `true`：`begin_song()` 换歌时立即广播。
+- 置 `false`：**统一放在 `load_plan()` 最外层**，所以命中缓存 / 命中黑名单 /
+  取词失败 / 没有歌词**任何一种结束方式**都不会让提示一直转下去；
+  此外 `clear`（主动清屏）与 `song_clean`（回到菜单）也会广播 `false`。
+- 展示端：`lyricStore` 新增独立的 `lyricLoading` signal（**不参与 `applyLyricEvent`
+  的批处理**，避免影响正常歌词显示）。
+- 渲染：`showLoading() = lyricLoading() && lyrics().length === 0` ——
+  **只在"正在加载且还没有歌词"时出现，绝不覆盖正常歌词**。
+
+> 关键设计：`broadcast_loading()` **不参与搜索时序、不改变任何请求并发**，
+> 只是往 WS 播一条设置消息。
+> 加载点样式：字号取主歌词的 `1.15em`（跟随用户主字号），`letter-spacing: 0.4em`
+> 配 `margin-right: -0.4em` 抵消末点空白，保证三种对齐下整串都不偏移。
+
+## 29.6 控制台接入展示端 WS（顶部预览与 `/lyrics` 完全一致）
+
+**改了什么**：`initializeApp` 原先遇到 `/lyrics/controller` 直接 `return`（不建 WS）；
+现在控制台**也**接入展示端推送，并以 `?id=controller` 自报身份。
+
+**为什么改**：控制台顶部的歌词预览与加载动画必须与 `/lyrics` 完全一致。
+两边共用同一份 `lyricStore` 与 `lyricLoading`，动画天然同步，不需要第二套实现。
+
+**最终实现**：`Websocket` 构造函数新增可选 `identity`，拼成
+`${BACKEND_WEBSOCKET_URL}?id=<encodeURIComponent(identity)>`。
+该参数**只影响"在线展示端"列表里显示的名字**，不改变任何推送内容 ——
+因此控制台不会与真正的展示端混淆。
+
+## 29.7 字体与字号设置 UI 重做（主 / 副独立 + 共用字体模式）
+
+**改了什么**：
+
+1. 字体选择从"一个下拉同时设置主副"改为**主 / 副两个独立选择器**。
+2. 新增「共用字体 / 分开字体」模式开关。
+3. 新增 `FontPicker` 自绘下拉，替换原生 `<select>`。
+4. 上传字体后立即重新注册 FontFace（原先只刷新列表，展示端仍用旧字体）。
+
+**为什么改**：
+
+- 后端契约本就支持主副独立字体，但 UI 只有一个选择器，属于功能未落地。
+- **原生 `<select>` 的字体无法用 CSS 控制**：Tailwind preflight 只给
+  `button,input,select,optgroup,textarea` 设了 `font: inherit`，**`<option>` 不在其中**；
+  且 Windows 上 Chromium 的原生下拉弹层由**系统菜单**渲染，任何 CSS 都改不了它。
+  所以字体选择框的文字会随机跳成微软雅黑。自绘之后收起/展开都是普通 DOM，UI 字体稳定。
+- 上传后不重新注册 FontFace，会出现"上传成功但字形没变"。
+
+**最终实现**：
+
+- `FontPicker.tsx`（新）：受控下拉，`options/value/onChange/disabled`，
+  点击外部关闭（`mousedown` 监听 + `onCleanup` 移除）。
+- `fontModeStore.ts`（新）：模式存 **localStorage**（`osu-lyrics.font-mode`），
+  **不新增后端设置字段** —— 因为实际渲染只由 `font.first` / `font.second` 决定，
+  共用模式下这两个值本就相同，换浏览器/换展示端看到的字形天然一致；
+  「模式」只影响控制台的编辑形态。
+  切入共用前把当前分开设置备份到 `osu-lyrics.font-split-backup`，切回时恢复，
+  **来回切换不会丢失用户原来选的两个字体**。
+- `FontModeToggle.tsx`（新）：与「对齐方式」同款的 `ToggleNSwitch`。
+- `FontModeToggle` 放在歌词字体设置**上方**；共用模式下副字体选择器隐藏，
+  显示"共用字体模式：副歌词跟随主字体"。
+- `applyMain()` 在共用模式下**同时写两侧**（`font.second = 共用值`），
+  否则会出现"UI 共用、渲染却不共用"。
+- `Font.tsx` 选项列表 = `默认字体` + `上传字体`（槽位**始终存在**，
+  上传后显示后端解析出的真实字体名）+ 5 个系统字体（微软雅黑/宋体/仿宋/楷体/Arial）。
+- `Upload/index.tsx`：上传成功后 `await loadFont()` 立即重新注册
+  （`loadFont` 内部按版本号判断，同版本不会重复拉取）。
+
+## 29.8 字体 Bug 修复：默认字体被上传字体覆盖
+
+> 这是本轮最重要的一个缺陷修复，涉及**文件路径 / 资源来源 / 语义归一化 / 历史兼容**四层。
+
+**根因**：早期版本把上传字体**直接写成工作目录的 `./LRC.otf` / `./tLRC.otf`**，
+而这两个路径正是随包默认字体（单文件发行时由 `ensure_runtime_dir()` 从内嵌资源释放）。
+于是"上传一次字体"就等于把默认字体文件**永久覆盖**：此后选"默认字体"加载到的
+其实是上传字体，重启也回不来（`RESOURCE_VERSION` 没变 → 资源释放会跳过已存在文件）。
+叠加第二个语义问题：空串 `""` 在旧逻辑里被当作"自动"（有上传就用上传），
+于是 **UI 显示"默认字体"、实际渲染成上传字体**。
+
+**最终实现（五条）**：
+
+1. **默认字体与上传字体彻底分离**：上传改写到 `<工作目录>/uploaded/LRC.otf`
+   （`FontKind::upload_path()`，`UPLOAD_DIR = "uploaded"`）。两者从**文件路径**上就分开。
+2. **默认字体改用程序内嵌资源**：`read_static_font()` 顺序为
+   `./static/lyrics` → `./static` → **内嵌程序资源**，**不再回落到 `./`**
+   （回落到 `./` 就会重新引入本 Bug）。
+3. **`normalizeFontCode()` 统一 UI 与渲染层语义**：
+   `{"", "LRC.otf", "tLRC.otf"}` 一律归一为 `FONT_CODE_DEFAULT`（`"default"`）。
+   `resolveFamily()` 与 `needsBuiltinFont()` 内部都先归一化，FontPicker 的选中项/显示名
+   也用它 —— **UI 与渲染共用同一个函数**，分歧从根上消除。
+4. **历史配置兼容 + 迁移**：见下 §29.9。
+5. **`RESOURCE_VERSION` 2 → 3**：递增版本才让**已有安装**把被覆盖的默认字体
+   重新释放回来。
+
+**四套互相独立的 FontFace family**（上传侧名字保持不变，已验证的注册链路不受影响）：
+
+| 常量 | 值 | 用途 |
+| --- | --- | --- |
+| `UPLOADED_MAIN_FAMILY` / `UPLOADED_SUB_FAMILY` | `LRC` / `LRC-Sub` | 上传字体 |
+| `DEFAULT_MAIN_FAMILY` / `DEFAULT_SUB_FAMILY` | `LRC-Default` / `LRC-Sub-Default` | **随包**默认字体 |
+
+> 拆开的原因：两者原先共用 `LRC` / `LRC-Sub`，"上传了字体"就等于把默认字体顶掉，
+> UI 上无法做到「主 = LRC.otf，副 = Unifont-JP」这种组合。
+> 拆开后两者可以**同时注册、并存**。
+> 内置字体**按需注册**（`needsBuiltinFont`）：`LRC.otf` 约 8MB，
+> 不该每次打开页面都下载。
+
+**两个必须记住的坑**：
+
+1. `/lyrics/LRC.otf` **必须由字体路由直接应答，且注册在静态目录之前**。
+   静态目录配了 `fallback("index.html")` 供 SPA 路由用 —— 副作用是**任何找不到的资源
+   都会返回 index.html**。浏览器把这段 HTML 当字体解析会报
+   `OTS parsing error: invalid sfntVersion: 1008821359`（首四字节正是 `<!do`）。
+2. 静态字体路由**不能**读 `font_service::load()` —— 那指向**上传字体**
+   （`uploaded/LRC.otf`）；用它的话默认字体与上传字体就是同一份字节，**family 拆开也白拆**。
+
+**UI 名与 FontFace family 分离**：`FontInfo` 新增 `displayName`（后端解析 OTF/TTF
+`name` 表 nameID 4→1，platform 3 UTF-16BE 优先，Mac Roman 兜底），**仅供 UI 显示**。
+解析结果按 `mtime+size` 做版本化缓存 —— 否则 `/api/font/info` 每次都要整份读盘解析
+（主+副实测合计约 16.7MB），会让该接口慢到 7~8ms。
+
+## 29.9 历史 `LRC.otf` / `tLRC.otf` 上传字体迁移
+
+**问题**：老安装的工作目录里，`./LRC.otf` 可能**是用户上传的字体**（而不是默认字体）。
+修复后默认字体会被重新释放到该路径 —— 若不先抢救，用户上传的字体就丢了。
+
+**实现**：`migrate_legacy_uploaded_fonts(dir, is_program_default)`：
+
+- 对 main / sub 各检查一次；**新位置已有上传（或没有历史文件）时不动**。
+- 调用方传入 `is_program_default(name, bytes)` 判断"这份字节是不是程序自带的默认字体"：
+  **是 → 只是释放出来的默认资源，不是上传字体，不搬**。
+- **只做复制（不删原文件）**：搬完后资源释放流程把默认字体写回原路径，
+  既保住用户上传的字体，又把被覆盖的默认字体**自愈**回来。
+
+调用点在 `ensure_runtime_dir()` 中，**必须在资源释放循环之前**。
+
+**`RESOURCE_VERSION` 机制**：释放前读 `lyrics/resources.json` 判断是否
+`contains(RESOURCE_VERSION)`；一致且文件存在 → 跳过（不全量覆盖）；不一致 → 重新释放
+并重写 manifest。`USER_FILES`（`lyric.db` / `config.json5`）在循环里 `continue`，
+**绝不写入、绝不覆盖**。
+
+**回归防线**：`font_service.rs` 的单测
+`uploaded_font_never_shares_path_with_default_font` 断言上传路径的父目录
+必须是 `uploaded`，保证不再回到"上传覆盖默认字体"的状态。**不要删这个测试。**
+
+## 29.10 候选歌词与主歌词解耦（候选尽早可见）
+
+**改了什么**：候选写入 `music_cache` 的时机从 `commit_search()`（排在取词之后）
+**前移到搜索结果一到手**（新增 `publish_candidates()`）。
+
+**为什么改**：原先候选列表必须等整个主歌词流程（含 `fetch_search_lyric`，
+实测 50ms~2.5s）结束才可见，表现为"候选要等主歌词出来才出现"。
+
+**最终实现**：`search_sources()` 一返回就 `publish_candidates(&plan, results.clone())`
+（clone 只为把数据 move 进服务任务，几十条以内可忽略）。这样：
+
+- 候选与主歌词**彻底解耦** —— 搜索完成即可被 `GET /api/lyrics/search-results` 读到；
+- **主歌词匹配失败不影响候选显示**。
+
+**竞态防护（与原先完全一致，两道校验）**：`generation_matches()` 代次校验 +
+`now_ident` 当前歌曲身份校验 —— 保证 A→B→C 快速切歌时旧搜索结果不污染新歌。
+
+**前端配合**：候选列表改由 `lyricLoading` 驱动（`true` 立即清空旧候选 → 消除
+"上一首候选闪现"；`false` 读取并显示新候选），不再依赖 `sid` 轮询。
+`loadCandidates()` 增加了结果缓存 + **在途 Promise 复用**（同一首歌只发一次请求）。
+
+## 29.11 搜索匹配算法：跨写法识别
+
+**改了什么**：`lyric/source/mod.rs` 的标题 / 歌手评分算法系统性放宽，
+并新增 14 个纯逻辑单测。
+
+**为什么改**：大量真实谱面（TitleUnicode / ArtistUnicode）因为**写法差异**被误判为
+不相关，导致正确歌词被丢掉。典型三类：
+
+| 反馈场景 | 原行为 | 现行为 |
+| --- | --- | --- |
+| `os-宇宙人(Asterisk Makina Remix)` 查 `os-宇宙人` | 60 分 | **85 分**（剥括号附录） |
+| `Song - Remastered` 查 `Song` | 低分 | **85 分**（剥版本词） |
+| `篠澤広（CV: 川村玲奈）` 对 `篠澤広` | artist 命中 0 → 被否 | **命中**（全角括号拆开） |
+
+**最终实现**：
+
+- 版本词表 `VERSION_TAG_RE` 扩充：`remaster(ed)` / `tv[ -]?size` / `short[ -]?ver` /
+  `game[ -]?ver` / `full[ -]?ver` / `version` / `ver` / `inst` / `off[ -]?vocal` /
+  `sped[ -]?up` 等（并修正一处正则坑：**不要把 `\.` 写进 `\b...\b` 之间**）。
+- 新增 `core_title()`（剥版本词）与 `strip_bracket_content()`（剥成对括号及内容，
+  支持 `()（）[]【】{}｛｝`）。二者覆盖不同情况：括号里常带**混音师名**
+  （如 `Asterisk Makina`），那不是版本词，只靠剥版本词剥不掉。
+- `title_score()` 新增 **85 分档**（核心标题一致）。不给 100 是为了让标注完全一致的
+  候选仍然优先。
+- artist 拆解重写：`ARTIST_SEPARATORS` 加入全角括号等 18 个字符；
+  `ARTIST_JOINERS` 改为 `[" feat.", " feat ", " vs.", " vs ", " x ", " with ", " meets "]`
+  —— **不拆裸 `x`/`X`**（会误伤 `Xceon` / `xi`），**不要求尾随空格**
+  （`Xceon feat.森永真由美` 这种中日文写法 `feat.` 后直接接名字）。
+  拆分前先统一小写再取索引（`to_lowercase` 可能改变字节长度，用原串下标会 panic）。
+- 新增 `TITLE_STRONG_SCORE = 85`：标题强匹配时 **artist 只参与排序、不再否决候选**
+  —— CV 标注 / 罗马字假名差异 / 平台只写合作者之一都很常见。
+- `version_adjust()` 改为**非对称**处理三种情况：
+  目标无版本词、候选有（平台自行标注 Remastered / TV Size）→ **中性（0）**，
+  不再扣 10；目标要特定版本、候选没有 → `-10`；双方都有 → 有交集 `+10`、冲突 `-10`。
+- 抓词失败后的回退范围 `is_same_song()`：标题归一化后完全一致、且时长不冲突时，
+  **即使 artist 写法不同也视为同一首**（否则正确歌词会失去回退机会）。
+
+**测试**（新增 14 个，全部离线、不联网）：标题满分 / 强匹配 / 85 分档 /
+版本词覆盖面（含 `Veronica`、`Instinct` 不被误判）/ 主干标题辅助函数 /
+无关标题仍低分 / CV 标注拆分 / 合作署名部分命中 / 连接词不拆散 `Xceon` /
+artist 分数边界 / 版本调整非对称 / 同曲容忍 artist 写法。
+
+## 29.12 检索并发策略调整
+
+**改了什么**：跨源搜索从 `tokio::join!` 改为 `JoinSet`（每源一个独立 tokio 任务）；
+单源内 title/artist 两次搜索从**串行**改为 `tokio::join!`。
+
+**为什么改**（两处原因完全不同，不要混淆）：
+
+- `search_raw()`：`tokio::join!` 只能在**同一个任务里轮流推进**，
+  会把两个源的 **JSON 解析、正则评分等 CPU 工作串行化**，且任意一侧的同步工作
+  都会拖住另一侧。改成独立任务后两路真正并行；单源 panic 由
+  `AssertUnwindSafe(...).catch_unwind()` 捕获，**不影响另一个源**；
+  调用方被取消时 `JoinSet` 随函数 drop，**子任务一并取消**。
+- `search_all_music()` 短标题分支：原先 `search_music(title).await?` 之后再
+  `search_music(&with_artist).await?`，单源要串行等两次网络往返
+  （实测该分支让 `search_sources` 达到 **≈4.5s**，而单次搜索只要 ≈2.2s）。
+  改成 join 后墙钟时间降到一次往返。
+
+**保持不变**：请求参数、合并去重逻辑、错误传播顺序（先 title 后 artist）、返回结果。
+
+## 29.13 单文件发行与启动链
+
+**改了什么**：新增内嵌资源机制、运行目录自举、tosu 自动联动、自动打开控制台、
+本地临时目录；首次启动不再退出。
+
+**为什么改**：目标是**单文件发行** —— 一个 exe 内嵌前端产物与默认字体，
+首次运行自动展开出运行目录，用户无需手工放文件。
+
+**最终实现**：
+
+| 组件 | 位置 | 说明 |
+| --- | --- | --- |
+| 资源收集 | `tosu-proxy/build.rs`（新） | 编译期递归扫描仓库根 `embed/`，生成 `embedded_assets.rs`（`EMBEDDED: &[(&str,&[u8])]`） |
+| 资源引入 | `server/mod.rs` | `include!(concat!(env!("OUT_DIR"), "/embedded_assets.rs"))` |
+| 运行目录 | `ensure_runtime_dir()` | 建 `exe同目录/lyrics/` → 迁移历史上传字体 → 按版本补齐程序资源 → **最后 `set_current_dir(lyrics/)`** |
+| 用户数据保护 | `USER_FILES` | `lyric.db` / `config.json5` 永不写入、永不覆盖 |
+| tosu 联动 | `spawn_tosu_linked()` | 见下 |
+| 自动开浏览器 | `open_controller_page()` | 在 `TcpListener::bind()` **成功之后**调用，端口取自配置不写死 |
+| 本地临时目录 | `use_local_temp_dir()` | 把 `TMP`/`TEMP` 指到程序目录下 `temp/` |
+
+> ⚠️ **`ensure_runtime_dir()` 必须在 `init_logger()` / `init_database()` 之前**。
+> `bin/new.rs` 里已把它放在**最先**：否则建库与迁移会作用在旧 cwd，
+> 导致 `lyrics/lyric.db` 成为空库（`no such table: lyric_cache`），且首次启动需重启。
+
+**首次启动不再退出**：`create_default_config()` 原先在写出默认配置后
+`wait_for_key_press(); std::process::exit(0);`，导致"首次启动无日志、无监听、需重启"。
+现改为**直接返回默认配置**，让本次进程继续初始化，与第二次启动行为一致。
+
+**tosu 自动启动 / 检测 / 退出联动**（tosu 端口 `24050`）：
+
+- **检测**：单次探测不可靠（tosu 可能刚启动尚未监听），因此**重试 6 次**，
+  每次 `connect_timeout(250ms)` + `sleep(250ms)`。
+- **不重复启动**：确认端口已在监听 → 打印日志并返回，避免 `EADDRINUSE`。
+- **独立模式**：同目录没有 `tosu.exe` → 打印"按独立模式运行"，不影响主程序。
+- **工作目录**：`current_dir(dir)` 取 tosu.exe 所在目录，保证其相对路径/配置/DLL 正确。
+- **非阻塞**：不等待、不 kill；stdout/stderr 设为 `piped` 并逐行转发到本进程日志
+  （`info!(target: "tosu", ...)`）。
+- **退出联动**：**刻意不设 `CREATE_NO_WINDOW`** —— 让 tosu 附着到本进程控制台，
+  于是"关闭控制台窗口 / Ctrl+C"会同时传递给 tosu，避免其残留。
+
+**上传相关的三个"必须保留"的修复**（都是为了绕开真实环境限制）：
+
+1. `MAX_UPLOAD_BODY = 32 MiB` + `set_global_secure_max_size(MAX_UPLOAD_BODY)`
+   —— salvo 默认上限远小于字体文件（实测 5MB 的 LRC.otf 在 448KB 处被截断 →
+   服务端 400、浏览器只看到 `TypeError: Failed to fetch`）。
+2. `req.form_data_max_size(MAX_UPLOAD_BODY)` —— **显式指定本次解析上限**，
+   不依赖 request 级/全局设置；salvo 默认 64KB，超限会在**响应发出前**中止读取。
+3. `use_local_temp_dir()` —— salvo 解析 multipart 会先写 `std::env::temp_dir()`
+   （用户级 `%TEMP%`），该目录在本机不可写（`os error 5`），于是**任何**字体上传
+   都会失败。换到程序自己目录下即可绕开。
+
+## 29.14 release 打包脚本
+
+**新增**：`scripts/package-release.ps1`（5 步：前端构建 → 组装 `embed/` →
+后端 release 构建 → 产出 `tosu-lyrics.exe` → 打印产物）与 `scripts/sign-windows.ps1`。
+
+要点：
+
+- 前端输出刻意放到 `tosu-proxy/target/dist-package`，**避免清空 `dist/` 里可能存在的
+  运行时产物**（历史事故见 §28 与 §22 的 `vite build` 清空 dist）。
+- `embed/` 组装内容：`index.html`、`assets/`、`osu.svg`、`static/LRC.otf`、
+  `static/tLRC.otf`、`tosu-proxy/lib/ffprobe.exe`（重命名为 `ffprobe`）。
+- 后端二进制 Cargo 名是 **`osu-lyric`**，打包时重命名为 **`tosu-lyrics.exe`**。
+- 输出目录由 `-FinalDir` 参数指定，不传时默认写到仓库上一级的 `release/`。
+- `sign-windows.ps1`：需要**正式代码签名证书**（`-PfxPath` 或
+  `OSU_LYRIC_PFX_PATH` / `OSU_LYRIC_PFX_PASSWORD` / `OSU_LYRIC_TIMESTAMP_URL`）；
+  **没有证书时明确说明原因并以非零码退出，不会生成假证书，也不会修改
+  Defender / SmartScreen**。SmartScreen 的"发布者：未知"只取决于证书，改源码无法消除。
+- `justfile`：`build-frontend` 新增把 `static/LRC.otf`、`static/tLRC.otf`
+  复制到 `dist/static/`；新增 `@sign` recipe。
+
+## 29.15 日志系统：tosu 风格终端输出
+
+**改了什么**：`config.rs` 的 `init_logger()` 完全重写，用自定义 `FormatEvent` 替代
+原先的 `.compact()` + 默认格式。
+
+**为什么改**：目标是让本程序日志与 tosu 输出在同一个控制台里**列对齐、来源可辨**。
+
+**最终实现**：两行前缀固定宽度对齐（状态线用粗竖线 `┃`，时间戳落在同一列）：
+
+```
+lyrics │         │ 00:00:00.123  消息
+tosu   │ 4.26.2  │ 00:00:00.449  消息
+```
+
+- 级别**只用第二根竖线的颜色**表达（INFO 绿 / WARN 黄 / ERROR 红），不再打印
+  时间戳、`INFO` 字样、模块路径与行号。
+- `target: "tosu"` 的行（转发的 tosu 子进程输出）**原样保留**其自带版本号/时间戳/颜色，
+  只加左侧来源标签 —— 所以**不吞 tosu 自己的格式**。
+- 中段宽度 9 字符，依据 tosu `logger.ts` 的字符串拼接布局推算，使两侧时间戳列一致。
+
+**ANSI 颜色的自适应**（`ansi_enabled()`）：原先写死 `true`，但 Windows 上新开的
+conhost 默认**没有**启用 `ENABLE_VIRTUAL_TERMINAL_PROCESSING`，转义序列会被原样打印，
+日志里就混进 `[2m` 这类可见字符（从 PowerShell 启动时正常，因为继承了宿主的 VT 模式）。
+策略：stdout 非终端（重定向/管道）→ 关闭；Windows → 读控制台模式，已启用就用彩色，
+未启用则**尝试启用一次**，只有启用失败才关掉；其它平台终端即支持。
+为此直接声明了 kernel32 的三个函数（`GetStdHandle` / `GetConsoleMode` / `SetConsoleMode`），
+**不引入额外依赖**。
+
+> `config.rs` 中旧的 `TimeFormat` 与 `wait_for_key_press()` 现已不再被调用。
+
+## 29.16 offset（歌词偏移）改动
+
+**改了什么**：
+
+1. **移除服务端 ±30 秒上限**（原 `put_offset` 会因 `|offset| > 30_000` 返回 400）。
+2. `CurrentLyrics` 的高亮/滚动来源从 HTTP 快照改为 **WS 实时 `cursor`**。
+3. 拖动时立即同步滚动与高亮；松手提交成功后**再刷新一次 `current`**。
+4. 用直接设置列表 `scrollTop` 取代 `scrollIntoView`。
+
+**为什么改**：
+
+- 上限是人为限制，整首歌长度级别的偏移也合理，服务端只需原样保存与生效。
+- 原先用 `c.current()?.current`（`/api/lyrics/current` 的一次性 HTTP 快照），
+  **页面停留不动时永远不会刷新**，于是歌词不跟着播放滚动。
+- 偏移提交后 `current` 行号还是拖动前那一份，高亮会跳回旧行。
+- `scrollIntoView` 会**连带滚动所有可滚动祖先**，包括 Controller 外层的
+  `overflow-y-auto` 容器 —— 表现就是"鼠标滚轮往下滚之后又跳回原位"。
+
+**最终实现**：
+
+- `activeIndex()`：默认取 WS 的 `cursor()`；拖动时以当前行开始时间为基准，
+  加上偏移变化量做线性平移，再在现有行时间里找落点（**复用现有行时间，不新建时间轴**；
+  偏移与行时间同为**毫秒**，可直接相减）。
+- `scrollToIndex()`：`el.offsetTop - (box.clientHeight - el.clientHeight)/2`，
+  只滚列表自身，**外层页面滚动位置完全不受影响**。
+- 本页新增 `autoFollow` signal（替代原「跟随当前行滚动」复选框），
+  预览搜索结果或用户停止跟随时不跟随。
+- 时间显示新增 `formatTime()`：**毫秒 → 固定 `mm:ss`**（分钟允许超过 59）。
+  ⚠️ `/api/lyrics/current` 与 `/api/lyrics/preview` 的 `time` 都是**毫秒**，
+  必须先 `/1000` —— 直接把毫秒当秒用会得到几十倍偏大的分钟数。
+
+## 29.17 其它改动
+
+**缓存标题改记原文**（`lyric_service.rs::save_lyric`）：
+写入值由 `this.title`（tosu 上报的 ascii / 罗马字标题）改为
+**`this.title_unicode`（原文标题）**。原因：缓存页直接展示这个字段，
+而搜索与黑名单本来就用原文标题，记 ascii 会让同一首歌在两处显示成不同名字。
+**只改写入值** —— 不新增字段、不改表结构；`save` 的 upsert 会一并更新 `title`，
+所以已缓存的歌在下次播放重新缓存时会自动变为原文标题。
+
+**阴影默认值变更**：偏移由 `2,2` 改为 **`3,3`**（模糊仍为 3，颜色 `#000000`，默认开启）。
+**前后端两处必须一致**：前端 `DEFAULT_SHADOW`（`stores/settingsStore.ts`）与
+后端 `ShadowSettings::default()`（`model/setting.rs`），两处都有注释互相点名。
+**已保存的用户自定义阴影不受影响**（它们存在设置里，不会回落到默认值）。
+
+**控制台 UI 重排**：
+
+- **路由合并**：`/lyrics/controller/upload` 与 `/shadow` 两个独立路由**删除**，
+  阴影与上传并入「文字样式」页；导航项相应从 7 项减为 5 项。
+- `TextStyle` 页改为**左右两栏**（`xl:flex-row`）：左侧文字样式设置
+  （颜色 / 歌词行数 / 对齐 / 共用字体 / 主副字体 / 字号 / 开关），右侧字体资源与上传。
+  设置项顺序也做了调整（颜色 → 歌词行数 → 对齐方式 → 共用字体 → 字体 → 字号 → 开关）。
+- 各面板标题统一由 `text-2xl` 降为 **`text-xl`**（BlackList / CacheManager / FontSize /
+  Client / Shadow / TextStyle）。
+- `Shadow` 默认**收起**，标题点击展开（`expanded` signal）。
+- `Client` 页改为左右两栏（左侧客户端列表 + 刷新/测试按钮，右侧样式调整），
+  并把原生 `input[type=color]` 换成与文字样式页同一个 **`ColorSelector`**，
+  保证两处视觉一致。
+- **UI 字体隔离**：Controller 内容区与 `Select` 显式钉住
+  `font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif)`。
+  原因：动态的歌词 `font-family` 绝不能顺着继承链污染表单控件 ——
+  原生 `<select>` 一旦继承到缺字的自定义字体就会整体回退成微软雅黑。
+  作用范围仅限 Controller 内容区，`ControllerLayout` 里的 `<LyricsBox />` 在它之外，
+  **歌词自身的字体不受影响**。
+- `Shadow` 页移除了"预览文字 Preview"块与底部取值范围说明；
+  `Shadow/index.tsx` 中 `DEFAULT_SHADOW` 导入随之不再需要。
+
+**PATCH 串行化（重要并发修复）**：`useSettings.ts` 新增**模块级** `patchChain`。
+原因：`saving()` 只是**本实例**的锁，而项目里有多个 `createSettingsController` 实例
+（文字样式 / 阴影 / 在线展示端 / 共用字体开关），它们可以并发 PATCH；
+而每个响应都是**完整的服务端设置快照**，两个 PATCH 同时在途时后到的响应可能携带
+更旧的快照，把刚改好的字段覆盖回去 —— 这正是"改完字体再切对齐方式，字体被还原"的原因。
+串行后响应按发送顺序应用，最后一次应用的就是包含全部改动的状态。
+
+**`.gitignore`**：新增 `/embed/`（打包流程填充的内嵌资源目录，由 `build.rs` 扫描，可空）。
+另：原先忽略 `public/*.otf` 的旧规则**已在本轮之前删除**（`public/LRC.otf` 是项目
+正式运行所需的默认字体，不是编译缓存，全新 clone 后应可直接使用）。
+
+## 29.18 兼容性、测试与注意事项
+
+**前端 / 后端契约同步（改动设置项时必须成对修改）**：
+
+| 位置 | 文件 |
+| --- | --- |
+| 前端类型 | `src/types/globalTypes.ts`（`SettingsDto` / `SettingsPatch`） |
+| 前端 WS 类型 | `src/api/model.ts`（`WebsocketSettingTypeMap`） |
+| 前端 store | `src/stores/settingsStore.ts` + `src/hooks/initializeApp.ts`（`handleSettingBroadcast`） |
+| 后端模型 | `tosu-proxy/src/model/setting.rs`（`LyricSettings` / `Patch` / `SettingKey` / `ALL_SETTING_KEYS`） |
+
+**旧数据兼容**：新增字段 `lyricLines` 在旧配置里不存在 → serde 回落默认 3，
+且 `LyricSettings::load()` 会对读到的值再归一化一次。
+`normalizeFontCode()` 兼容旧的 `""` / `"LRC.otf"` / `"tLRC.otf"` 字体选择码。
+
+**测试**：
+
+- `model/setting.rs` 新增 2 个（行数归一化 + PATCH 全链路）。
+- `lyric/source/mod.rs` 新增 14 个（评分算法，全部离线）。
+- `font_service.rs` 保留关键回归测试
+  `uploaded_font_never_shares_path_with_default_font`。
+- 后端可直接跑：`cd tosu-proxy && cargo check --features=new`（本轮实测 **exit 0**）；
+  `cargo test --features=new` 共 64 个测试。
+  注意其中 3 个依赖外网（`test_qq_lyric_source` / `test_netease_lyric_source` /
+  `lyric/mod.rs::test_parse_lyric`），1 个硬编码了原作者机器的音频路径
+  （`util.rs::test_get_audio_length`，只打印不断言）—— 离线环境下失败属正常。
+- 前端无自动化测试；验证方式为 `pnpm build` 成功 + 实机联调。
+  `pnpm exec tsc --noEmit` 当前有 **13 条历史存量错误**（本轮实测，`exit code 2`）。
+  ⚠️ **注意与早期记录的差异**：§0 / §8 / §20 ~ §27 多处记载 `npx tsc --noEmit` **exit 0**，
+  说明这 13 条是**早期阶段之后**才引入的存量问题，本文档此前**没有**任何章节记录过它们。
+
+  13 条全部集中在遗留的旧协议链（`src/adapters/**`、`src/services/managers/**`、
+  `src/services/configService.ts`、`src/services/webSocketService.ts`、
+  `src/stores/indexStore.ts`、`src/utils/request.ts`），共同根因是它们仍引用
+  `src/config/constants.ts` 重构（改为只导出 `BACKEND_API_BASE` + 自适应 WS）时
+  被移除的旧常量（`SEARCH_MUSIC_URL` / `GET_LYRIC_URL` / `WS_QUERY_TIMEOUT` /
+  `PROXY_URL` / `AUDIO_URL` / `WS_URL` / `BACKEND_CONFIG_URL` / `TIME_DIFF_FILTER`、
+  以及 `@/utils/helpers` 的 `generateRandomString`），另有 `indexStore.ts` 两处
+  `Pair<Shadow>` 与 `Shadow` 的类型不匹配。
+
+  **本轮未修复、也不应顺手修复**（会牵动上面那串遗留模块，回归风险高于收益）；
+  **本轮改动没有新增任何一条**。若要清理，应单独开一次改动并同步更新本节。
+  注意 `pnpm build`（vite）**不做类型检查**，所以这 13 条不会阻塞构建 ——
+  构建成功不代表类型干净。
+
+**发布前检查清单**：
+
+1. `pnpm build` 通过（vite 不做类型检查，构建成功 ≠ 类型干净）。
+2. `pnpm exec tsc --noEmit` 仍为 13 条，未增加。
+3. `cargo check --features=new` 通过。
+4. **`embed/`、`tosu-proxy/target/`、`dist/` 均不存在** —— 仓库当前是"源码态"。
+   直接 `cargo build` 得到的 exe 其 `EMBEDDED` 表是**空的**（`build.rs` 只 warn），
+   不含前端与字体。单文件发行只有一条正经路径：
+   `pwsh -File scripts/package-release.ps1`。
+5. 改了任何内嵌资源（前端产物 / 默认字体 / 新增内嵌文件）都要**递增
+   `RESOURCE_VERSION`**，否则已有安装不会更新资源。
+6. `git status` 中不应出现 `node_modules`、`target`、`embed`、`lyric.db`、
+   `config.json5`、`tosu.exe`、exe 产物、`stats.html` 等运行时数据与构建产物。
+
+**不要顺手改动的地方**（冻结范围，改动风险高于收益）：
+
+- `src/utils/lyricLines.ts` 的行数语义 —— 3 行模式下与历史**逐像素一致是硬性要求**。
+- `LyricsBox` —— `/lyrics` 与 Controller 预览**共用同一次实现**，改一处影响两端。
+- 字体 family 名 `LRC` / `LRC-Sub` —— 这是上传字体的注册名与 CSS 命中名，
+  改名等于所有已上传字体失效。
+- `font_service.rs` 的 `uploaded_font_never_shares_path_with_default_font` 测试。
+- `server/font.rs` 的 `read_static_font`（决定"默认字体从哪来"）与
+  `get_static_font_route()` 的注册位置（必须在静态目录之前）。
+- `ensure_runtime_dir()` 内三步顺序：**迁移 → 释放资源 → 写 manifest**。
+- WS 事件 key 字面量（`setLyricLines` / `setLyricLoading` 等）——
+  已部署的 OBS 页面/浏览器缓存里跑的是旧 bundle，key 改名 = 老页面静默失效。
+- `JoinSet` / `tokio::join!` 的各自用途（见 §29.12），两者**不可互换**。
+
+## 29.19 本轮已确认的已知问题（未修，非本轮引入）
+
+| # | 问题 | 位置 | 说明 |
+| --- | --- | --- | --- |
+| 1 | `static/LRC.otf`、`static/tLRC.otf`、`public/LRC.otf` **三份内容完全相同**（SHA256 均为 `C01078CF5E0CA166…EC0E`，各 7,959,920 B） | `static/`、`public/` | 副字体实际是主字体的副本，视觉上不会有区别。按字体系统设计，副字体本应使用另一款字体。**属既定现状，本轮未改动** |
+| 2 | 配置项 `log` 实际不生效 | `config.rs` | `Config.log_level` 会被反序列化，但全仓库没有 `with_max_level` / `EnvFilter` 等应用点；`init_logger()` 未使用它。调成 `debug` 不会提高日志详细度 |
+| 3 | CI 工作流与当前发行方式不搭 | `.github/workflows/release.yaml` | 它在 `v.*` tag 上构建 `--bin tosu-proxy --features=old` 并 upx + zip，与当前单文件 `tosu-lyrics.exe`（`--bin osu-lyric --features=new`）发行路径无关。**本轮未改动** |
+| 4 | 文档漂移 | `README.md`、`tosu-proxy/README.md` | 仍提到已删除的 `/lyrics/controller/shadow`、`/upload` 路由；shadow 字段写成 `enable/inset/color/offset`（实际为 `enable/color/blur/offsetX/offsetY`）；称 offset 限 "±30s"（本轮已移除该限制）。**本轮未改写文档** |
+| 5 | 空文件 | `src/pages/Controller/ControlTools/Content/StoredLyrics.tsx`、`tosu-proxy/src/service/websocket_service.rs` | 后者甚至未在 `service/mod.rs` 中声明 `mod`。无害，但会让人以为存在未完成功能 |
+| 6 | Rust 侧死代码被 `[lints.rust] unused = "allow"` 掩盖 | 后端多处 | 未使用的函数/结构编译器不会提示，阅读时需自行留意 |
+| 7 | 13 条 TypeScript baseline errors | 前端遗留模块（`adapters/**`、`services/managers/**`、`configService`、`webSocketService`、`indexStore`、`utils/request`） | 早期阶段之后引入的存量问题，本文档此前未记录（§0/§8/§20~§27 记载的仍是 `tsc --noEmit` exit 0）。共同根因是引用了 `config/constants.ts` 重构时移除的旧常量。**已知、本轮未修、不得再增加**；详见 §29.18 |
+| 8 | 3 个测试依赖外网、1 个硬编码个人路径 | `lyric/mod.rs`、`lyric/source/mod.rs`、`util.rs` | 离线环境下 `cargo test` 会失败，非代码缺陷 |
+
+## 29.20 本轮涉及的文件清单
+
+**修改（38）**
+
+```
+.gitignore
+justfile
+src/api/model.ts
+src/api/websocket.ts
+src/components/ui/Select.tsx
+src/components/ui/index.tsx
+src/hooks/initializeApp.ts
+src/hooks/useLyricsContent.ts
+src/hooks/useSettings.ts
+src/pages/Controller/ControlTools/BlackList/index.tsx
+src/pages/Controller/ControlTools/CacheManager/index.tsx
+src/pages/Controller/ControlTools/Client/index.tsx
+src/pages/Controller/ControlTools/Content/CurrentLyrics.tsx
+src/pages/Controller/ControlTools/Content/SearchResult.tsx
+src/pages/Controller/ControlTools/Content/index.tsx
+src/pages/Controller/ControlTools/Shadow/index.tsx
+src/pages/Controller/ControlTools/TextStyle/Font.tsx
+src/pages/Controller/ControlTools/TextStyle/FontSize.tsx
+src/pages/Controller/ControlTools/TextStyle/TextColor.tsx
+src/pages/Controller/ControlTools/TextStyle/index.tsx
+src/pages/Controller/ControlTools/Upload/index.tsx
+src/pages/Controller/index.tsx
+src/pages/LyricsBox/index.tsx
+src/routes/index.tsx
+src/services/uploadService.ts
+src/stores/lyricStore.ts
+src/stores/settingsStore.ts
+src/types/globalTypes.ts
+src/utils/fonts.ts
+tosu-proxy/src/bin/new.rs
+tosu-proxy/src/config.rs
+tosu-proxy/src/lyric/source/mod.rs
+tosu-proxy/src/model/setting.rs
+tosu-proxy/src/server/font.rs
+tosu-proxy/src/server/lyrics.rs
+tosu-proxy/src/server/mod.rs
+tosu-proxy/src/service/font_service.rs
+tosu-proxy/src/service/lyric_service.rs
+```
+
+**新增（10）**
+
+```
+scripts/package-release.ps1                     单文件 release 打包
+scripts/sign-windows.ps1                        Authenticode 签名（可选）
+static/LRC.otf                                  随包默认主字体（7.9 MB）
+static/tLRC.otf                                 随包默认副字体（7.9 MB，当前与主字体字节相同）
+tosu-proxy/build.rs                             扫描 embed/ 生成内嵌资源表
+src/components/ui/FontPicker.tsx                自绘字体下拉
+src/pages/Controller/ControlTools/TextStyle/LyricLines.tsx    歌词行数设置
+src/pages/Controller/ControlTools/Upload/FontModeToggle.tsx   共用/分开字体开关
+src/stores/fontModeStore.ts                     字体模式（localStorage）
+src/utils/lyricLines.ts                         行数语义唯一实现
+```
+
+**删除（0）**
+
+本轮**没有删除任何文件**。`routes/index.tsx` 中删除的只是 `/upload` 与 `/shadow`
+两条**路由注册**，对应的组件文件 `Upload/index.tsx`、`Shadow/index.tsx` 仍保留
+（现已并入「文字样式」页使用）。

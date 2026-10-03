@@ -8,6 +8,28 @@ pub const ALIGNMENTS: [&str; 3] = ["left", "center", "right"];
 pub const MIN_FONT_SIZE: f32 = 0.5;
 pub const MAX_FONT_SIZE: f32 = 12.0;
 pub const MAX_FONT_NAME_LEN: usize = 128;
+/// 歌词行数（可见窗口）的取值范围：只允许奇数
+pub const MIN_LYRIC_LINES: i32 = 1;
+pub const MAX_LYRIC_LINES: i32 = 15;
+pub const DEFAULT_LYRIC_LINES: i32 = 3;
+
+/// 歌词行数归一化：任何来源（旧数据 / 手改 / 越界 / 偶数）都收敛到合法奇数。
+///
+/// - 小于下限 → 1，大于上限 → 15
+/// - 偶数 → 相邻合法奇数（向上优先，15 封顶时向下）
+///
+/// 渲染层只会拿到 1 / 3 / 5 / 7 / 9 / 11 / 13 / 15（前端
+/// `utils/lyricLines.ts` 的 `normalizeLyricLines` 是同一套规则）。
+pub fn normalize_lyric_lines(value: i32) -> i32 {
+    let clamped = value.clamp(MIN_LYRIC_LINES, MAX_LYRIC_LINES);
+    if clamped % 2 == 1 {
+        clamped
+    } else if clamped + 1 <= MAX_LYRIC_LINES {
+        clamped + 1
+    } else {
+        clamped - 1
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Pair<T> {
@@ -55,14 +77,15 @@ pub struct ShadowSettings {
 
 impl Default for ShadowSettings {
     /// 必须与前端 DEFAULT_SHADOW（stores/settingsStore.ts）保持一致，
-    /// 否则新装与"恢复默认样式"会给出不同结果
+    /// 否则新装与"恢复默认样式"会给出不同结果。
+    /// 默认偏移与模糊都是 3px；已保存的自定义值不受影响（不会回落到这里）。
     fn default() -> Self {
         Self {
             enable: true,
             color: "#000000".to_string(),
             blur: 3.0,
-            offset_x: 2.0,
-            offset_y: 2.0,
+            offset_x: 3.0,
+            offset_y: 3.0,
         }
     }
 }
@@ -79,6 +102,8 @@ pub struct LyricSettings {
     pub alignment: String,
     pub translation_main: bool,
     pub second_show: bool,
+    /// 歌词行数（可见窗口）：合法值只有 1/3/5/…/15，当前歌词始终居中，缺失时为 3
+    pub lyric_lines: i32,
     pub shadow: Pair<ShadowSettings>,
 }
 
@@ -91,6 +116,7 @@ impl Default for LyricSettings {
             alignment: "center".to_string(),
             translation_main: true,
             second_show: true,
+            lyric_lines: DEFAULT_LYRIC_LINES,
             shadow: Pair::same(ShadowSettings::default()),
         }
     }
@@ -106,6 +132,7 @@ pub struct LyricSettingsPatch {
     pub alignment: Option<String>,
     pub translation_main: Option<bool>,
     pub second_show: Option<bool>,
+    pub lyric_lines: Option<i32>,
     pub shadow: Option<Pair<ShadowSettings>>,
 }
 
@@ -117,6 +144,7 @@ pub enum SettingKey {
     Alignment,
     TranslationMain,
     SecondShow,
+    LyricLines,
     Shadow,
 }
 
@@ -130,18 +158,20 @@ impl SettingKey {
             SettingKey::Alignment => "setAlignment",
             SettingKey::TranslationMain => "setTranslationMain",
             SettingKey::SecondShow => "setSecondShow",
+            SettingKey::LyricLines => "setLyricLines",
             SettingKey::Shadow => "setShadow",
         }
     }
 }
 
-pub const ALL_SETTING_KEYS: [SettingKey; 7] = [
+pub const ALL_SETTING_KEYS: [SettingKey; 8] = [
     SettingKey::TextColor,
     SettingKey::FontSize,
     SettingKey::Font,
     SettingKey::Alignment,
     SettingKey::TranslationMain,
     SettingKey::SecondShow,
+    SettingKey::LyricLines,
     SettingKey::Shadow,
 ];
 
@@ -200,6 +230,15 @@ fn validate_font_name(value: &str) -> Result<()> {
     Ok(())
 }
 
+fn validate_lyric_lines(value: i32) -> Result<()> {
+    if !(MIN_LYRIC_LINES..=MAX_LYRIC_LINES).contains(&value) || value % 2 == 0 {
+        return Err(invalid(format!(
+            "歌词行数必须是 {MIN_LYRIC_LINES}~{MAX_LYRIC_LINES} 之间的奇数: {value}"
+        )));
+    }
+    Ok(())
+}
+
 impl LyricSettings {
     pub async fn load() -> Self {
         let Some(raw) = SettingEntity::get_config(SETTINGS_DB_KEY)
@@ -210,7 +249,11 @@ impl LyricSettings {
             return Self::default();
         };
         match crate::util::to_json::<Self>(&raw) {
-            Ok(settings) => settings,
+            Ok(mut settings) => {
+                // 旧数据 / 手改过的值也要收敛到合法行数（缺失时 serde 已给默认 3）
+                settings.lyric_lines = normalize_lyric_lines(settings.lyric_lines);
+                settings
+            }
             Err(err) => {
                 tracing::error!("设置解析失败，回退默认值: {err}");
                 Self::default()
@@ -233,6 +276,7 @@ impl LyricSettings {
         validate_font_name(&self.font.second)?;
         validate_shadow(&self.shadow.first)?;
         validate_shadow(&self.shadow.second)?;
+        validate_lyric_lines(self.lyric_lines)?;
         if !ALIGNMENTS.contains(&self.alignment.as_str()) {
             return Err(invalid(format!(
                 "对齐方式必须是 {ALIGNMENTS:?} 之一: {}",
@@ -263,6 +307,10 @@ impl LyricSettings {
         if let Some(value) = patch.second_show {
             next.second_show = value;
         }
+        if let Some(value) = patch.lyric_lines {
+            // 归一化后才落库 / 广播：渲染层拿到的永远是合法奇数
+            next.lyric_lines = normalize_lyric_lines(value);
+        }
         if let Some(value) = patch.shadow {
             next.shadow = value;
         }
@@ -290,6 +338,9 @@ impl LyricSettings {
         if self.second_show != before.second_show {
             changed.push(SettingKey::SecondShow);
         }
+        if self.lyric_lines != before.lyric_lines {
+            changed.push(SettingKey::LyricLines);
+        }
         if self.shadow != before.shadow {
             changed.push(SettingKey::Shadow);
         }
@@ -304,6 +355,7 @@ impl LyricSettings {
             SettingKey::Alignment => serde_json::json!(Pair::same(&self.alignment)),
             SettingKey::TranslationMain => serde_json::json!(self.translation_main),
             SettingKey::SecondShow => serde_json::json!(self.second_show),
+            SettingKey::LyricLines => serde_json::json!(self.lyric_lines),
             SettingKey::Shadow => serde_json::json!(self.shadow),
         }
     }
@@ -337,17 +389,70 @@ mod test {
         assert_eq!(d.alignment, "center");
         assert!(d.translation_main);
         assert!(d.second_show);
+        assert_eq!(d.lyric_lines, DEFAULT_LYRIC_LINES);
+    }
+
+    /// 歌词行数：缺失 → 3，越界收敛到 1 / 15，偶数收敛到相邻奇数，禁止偶数
+    #[test]
+    fn lyric_lines_normalization() {
+        // 合法奇数原样保留
+        for value in [1, 3, 5, 7, 9, 11, 13, 15] {
+            assert_eq!(normalize_lyric_lines(value), value);
+        }
+        // 越界
+        assert_eq!(normalize_lyric_lines(0), 1);
+        assert_eq!(normalize_lyric_lines(-7), 1);
+        assert_eq!(normalize_lyric_lines(16), 15);
+        assert_eq!(normalize_lyric_lines(99), 15);
+        // 偶数 → 相邻合法奇数（向上优先，15 封顶时向下）
+        assert_eq!(normalize_lyric_lines(2), 3);
+        assert_eq!(normalize_lyric_lines(4), 5);
+        assert_eq!(normalize_lyric_lines(14), 15);
+        for value in -20..=40 {
+            let normalized = normalize_lyric_lines(value);
+            assert!(
+                (MIN_LYRIC_LINES..=MAX_LYRIC_LINES).contains(&normalized) && normalized % 2 == 1,
+                "归一化结果必须是合法奇数: {value} -> {normalized}"
+            );
+        }
+    }
+
+    /// 行数经过 PATCH 落库 / 广播的完整链路，且只影响这一个设置
+    #[test]
+    fn lyric_lines_patch_roundtrip() {
+        let before = LyricSettings::default();
+        let patch: LyricSettingsPatch =
+            serde_json::from_str(r#"{"lyricLines":7}"#).expect("patch 解析");
+        let after = before.with_patch(patch).expect("patch 应用");
+        assert_eq!(after.lyric_lines, 7);
+        assert_eq!(after.changed_keys(&before), vec![SettingKey::LyricLines]);
+        assert_eq!(SettingKey::LyricLines.ws_key(), "setLyricLines");
+        assert_eq!(
+            after.key_value(SettingKey::LyricLines),
+            serde_json::json!(7)
+        );
+        // 其他设置必须原样保留
+        assert_eq!(after.text_color, before.text_color);
+        assert_eq!(after.font_size, before.font_size);
+        assert_eq!(after.alignment, before.alignment);
+        assert_eq!(after.second_show, before.second_show);
+        assert_eq!(after.shadow, before.shadow);
+        // 偶数会被归一化，而不会报错
+        let even: LyricSettingsPatch =
+            serde_json::from_str(r#"{"lyricLines":6}"#).expect("patch 解析");
+        assert_eq!(before.with_patch(even).expect("patch 应用").lyric_lines, 7);
     }
 
     #[test]
     fn shadow_defaults() {
         let d = ShadowSettings::default();
-        // 主 / 副默认都开启，且默认黑色 —— 与前端 DEFAULT_SHADOW 必须一致
+        // 主 / 副默认都开启、默认黑色、偏移与模糊都是 3px
+        // —— 与前端 DEFAULT_SHADOW 必须一致
         assert!(d.enable, "默认应开启阴影");
         assert_eq!(d.color, "#000000");
         assert_eq!(d.blur, 3.0);
-        assert_eq!(d.offset_x, 2.0);
-        assert_eq!(d.offset_y, 2.0);
+        assert_eq!(d.offset_x, 3.0);
+        assert_eq!(d.offset_y, 3.0);
     }
 
     #[test]
@@ -402,6 +507,7 @@ mod test {
         assert_eq!(after.font, before.font);
         assert_eq!(after.translation_main, before.translation_main);
         assert_eq!(after.second_show, before.second_show);
+        assert_eq!(after.lyric_lines, before.lyric_lines);
         assert_eq!(after.changed_keys(&before), vec![SettingKey::Alignment]);
     }
 
@@ -430,6 +536,7 @@ mod test {
         assert!(json.get("translationMain").is_some());
         assert!(json.get("secondShow").is_some());
         assert_eq!(json["textColor"]["first"], "#ffffff");
+        assert_eq!(json["lyricLines"], DEFAULT_LYRIC_LINES);
     }
 
     /// 旧数据只写了部分字段时, 缺失字段必须回落到默认值而不是解析失败
@@ -440,6 +547,8 @@ mod test {
         assert_eq!(settings.alignment, "right");
         assert_eq!(settings.font_size.first, 3.0);
         assert!(settings.second_show);
+        // 老配置文件没有 lyricLines → 默认 3 行
+        assert_eq!(settings.lyric_lines, DEFAULT_LYRIC_LINES);
     }
 
     #[test]
