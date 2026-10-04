@@ -57,7 +57,20 @@ export const UPLOADED_SUB_FAMILY = "LRC-Sub";
 export const DEFAULT_MAIN_FAMILY = "LRC-Default";
 export const DEFAULT_SUB_FAMILY = "LRC-Sub-Default";
 
-/** 字体选择码：强制使用内置 LRC.otf / tLRC.otf */
+/**
+ * 「默认字体」解析到的**系统回退字体栈**。
+ *
+ * 与改动前逐字符一致：旧版本把 `font-family` 整个删掉、由元素继承 `html` 的字体，
+ * 而 `html` 的字体正是 Tailwind preflight 的 `var(--default-font-family)`
+ * （其值即 `var(--font-sans)`）。Windows 上就是「拉丁 Segoe UI + 中日韩 Microsoft YaHei」。
+ *
+ * 注意这是一整个 CSS `font-family` 列表，**不是** FontFace 的 family 名：
+ * 不能拿它去 `loadFamily()` 注册，也**不需要**为默认字体新增字体文件。
+ */
+export const DEFAULT_SYSTEM_FAMILY =
+    "var(--font-sans, ui-sans-serif, system-ui, sans-serif)";
+
+/** 字体选择码：使用默认字体（系统回退字体栈，见 `DEFAULT_SYSTEM_FAMILY`） */
 export const FONT_CODE_DEFAULT = "default";
 /** 字体选择码：强制使用上传字体（不存在时回落内置） */
 export const FONT_CODE_UPLOADED = "uploaded";
@@ -186,7 +199,12 @@ export async function loadFont(): Promise<{
     const mainFamily = uploadedMain
         ? UPLOADED_MAIN_FAMILY
         : DEFAULT_MAIN_FAMILY;
-    const subFamily = uploadedSub ? UPLOADED_SUB_FAMILY : DEFAULT_SUB_FAMILY;
+    // 副歌词在没有独立字体选择时会优先用 `loadedSubFamily()`（见 LyricsBox），
+    // 所以副字体这一档的"没有上传"必须与默认字体同义 —— 系统回退字体栈；
+    // 主歌词没有这条旁路，走 `resolveFamily()` 的默认分支。
+    const subFamily = uploadedSub
+        ? UPLOADED_SUB_FAMILY
+        : DEFAULT_SYSTEM_FAMILY;
 
     setLoadedMainFamily(mainFamily);
     setLoadedSubFamily(subFamily);
@@ -198,7 +216,7 @@ export async function loadFont(): Promise<{
  * 旧配置里可能存过的**字体家族名**：它们以前被直接当成 CSS family 使用
  * （上传字体与内置字体共用同一个 family），所以统一按"自动"处理。
  *
- * 注意 `""` **不在**这里：空值必须解析成程序自带的默认字体，
+ * 注意 `""` **不在**这里：空值必须解析成默认字体（系统回退字体栈），
  * 否则"默认字体"会被上传字体顶掉（见 `normalizeFontCode`）。
  */
 const LEGACY_AUTO_CODES = new Set([
@@ -213,7 +231,8 @@ function needsBuiltinFont(rawCode: string, hasUploaded: boolean): boolean {
     const code = normalizeFontCode(rawCode);
     // 自动档：没有上传字体时只能用内置
     if (isAutoCode(code)) return !hasUploaded;
-    if (code === FONT_CODE_DEFAULT) return true;
+    // 默认档：现在解析成系统回退字体栈，不再需要内置字体文件
+    if (code === FONT_CODE_DEFAULT) return false;
     // 强制上传但当前没有上传字体 → 会回落到内置，所以要内置可用
     if (code === FONT_CODE_UPLOADED) return !hasUploaded;
     // 系统字体名：与改动前一致，不需要内置字体
@@ -227,9 +246,9 @@ function needsBuiltinFont(rawCode: string, hasUploaded: boolean): boolean {
  * 不会产生 `font-family: undefined`，也不会产生空的选择列表。
  *
  * 映射关系（先经 `normalizeFontCode` 归一化历史值）：
- * - `""` / `"LRC.otf"` / `"tLRC.otf"`（旧配置）→ **默认字体**（随包内置资源）
+ * - `""` / `"LRC.otf"` / `"tLRC.otf"`（旧配置）→ **默认字体**（系统回退字体栈）
  * - `"LRC"` / `"LRC-Sub"`（旧 family 名）→ 自动（有上传用上传，否则内置）
- * - `FONT_CODE_DEFAULT`  → `LRC-Default` / `LRC-Sub-Default`（内置随包字体）
+ * - `FONT_CODE_DEFAULT`  → 系统回退字体栈（`DEFAULT_SYSTEM_FAMILY`，即改动前的默认观感）
  * - `FONT_CODE_UPLOADED` → `LRC` / `LRC-Sub`（上传字体，缺失则回落内置）
  * - 其它                 → 系统字体名，原样使用
  */
@@ -241,7 +260,7 @@ export function resolveFamily(code: string, kind: "main" | "sub"): string {
     const uploaded = isMain ? UPLOADED_MAIN_FAMILY : UPLOADED_SUB_FAMILY;
 
     if (isAutoCode(normalized)) return auto || builtin;
-    if (normalized === FONT_CODE_DEFAULT) return builtin;
+    if (normalized === FONT_CODE_DEFAULT) return DEFAULT_SYSTEM_FAMILY;
     if (normalized === FONT_CODE_UPLOADED) {
         return isFamilyRegistered(uploaded) ? uploaded : builtin;
     }
