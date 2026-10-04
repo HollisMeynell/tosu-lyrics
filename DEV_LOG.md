@@ -2874,3 +2874,59 @@ src/utils/lyricLines.ts                         行数语义唯一实现
   （与 `scripts/package-release.ps1` 第 [4/5] 步一致）。
 - 本轮发布目录 `release-test/` 只保留 `tosu-lyrics.exe`，旧的 `osu-lyric.exe` 已删除。
 - 已实测启动该产物：`GET /lyrics/` 正常返回并通过本次新前端（内嵌 `index-Np7zGYY7.js`）。
+
+---
+
+## 30. 2026-10-04 NetEase-first 歌词搜索性能优化
+
+**范围**：只改搜索的**执行时机**与**查询安全性**，**匹配算法零改动**
+（`title_score` / `artist_score` / `is_same_song` / `preferred_song` / `version_adjust` /
+准入阈值全部保持原样）。基线 `ecb4815`（= `origin/dev`）。
+
+**改动文件（仅 2 个）**：
+`tosu-proxy/src/lyric/source/mod.rs`、`tosu-proxy/src/service/lyric_service.rs`
+
+1. **NetEase-first 流水线**：`search_raw` 拆出 `spawn_sources()`（返回 `JoinSet`），
+   `load_plan` 改为流式 join —— NetEase 结果一到手就立刻发布候选并走自己的
+   "排序 → 准入 → 取词"，**命中即提交、不再等 QQ**；未命中才继续等 QQ 并走 QQ 兜底取词。
+   generation / bid / 取消语义未新增旁路（提交仍只经 `commit_search`）。
+2. **`title + artist` 提前并发 + 查询长度检查**：`search_all_music` 始终并发发出
+   `title` 与 `title+artist` 两条查询并合并去重（顺序：纯 title 结果在前）；
+   `need_extra` 不再发第二次请求（结果已由并发预取）。
+
+**query 长度上限（真实网络实测，非估算）**
+
+| 源 | 实测边界 | 采用安全上限 |
+|---|---|---|
+| QQ | URL 9772 成功 / 9872 → HTTP 400 | **8000** |
+| NetEase | URL 8154 成功 / 8204 → HTTP 200 但 body `{"code":400}` | **7000** |
+
+长度按 **percent-encoding 之后的整条 URL** 计算（借 `reqwest::Url` 解析，
+与真实请求同一套编码规则），不是 `String::len()`。超限时**完全不发** `title+artist`，
+直接只用 `title`（不截断、不靠服务端报错后兜底）。
+
+**验证（真实网络 / 24 首真实 Ranked 谱面 / Class A 12 首，冷缓存全新隔离目录）**
+
+| 指标 | BEFORE | AFTER |
+|---|---:|---:|
+| `wall` P50 | 3281ms | **579ms**（-82.4%） |
+| `wall` MAX | 5833ms | **3810ms**（-34.7%） |
+| 取词阶段 MAX | 2019ms | **100ms**（-95%） |
+| 成功取到歌词 | 7/12 | **7/12（未下降）** |
+
+- 单元测试 67 项通过（含 5 项新增的长度检查测试）；`cargo check` / release 构建 /
+  官方单文件打包均通过。
+- 切歌取消：6/6 组判定"旧任务已取消"（NetEase-first 未削弱取消语义）。
+- 超长边界实测：9/9 用例符合预期（长日文 700 字、极长 ASCII 9000、极长日文 2000 均正确跳过）。
+- 前端**不直连** QQ / NetEase：`src/adapters/**` + `services/managers/tosuManager.ts`
+  为**无导入者的死代码**，切歌期间前端只轮询只读接口 `GET /api/lyrics/search-results`。
+
+**已知边界（如实记录，勿高估）**：NetEase 命中时，QQ 的搜索请求**已经发出**
+（日志显示两条分支日志在 2ms，NetEase 命中在 ~570ms），随后 `JoinSet` drop 使 task
+被取消、连接被取消 —— **优化省掉的是"等待"，不是"请求"**。
+代码可以证明"task 被创建并执行到 `send()` 后被取消"，但**无法证明底层 HTTP 字节是否已到达服务端**
+（需要 TRACE 级 reqwest 帧日志或抓包）。
+
+**测试产物**（是否入库由使用者决定）：`perf/`（数据集 + 分析脚本 + BEFORE/AFTER 结果 JSON）、
+`tosu-proxy/tests/perf_realdata.rs`（真实网络 harness，Class A/B/C）。
+`perf/baseline_*.log` 已被 `.gitignore` 的 `*.log` 规则忽略。
