@@ -27,6 +27,80 @@ const MIN_TITLE_SCORE: i32 = 45;
 /// 此时 artist 只参与排序, 不再能否决候选
 const TITLE_STRONG_SCORE: i32 = 85;
 
+// ---------------------------------------------------------------------------
+// 搜索 query 长度安全检查
+//
+// 背景: `title + artist` 会随 `search_music` 直接拼进各家搜索接口的 URL
+// (见 `qq.rs::search_url` / `netease.rs::search_url`)。两个源都是字符串拼接,
+// 代码里**没有任何长度上限**, 而超长 query 的服务端行为是"静默失败":
+// QQ 直接返回 400, NetEase 返回 HTTP 200 + body `{"code":400}`
+// (后者会被现有代码当成"无结果", 完全无声)。
+//
+// 因此这里在**发出请求之前**先判断长度, 超长就直接退化为"只搜 title"。
+// 注意长度必须是 **percent-encoding 之后**的 URL 字符数, 而不是
+// `String::len()`(UTF-8 字节数): 日文/中文/韩文一个字符 3 字节,
+// 编码后膨胀成 9 个 URL 字符(实测同一 encoded 长度下 ASCII 与日文行为一致)。
+// ---------------------------------------------------------------------------
+
+/// QQ 搜索 URL 的固定前缀 —— 与 `qq.rs::search_url` 逐字一致, 仅用于测量。
+const QQ_SEARCH_URL_PREFIX: &str =
+    "https://c.y.qq.com/soso/fcgi-bin/client_search_cp?p=1&n=5&format=json&w=";
+
+/// NetEase 搜索 URL 的固定前缀 —— 与 `netease.rs::search_url` 逐字一致, 仅用于测量。
+const NETEASE_SEARCH_URL_PREFIX: &str = "https://music.163.com/api/search/get?s=";
+
+/// NetEase 搜索 URL 里跟在 query **之后**的固定部分。
+/// 必须计入长度, 否则测量结果会比重测边界小 15 个字符。
+const NETEASE_SEARCH_URL_SUFFIX: &str = "&type=1&limit=5";
+
+/// QQ 搜索接口可接受的 URL 长度安全上限(**含固定前缀/后缀的整条 URL**)。
+///
+/// 实测依据(真实请求, 纯 ASCII query, 在边界附近逐 100 字符扫描):
+/// ```text
+/// URL 9772 字符  → HTTP 200, 正常 JSON
+/// URL 9872 字符  → HTTP 400(服务端拒绝)
+/// URL 18085 字符 → HTTP 414 Request-URI Too Large
+/// ```
+/// 取 8000 作为保守上限: 比实测失败边界低约 18%, 给网关/负载变化留余量。
+const QQ_SEARCH_URL_MAX: usize = 8000;
+
+/// NetEase 搜索接口可接受的 URL 长度安全上限(**含固定前缀/后缀的整条 URL**)。
+///
+/// 实测依据(真实请求, 纯 ASCII query):
+/// ```text
+/// URL 8154 字符 → HTTP 200 且业务正常(code=200, 返回歌曲列表)
+/// URL 8204 字符 → HTTP 200 但 body = {"code":400,"message":"请求解析失败!"}
+/// ```
+/// 注意 NetEase **不返回 4xx**, 而是用 HTTP 200 + 业务错误码表达失败,
+/// 现有代码会把它当"无结果", 所以超长 query 是**静默**退化的。
+/// 取 7000 作为保守上限: 比实测失败边界低约 14%。
+const NETEASE_SEARCH_URL_MAX: usize = 7000;
+
+/// 按来源名返回 (URL 前缀, URL 后缀, 安全上限)。未知来源返回 `None`,
+/// 调用方必须按"不安全"处理(即不发 title+artist)。
+fn search_url_limit(source: &str) -> Option<(&'static str, &'static str, usize)> {
+    match source {
+        "QQ" => Some((QQ_SEARCH_URL_PREFIX, "", QQ_SEARCH_URL_MAX)),
+        "Netease" => Some((
+            NETEASE_SEARCH_URL_PREFIX,
+            NETEASE_SEARCH_URL_SUFFIX,
+            NETEASE_SEARCH_URL_MAX,
+        )),
+        _ => None,
+    }
+}
+
+/// 用与真实请求**完全相同**的方式测量整条 URL 的字符数(query 已按 URL 规则编码)。
+///
+/// 直接借项目已有的 `reqwest::Url` 解析, 因此与真实请求走同一套 url crate 的
+/// percent-encoding 规则(不用手写编码器, 避免规则不一致)。
+/// 解析失败(例如 query 含控制字符)返回 `None` ⇒ 调用方按不安全处理。
+fn encoded_search_url_len(prefix: &str, query: &str, suffix: &str) -> Option<usize> {
+    reqwest::Url::parse(&format!("{prefix}{query}{suffix}"))
+        .ok()
+        .map(|u| u.as_str().len())
+}
+
 macro_rules! static_source {
     ($($name:ident : $t:ident),* $(,)?) => {
         $(
@@ -435,9 +509,11 @@ pub trait LyricSource: Send + Sync {
     }
 
     /// 搜索策略:
-    /// - 标题足够独特: 只搜 title(与旧版一致), 无结果时用 title+artist 兜底
-    /// - 标题过短/常见: 同时发出纯 title 与 title+artist 两条查询,
-    ///   合并去重(纯 title 结果在前), artist 仅作为辅助信息
+    /// - artist 可用: **并发**发出「纯 title」与「title + artist」两条查询,
+    ///   合并去重(纯 title 结果在前, 与原先"补充搜索结果追加到末尾"的顺序一致)
+    /// - artist 不可用: 只搜 title
+    /// - `title + artist` 超过该源 URL 长度安全上限时: **完全不发**这条查询,
+    ///   只用 title(上限与依据见文件顶部的 `QQ_SEARCH_URL_MAX` / `NETEASE_SEARCH_URL_MAX`)
     /// `length` 使用 毫秒数
     async fn search_all_music(&self, title: &str, artist: &str) -> Result<Vec<SongInfo>> {
         let artist_usable = !artist.trim().is_empty();
@@ -447,34 +523,64 @@ pub trait LyricSource: Send + Sync {
             String::new()
         };
 
-        if artist_usable && is_short_title(title) {
-            // 两次搜索**并发**发出。
-            //
-            // 原先这里是 `search_music(title).await?` 之后再 `search_music(&with_artist).await?`，
-            // 单个源要串行等两次网络往返（实测该分支让 search_sources 达到 ≈4.5s，而单次
-            // 搜索只要 ≈2.2s）。改成 join 后墙钟时间降到一次往返。
-            // 请求参数、合并去重逻辑、错误传播顺序（先 title 后 artist）与返回结果都不变。
-            let (by_title, by_artist) = tokio::join!(
-                self.search_music(title),
-                self.search_music(&with_artist)
-            );
-            let mut merged = by_title?;
-            for song in by_artist? {
-                if !merged.iter().any(|m| m.key == song.key) {
-                    merged.push(song);
-                }
-            }
-            return Ok(merged);
+        if !artist_usable {
+            debug!("[perf] (s) {} 分支=仅 title(artist 为空)", self.name());
+            return self.search_music(title).await;
         }
 
-        let song_all = self.search_music(title).await?;
-        if !song_all.is_empty() {
-            return Ok(song_all);
+        // ---- 安全检查: title+artist 是否长到不能发给这个源 ----
+        //
+        // 超长时**完全不发**这条查询: 不截断 title、不截断 artist、
+        // 也不用"先发出去等服务端报错再 fallback"的做法(那会白多一次失败请求)。
+        let within_limit = match search_url_limit(self.name()) {
+            Some((prefix, suffix, max)) => {
+                match encoded_search_url_len(prefix, &with_artist, suffix) {
+                    Some(len) => len <= max,
+                    None => false, // 无法测量 ⇒ 保守地不发
+                }
+            }
+            None => false, // 未知来源 ⇒ 保守地不发
+        };
+        if !within_limit {
+            debug!(
+                "[perf] (s) {} 分支=超长跳过 title+artist(仅用 title) query_chars={}",
+                self.name(),
+                with_artist.chars().count(),
+            );
+            return self.search_music(title).await;
         }
-        if artist_usable {
-            return self.search_music(&with_artist).await;
+
+        // ---- title 与 title+artist **并发**发出 ----
+        //
+        // 原先只有"短标题"走并发; 非短标题先只搜 title, 返回空才**串行**兜底搜
+        // title+artist, 而 `search_lyrics` 里的 `need_extra` 还会再**串行**补一次。
+        // 单源搜索实测约 2.2~3.4 秒(QQ 侧), 那条串行往返会让墙钟直接翻倍
+        // (实测 CANNIBALISM: 2769ms + 2928ms + 104ms = 5805ms)。
+        //
+        // 这里两条查询的字符串与原先兜底/need_extra 用的**完全相同**,
+        // 合并顺序(纯 title 结果在前)也相同, 所以候选集合与排序结果不变,
+        // 只是省掉了一次串行网络往返。
+        debug!(
+            "[perf] (s) {} 分支=title+artist 并发 query_chars={}",
+            self.name(),
+            with_artist.chars().count(),
+        );
+        let (by_title, by_artist) = tokio::join!(
+            self.search_music(title),
+            self.search_music(&with_artist)
+        );
+        let mut merged = by_title?;
+        for song in by_artist? {
+            if !merged.iter().any(|m| m.key == song.key) {
+                merged.push(song);
+            }
         }
-        Ok(song_all)
+        debug!(
+            "[perf] (s) {} 分支结束=title+artist 并发 候选={}",
+            self.name(),
+            merged.len()
+        );
+        Ok(merged)
     }
 
     /// 按排序后的候选逐个尝试取词; length 为 0 表示时长未知
@@ -500,12 +606,18 @@ pub trait LyricSource: Send + Sync {
                 .first()
                 .map(|c| artist_score(artist, &c.artist) == 0)
                 .unwrap_or(false);
-        if need_extra && let Ok(extra) = self.search_music(&format!("{title} {artist}")).await {
-            for s in extra {
-                if !song_all.iter().any(|m| m.key == s.key) {
-                    song_all.push(s);
-                }
-            }
+        if need_extra {
+            // `title + artist` 的结果**已经**由 `search_all_music` 并发取回并合并进
+            // `song_all`(查询串、去重规则、合并顺序都相同), 所以这里不再发第二次请求。
+            //
+            // 原先这里会**串行**补搜一次 title+artist —— 单源实测 2.2~3.4 秒(QQ 侧),
+            // 正是"3 秒变 6 秒"的另一半(实测 CANNIBALISM 的 2928ms)。
+            // 该判定保留, 但只用于日志可观测性。
+            debug!(
+                "[perf] (8b) {} need_extra 命中(候选池={}), title+artist 已并发合并, 不再发第二次搜索",
+                self.name(),
+                song_all.len(),
+            );
         }
 
         let song = Self::preferred_song(song_all, title, length, artist);
@@ -547,6 +659,25 @@ pub trait LyricSource: Send + Sync {
             return Ok(None);
         }
 
+        // [perf] (10) 纯日志：准入判定结果 + 接下来会串行发几个取词请求
+        let mut attempt_count = 0usize;
+        for info in &song {
+            if is_same_song(top, info) {
+                attempt_count += 1;
+            }
+        }
+        debug!(
+            "[perf] (10) {} 候选池={} 将串行尝试={} title_s={} version_s={} artist_ok={} title_strong={} exempt={}",
+            self.name(),
+            song.len(),
+            attempt_count,
+            title_s,
+            version_s,
+            artist_ok,
+            title_strong,
+            exempt,
+        );
+
         for info in &song {
             // 回退范围: 只允许尝试与首选同曲的候选(标题高度一致且歌手相关),
             // 不因同名/标题部分相似/时长接近而跨到其他歌曲
@@ -555,19 +686,41 @@ pub trait LyricSource: Send + Sync {
                 continue;
             }
             // 单个候选获取失败不中断, 继续尝试同曲的下一个候选
+            let t0 = std::time::Instant::now();
             let lyrics = match self.fetch_lyrics(&info.key).await {
                 Ok(lyrics) => lyrics,
                 Err(err) => {
+                    debug!(
+                        "[perf] (10) {} 候选={} 请求失败 耗时={}ms: {err}",
+                        self.name(),
+                        info.key,
+                        t0.elapsed().as_millis(),
+                    );
                     error!("获取歌词失败(候选 {}): {}", info.key, err);
                     continue;
                 }
             };
             if lyrics.is_none() {
+                debug!(
+                    "[perf] (10) {} 候选={} 无歌词 耗时={}ms",
+                    self.name(),
+                    info.key,
+                    t0.elapsed().as_millis(),
+                );
                 continue;
             }
             // 质量门槛: <=4 行视为残缺/不可用歌词, 换下一个同曲候选
             match <LyricResult as TryInto<Lyric>>::try_into(lyrics.clone()) {
-                Ok(lyric) if lyric.get_lyrics().len() > 4 => return Ok(Some(lyrics)),
+                Ok(lyric) if lyric.get_lyrics().len() > 4 => {
+                    debug!(
+                        "[perf] (10) {} 候选={} **采用** 耗时={}ms 行数={}",
+                        self.name(),
+                        info.key,
+                        t0.elapsed().as_millis(),
+                        lyric.get_lyrics().len(),
+                    );
+                    return Ok(Some(lyrics));
+                }
                 Ok(_) => debug!("歌词过短(<=4行), 跳过候选 {}", info.key),
                 Err(err) => debug!("歌词解析失败, 跳过候选 {}: {}", info.key, err),
             }
@@ -589,6 +742,100 @@ mod tests {
 
     const TITLE: &str = "Clair de lune";
     const ARTIST: &str = "Debussy";
+
+    // ---------- 搜索 query 长度安全检查（优化 2, 纯逻辑, 不联网） ----------
+    //
+    // 上限的实测依据见文件顶部 `QQ_SEARCH_URL_MAX` / `NETEASE_SEARCH_URL_MAX`。
+
+    /// 长度必须按 **percent-encoding 之后**的整条 URL 字符数计算,
+    /// 而不是 `String::len()`（UTF-8 字节数）。
+    #[test]
+    fn encoded_len_counts_percent_encoding_not_bytes() {
+        let (prefix, suffix, _) = search_url_limit("QQ").unwrap();
+        let base = prefix.len() + suffix.len();
+
+        // 10 个日文字符 = 30 字节 → percent-encoding 后 90 个 URL 字符
+        let ja = encoded_search_url_len(prefix, &"あ".repeat(10), suffix).unwrap();
+        assert_eq!(ja - base, 90, "日文 10 字符应膨胀为 90 个 URL 字符");
+
+        // 纯 ASCII 不膨胀
+        let ascii = encoded_search_url_len(prefix, &"a".repeat(10), suffix).unwrap();
+        assert_eq!(ascii - base, 10);
+
+        // 真实日文歌曲的 query 远低于上限, 不能被误判成超长
+        let real = encoded_search_url_len(
+            prefix,
+            "病み垢ステロイド かいりきベア feat. 初音ミク",
+            suffix,
+        )
+        .unwrap();
+        assert!(real < QQ_SEARCH_URL_MAX, "真实日文 query 不应被误判超长: {real}");
+    }
+
+    /// 实测**失败**的长度必须落在上限之外；上限必须严格低于实测失败边界。
+    #[test]
+    fn limit_is_below_measured_failure_boundary() {
+        // QQ 实测: URL 9772 成功 / 9872 → HTTP 400
+        let (qq_prefix, qq_suffix, qq_max) = search_url_limit("QQ").unwrap();
+        let qq_fail =
+            encoded_search_url_len(qq_prefix, &"a".repeat(9800), qq_suffix).unwrap();
+        assert_eq!(qq_fail, 9872, "前缀长度变化会破坏与实测边界的对应关系");
+        assert!(qq_fail > qq_max, "实测失败的长度必须被拒绝");
+
+        // NetEase 实测: URL 8154 成功 / 8204 → HTTP 200 + body {{\"code\":400}}
+        let (ne_prefix, ne_suffix, ne_max) = search_url_limit("Netease").unwrap();
+        let ne_fail =
+            encoded_search_url_len(ne_prefix, &"a".repeat(8150), ne_suffix).unwrap();
+        assert_eq!(ne_fail, 8204, "NetEase 的固定后缀必须计入长度");
+        assert!(ne_fail > ne_max, "实测失败的长度必须被拒绝");
+
+        // 两个源的上限必须分别存在且互不混用
+        assert_ne!(qq_max, ne_max);
+    }
+
+    /// 未知来源必须按"不安全"处理, 不能因为查不到上限就放行。
+    #[test]
+    fn unknown_source_is_treated_as_unsafe() {
+        assert!(search_url_limit("QQ").is_some());
+        assert!(search_url_limit("Netease").is_some());
+        assert!(search_url_limit("SomeFutureSource").is_none());
+    }
+
+    /// 含特殊字符的真实标题不得让 URL 解析失败
+    /// （解析失败会被保守地判为"不许发 title+artist"）。
+    #[test]
+    fn special_characters_do_not_break_url_measurement() {
+        for q in [
+            "Chocolate Adventure feat. ななひら&すずしろ (Live Ver.) Neko Hacker",
+            "中國話 S.H.E",
+            "CANNIBALISM 北沢強兵 feat. flower",
+            "A/B + C#D (E) & F",
+            "하츠투하츠 FOCUS",
+            "病み垢ステロイド かいりきベア feat. 初音ミク",
+            "ロス ぐしゃぐしゃ",
+            "佐々木 詩織 Prime Time Golden Hour Show",
+        ] {
+            let (qp, qs, qmax) = search_url_limit("QQ").unwrap();
+            let (np, ns, nmax) = search_url_limit("Netease").unwrap();
+            let qq = encoded_search_url_len(qp, q, qs);
+            let ne = encoded_search_url_len(np, q, ns);
+            assert!(qq.is_some(), "QQ URL 解析失败: {q}");
+            assert!(ne.is_some(), "NetEase URL 解析失败: {q}");
+            assert!(qq.unwrap() < qmax, "真实标题不应超限: {q}");
+            assert!(ne.unwrap() < nmax, "真实标题不应超限: {q}");
+        }
+    }
+
+    /// 极端超长的 query 必须被判为超限（两种字符集都要测）。
+    #[test]
+    fn oversized_query_is_rejected_for_both_sources() {
+        for q in ["a".repeat(20000), "あ".repeat(3000)] {
+            let (qp, qs, qmax) = search_url_limit("QQ").unwrap();
+            let (np, ns, nmax) = search_url_limit("Netease").unwrap();
+            assert!(encoded_search_url_len(qp, &q, qs).unwrap() > qmax);
+            assert!(encoded_search_url_len(np, &q, ns).unwrap() > nmax);
+        }
+    }
 
     // ---------- 评分算法（纯逻辑, 不联网） ----------
     //
