@@ -1,0 +1,52 @@
+name: Build Test Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build release
+        shell: pwsh
+        run: |
+          ./scripts/package-release.ps1 -FinalDir "$env:GITHUB_WORKSPACE\release"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0-test
+          name: v0.1.0-test
+          body: |
+            测试版本
+
+            - 自动构建于 GitHub Actions
+            - Windows x64
+          files: |
+            release/tosu-lyrics.exe
+          make_latest: false
