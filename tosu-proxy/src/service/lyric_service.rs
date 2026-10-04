@@ -202,6 +202,12 @@ impl LyricService {
 
     pub(crate) async fn observe_song(&mut self, song: OsuSongInfo) {
         if song.sid < 0 && song.artist == "nekodex" { return; }
+        // [perf] 纯日志：换歌链路计时起点
+        let flow_start = std::time::Instant::now();
+        debug!(
+            "[perf] (1) 换歌事件 bid={} sid={} len={}ms gen={} title={:?} artist={:?}",
+            song.bid, song.sid, song.length, self.generation, song.title, song.artist,
+        );
         self.cancel_pending_song();
         self.clear_state();
         self.invalidate_async();
@@ -211,6 +217,7 @@ impl LyricService {
         let generation = self.generation;
         let task = tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            debug!("[perf] (3) debounce 结束 +{}ms", flow_start.elapsed().as_millis());
             let plan = LYRIC_SERVICE.call(move |svc| Box::pin(async move {
                 if !svc.generation_matches(generation) { return Ok(None); }
                 svc.begin_song(song).await
@@ -221,6 +228,10 @@ impl LyricService {
                 },
                 Err(err) => error!("song update error: {err}"),
             }
+            debug!(
+                "[perf] (13) 换歌链路结束 总耗时={}ms",
+                flow_start.elapsed().as_millis()
+            );
         });
         self.pending_song = Some(task.abort_handle());
     }
@@ -258,12 +269,102 @@ impl LyricService {
                 return Ok(()); // 命中黑名单 / 命中缓存, 阶段 1 内已完成
             };
 
-            let mut results = Self::search_sources(&plan).await;
-            // 搜索结果一到位就把候选写进共享缓存：让前端尽早看到候选列表，
-            // 不必等下面的取词（fetch_search_lyric 实测 50ms~2.5s，偶发触及 5s 超时）。
-            // clone 一次 results 只为把数据 move 进服务任务（几十条以内，可忽略）。
-            Self::publish_candidates(&plan, results.clone()).await?;
-            let lyric = Self::fetch_search_lyric(&plan, &mut results).await?;
+            // ---------------- NetEase-first pipeline ----------------
+            //
+            // 两个源各自独立并发搜索（`spawn_sources`：真并发 + 单源 panic 隔离），
+            // 区别在于**谁先回来就先走谁的取词**。
+            //
+            // 原先必须等两个源都完成才进入取词阶段，而实测 NetEase 搜索 P50 ≈ 200ms、
+            // QQ ≈ 3s，于是"NetEase 立刻就能命中"的歌也被 QQ 白白拖到 3 秒。
+            //
+            // 现在：NetEase 搜索结果一到手就立刻发布候选并走它自己的
+            // "排序 → 准入 → 取词"；**命中就直接提交，不再等 QQ**。
+            // NetEase 搜索失败 / 候选不合法 / 取词未命中时，才继续等 QQ 并走 QQ 取词，
+            // 召回能力与原先完全一致（QQ fallback 完整保留）。
+            //
+            // generation / bid / 取消语义没有任何新增旁路：
+            //   * 提交仍然只经由 `commit_search`（内部做代际 + 身份双重校验）；
+            //   * 本函数被 drop（切歌 abort）时 `JoinSet` 一并 drop，未完成的源被取消。
+            let search_start = std::time::Instant::now();
+            let mut results: HashMap<&'static str, Vec<SongInfo>> = HashMap::with_capacity(2);
+            let mut tasks = Self::spawn_sources(&plan.ident.title, &plan.artist);
+            let mut lyric: Option<Lyric> = None;
+            let mut netease_fetch_done = false;
+
+            while let Some(joined) = tasks.join_next().await {
+                let (name, songs) = match joined {
+                    Ok(Some(v)) => v,
+                    Ok(None) => continue,
+                    Err(err) => {
+                        error!("歌词源搜索任务异常: {err}");
+                        continue;
+                    }
+                };
+                results.insert(name, songs);
+                // 任一源结果到位即发布候选：让前端尽早看到候选列表（语义与原先一致）。
+                // clone 一次只为把数据 move 进服务任务（几十条以内，可忽略）。
+                Self::publish_candidates(&plan, results.clone()).await?;
+
+                if name == NETEASE_LYRIC_SOURCE.name() && !netease_fetch_done {
+                    netease_fetch_done = true;
+                    if let Some(songs) = results.get_mut(NETEASE_LYRIC_SOURCE.name()) {
+                        let t0 = std::time::Instant::now();
+                        let hit = NETEASE_LYRIC_SOURCE.search_lyrics(
+                            songs, &plan.ident.title, plan.length, &plan.artist,
+                        ).await?;
+                        debug!(
+                            "[perf] (8) NetEase 取词 候选数={} 耗时={}ms 命中={}",
+                            songs.len(), t0.elapsed().as_millis(), hit.is_some(),
+                        );
+                        if let Some(l) = hit {
+                            lyric = Some(l.try_into()?);
+                            // NetEase 命中: 不再等 QQ。`tasks` 随本函数 drop ⇒
+                            // 未完成的 QQ 搜索任务被取消, 也不会再产生任何提交。
+                            break;
+                        }
+                    }
+                }
+            }
+
+            debug!(
+                "[perf] (7) 搜索阶段结束(NetEase-first) 总耗时={}ms 候选数 netease={} qq={}",
+                search_start.elapsed().as_millis(),
+                results.get(NETEASE_LYRIC_SOURCE.name()).map_or(0, |v| v.len()),
+                results.get(QQ_LYRIC_SOURCE.name()).map_or(0, |v| v.len()),
+            );
+
+            let fetch_start = std::time::Instant::now();
+            if lyric.is_none() {
+                // NetEase 未命中（搜索失败 / 无候选 / 取词失败）: 等剩余源, 再走 QQ 兜底取词。
+                while let Some(joined) = tasks.join_next().await {
+                    let (name, songs) = match joined {
+                        Ok(Some(v)) => v,
+                        Ok(None) => continue,
+                        Err(err) => {
+                            error!("歌词源搜索任务异常: {err}");
+                            continue;
+                        }
+                    };
+                    results.insert(name, songs);
+                    Self::publish_candidates(&plan, results.clone()).await?;
+                }
+                if let Some(songs) = results.get_mut(QQ_LYRIC_SOURCE.name()) {
+                    let t0 = std::time::Instant::now();
+                    let hit = QQ_LYRIC_SOURCE.search_lyrics(
+                        songs, &plan.ident.title, plan.length, &plan.artist,
+                    ).await?;
+                    debug!(
+                        "[perf] (9) QQ 取词 候选数={} 耗时={}ms 命中={}",
+                        songs.len(), t0.elapsed().as_millis(), hit.is_some(),
+                    );
+                    if let Some(l) = hit { lyric = Some(l.try_into()?); }
+                }
+            }
+            debug!(
+                "[perf] (12) 取词阶段结束 耗时={}ms 是否取到歌词={}",
+                fetch_start.elapsed().as_millis(),
+                lyric.is_some(),
+            );
             LYRIC_SERVICE.call(move |svc| Box::pin(async move {
                 svc.commit_search(plan, results, lyric).await
             })).await
@@ -278,14 +379,26 @@ impl LyricService {
         results: &mut HashMap<&'static str, Vec<SongInfo>>,
     ) -> Result<Option<Lyric>> {
         if let Some(songs) = results.get_mut(NETEASE_LYRIC_SOURCE.name()) {
-            if let Some(lyric) = NETEASE_LYRIC_SOURCE.search_lyrics(
+            let t0 = std::time::Instant::now();
+            let hit = NETEASE_LYRIC_SOURCE.search_lyrics(
                 songs, &plan.ident.title, plan.length, &plan.artist,
-            ).await? { return Ok(Some(lyric.try_into()?)); }
+            ).await?;
+            debug!(
+                "[perf] (8) NetEase 取词 候选数={} 耗时={}ms 命中={}",
+                songs.len(), t0.elapsed().as_millis(), hit.is_some(),
+            );
+            if let Some(lyric) = hit { return Ok(Some(lyric.try_into()?)); }
         }
         if let Some(songs) = results.get_mut(QQ_LYRIC_SOURCE.name()) {
-            if let Some(lyric) = QQ_LYRIC_SOURCE.search_lyrics(
+            let t0 = std::time::Instant::now();
+            let hit = QQ_LYRIC_SOURCE.search_lyrics(
                 songs, &plan.ident.title, plan.length, &plan.artist,
-            ).await? { return Ok(Some(lyric.try_into()?)); }
+            ).await?;
+            debug!(
+                "[perf] (9) QQ 取词 候选数={} 耗时={}ms 命中={}",
+                songs.len(), t0.elapsed().as_millis(), hit.is_some(),
+            );
+            if let Some(lyric) = hit { return Ok(Some(lyric.try_into()?)); }
         }
         Ok(None)
     }
@@ -972,25 +1085,36 @@ impl LyricService {
         })).await
     }
 
-    /// 返回结果但不写任何共享状态
+    /// 为两个源各 spawn 一个**独立的 tokio 任务**（真并发 + 单源 panic 隔离），
+    /// 返回 `JoinSet` 交给调用方自行 join。
     ///
-    /// 每个源一个**独立的 tokio 任务**，两路请求真正并行执行；`tokio::join!` 只能
-    /// 在同一个任务里轮流推进，会把两个源的 JSON 解析、正则评分等 CPU 工作串行化，
-    /// 且任意一侧的同步工作都会拖住另一侧。单源 panic 由 `catch_unwind` 捕获，不影响
-    /// 另一个源；调用方被取消时 `JoinSet` 随本函数 drop，子任务一并取消。
-    async fn search_raw(title: &str, artist: &str) -> HashMap<&'static str, Vec<SongInfo>> {
+    /// 单独拆出来是为了 NetEase-first：调用方需要"谁先回来就先处理谁"，
+    /// 而不是等两个源都完成（见 `load_plan`）。`tokio::join!` 做不到这点 ——
+    /// 它只能在同一个任务里轮流推进，会把两个源的 JSON 解析、正则评分等 CPU 工作
+    /// 串行化，且任意一侧的同步工作都会拖住另一侧。
+    ///
+    /// 单源 panic 由 `catch_unwind` 捕获，不影响另一个源；
+    /// 调用方被取消（future 被 drop）时 `JoinSet` 随之 drop，子任务一并取消。
+    fn spawn_sources(
+        title: &str,
+        artist: &str,
+    ) -> JoinSet<Option<(&'static str, Vec<SongInfo>)>> {
         let mut tasks: JoinSet<Option<(&'static str, Vec<SongInfo>)>> = JoinSet::new();
 
         let (qq_title, qq_artist) = (title.to_string(), artist.to_string());
         tasks.spawn(async move {
             let name = QQ_LYRIC_SOURCE.name();
+            let t0 = std::time::Instant::now();
             match AssertUnwindSafe(QQ_LYRIC_SOURCE.search_all_music(&qq_title, &qq_artist))
                 .catch_unwind()
                 .await
             {
-                Ok(Ok(songs)) => Some((name, songs)),
+                Ok(Ok(songs)) => {
+                    debug!("[perf] (2) {} 搜索完成 耗时={}ms 候选={}", name, t0.elapsed().as_millis(), songs.len());
+                    Some((name, songs))
+                }
                 Ok(Err(err)) => {
-                    debug!("{name} 搜索失败: {err}");
+                    debug!("[perf] (2) {} 搜索失败 耗时={}ms: {err}", name, t0.elapsed().as_millis());
                     None
                 }
                 Err(_) => {
@@ -1003,15 +1127,19 @@ impl LyricService {
         let (netease_title, netease_artist) = (title.to_string(), artist.to_string());
         tasks.spawn(async move {
             let name = NETEASE_LYRIC_SOURCE.name();
+            let t0 = std::time::Instant::now();
             match AssertUnwindSafe(
                 NETEASE_LYRIC_SOURCE.search_all_music(&netease_title, &netease_artist),
             )
             .catch_unwind()
             .await
             {
-                Ok(Ok(songs)) => Some((name, songs)),
+                Ok(Ok(songs)) => {
+                    debug!("[perf] (2) {} 搜索完成 耗时={}ms 候选={}", name, t0.elapsed().as_millis(), songs.len());
+                    Some((name, songs))
+                }
                 Ok(Err(err)) => {
-                    debug!("{name} 搜索失败: {err}");
+                    debug!("[perf] (2) {} 搜索失败 耗时={}ms: {err}", name, t0.elapsed().as_millis());
                     None
                 }
                 Err(_) => {
@@ -1021,6 +1149,16 @@ impl LyricService {
             }
         });
 
+        tasks
+    }
+
+    /// 返回结果但不写任何共享状态。
+    ///
+    /// 会等**两个源都完成**后一次性返回（`search_now` 这类"按需搜索"入口使用）。
+    /// 主歌词链路不走这里 —— 它走 `load_plan` 里的 NetEase-first 流式处理，
+    /// 以便 NetEase 先回来时不必等 QQ。
+    async fn search_raw(title: &str, artist: &str) -> HashMap<&'static str, Vec<SongInfo>> {
+        let mut tasks = Self::spawn_sources(title, artist);
         let mut out = HashMap::with_capacity(2);
         while let Some(res) = tasks.join_next().await {
             match res {
