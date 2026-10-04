@@ -2823,3 +2823,54 @@ src/utils/lyricLines.ts                         行数语义唯一实现
 本轮**没有删除任何文件**。`routes/index.tsx` 中删除的只是 `/upload` 与 `/shadow`
 两条**路由注册**，对应的组件文件 `Upload/index.tsx`、`Shadow/index.tsx` 仍保留
 （现已并入「文字样式」页使用）。
+
+## 31. 2026-10-05 默认字体恢复为系统字体 fallback
+
+**问题**：`ecb4815` 的 `/lyrics` 在与 `07d3f91` 相同的默认设置下（`font = ""`、未上传
+字体），歌词中文字与文字之间的**视觉间距变宽**。两版歌词 `<p>` 的计算 `letter-spacing`
+都是 `normal`（全项目唯一带 `0.4em` 的是加载提示那个 `<p>`），**不是排版参数变化**。
+
+**根因**（以 `07d3f91 → ecb4815` 的实际差异为依据）：`07d3f91` 的默认档是
+`font() || undefined`，元素上**根本没有 `font-family`**，继承 `html` 的 preflight 值
+→ 实际使用**系统回退字体**（Windows：拉丁 `Segoe UI` + 中日韩 `Microsoft YaHei`）；
+该版本内置字体的 URL 是根路径 `/LRC.otf`（必然 404），从未注册成功。`ecb4815` 修好
+字体路径与静态字体路由后，默认档 `resolveFamily("")` 落到 `LRC-Default`，
+**实际改用内置 MiSans Bold**，字形墨迹与侧边距随之改变。中日韩 advance 两版都精确
+等于 1 em（**字间距 pitch 未变**），但 MiSans Bold 的字形墨迹更窄（`中` 的侧边距
+18.8% em，YaHei Bold 为 12.3%），相邻字之间的空白近乎翻倍 —— 这才是"字距看起来变宽"
+的来源。
+
+**修改（仅 `src/utils/fonts.ts` 一个文件）**：
+
+1. 新增 `DEFAULT_SYSTEM_FAMILY = "var(--font-sans, ui-sans-serif, system-ui, sans-serif)"`，
+   与 `07d3f91` 元素所继承到的 preflight 值同源（`--default-font-family: var(--font-sans)`）。
+   **不新增任何字体文件。**
+2. `resolveFamily()` 默认档：`builtin`（`LRC-Default` / `LRC-Sub-Default`）→ 系统回退字体栈。
+3. `loadFont()` 中副字体的"没有上传"档同步改为系统回退字体栈（副歌词会优先取
+   `loadedSubFamily()`，不同步会出现"主歌词系统字体、副歌词 MiSans"）。
+4. `needsBuiltinFont()` 默认档改为 `false`：默认字体不再需要内置字体文件，
+   不再为默认档白下约 8 MB 的 `LRC.otf`。
+
+上传字体（`LRC` / `LRC-Sub`）、字体选择器、`LRC-Default` / `LRC-Sub-Default` 机制
+（选"上传字体"但尚未上传时仍回落到内置字体）均保持可用。
+
+**明确未改动**：`letter-spacing`、字号（`fontSize` / `lineLevelScale`）、`font-weight`、
+`shadowFilter` 与阴影默认值、`transform` / 布局 / 窗口高度，以及 `LyricsBox`、
+`FontPicker`、后端字体路由、`static/` 与 `public/` 下的字体文件。
+
+**验证**：`eslint src/utils/fonts.ts` 通过；`tsc --noEmit` 无新增错误（仅既有 13 项，
+分布在 `adapters/`、`services/managers/` 等引用已删除旧常量的文件）；打包后以真实模块
+实测 `resolveFamily("")` 与 `loadedSubFamily()` 均返回系统回退字体栈，且无上传字体时
+`loadFont()` 的 `FontFace` 构造次数为 **0**（确认不再加载内置字体）。
+
+## 32. 2026-10-05 最终发行产物名称统一为 `tosu-lyrics.exe`
+
+**仅打包命名，无任何功能代码改动。**
+
+- 仓库内的 Cargo 产物仍是 `tosu-proxy/target/release/osu-lyric.exe`（`--bin osu-lyric`；
+  `justfile` 的 `copy-backend`、`scripts/package-release.ps1`、`scripts/sign-windows.ps1`
+  都按这个名字引用它），**一律不改动**，以免破坏既有打包链。
+- 交付使用者的单文件发行产物统一命名为 **`tosu-lyrics.exe`**
+  （与 `scripts/package-release.ps1` 第 [4/5] 步一致）。
+- 本轮发布目录 `release-test/` 只保留 `tosu-lyrics.exe`，旧的 `osu-lyric.exe` 已删除。
+- 已实测启动该产物：`GET /lyrics/` 正常返回并通过本次新前端（内嵌 `index-Np7zGYY7.js`）。
