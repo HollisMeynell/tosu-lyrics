@@ -66,7 +66,7 @@ export const [alignment, setAlignment] = createSignal<AlignType>(
 );
 
 export const [darkMode, setDarkMode] = createSignal(
-    localStorage.getItem("darkMode") === "true"
+    localStorage.getItem("darkMode") !== "false"
 );
 
 export const applySettings = (settings: SettingsDto) => {
