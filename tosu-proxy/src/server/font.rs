@@ -191,7 +191,7 @@ async fn read_static_font(kind: FontKind) -> Option<(Vec<u8>, String)> {
         }
     }
     crate::server::embedded_resource(kind.file_name())
-        .map(|bytes| (bytes.to_vec(), format!("embedded-{}", bytes.len())))
+        .map(|bytes| { let len = bytes.len(); (bytes, format!("embedded-{len}")) })
 }
 
 async fn serve_static_font(res: &mut Response, kind: FontKind, label: &str) {

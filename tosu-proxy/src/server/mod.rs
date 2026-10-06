@@ -103,15 +103,16 @@ pub async fn start_server() {
 const RESOURCE_VERSION: &str = "3";
 
 /// 内嵌程序资源（路径 → 内容）：这些是**程序资源**，可由程序维护/补齐。
-include!(concat!(env!("OUT_DIR"), "/embedded_assets.rs"));
-const EMBEDDED_RESOURCES: &[(&str, &[u8])] = EMBEDDED;
+///
+/// 由 `rust-embed` 在编译时从仓库根目录 `embed/` 嵌入。
+/// `embed/` 由 `just assemble-embed` 在 `cargo build` 之前组装。
+#[derive(rust_embed::RustEmbed)]
+#[folder = "../embed"]
+struct Assets;
 
-/// 取一份内嵌的程序自带资源（默认字体等），没有则 `None`。
-pub fn embedded_resource(rel: &str) -> Option<&'static [u8]> {
-    EMBEDDED_RESOURCES
-        .iter()
-        .find(|(name, _)| *name == rel)
-        .map(|(_, bytes)| *bytes)
+/// 取一份内嵌的程序自带资源（默认字体等）的副本，没有则 `None`。
+pub fn embedded_resource(rel: &str) -> Option<Vec<u8>> {
+    Assets::get(rel).map(|f| f.data.to_vec())
 }
 
 /// 用户数据 / 用户配置：**绝不写入、绝不覆盖**。
@@ -155,8 +156,9 @@ pub fn ensure_runtime_dir() {
         );
     }
 
-    for (rel, bytes) in EMBEDDED_RESOURCES {
-        if USER_FILES.contains(rel) {
+    for asset in Assets::iter() {
+        let rel = asset.as_ref();
+        if USER_FILES.contains(&rel) {
             continue;
         }
         let path = dir.join(rel);
@@ -166,9 +168,11 @@ pub fn ensure_runtime_dir() {
         if let Some(parent) = path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        match std::fs::write(&path, bytes) {
-            Ok(()) => info!("已释放程序资源: {}", path.display()),
-            Err(err) => warn!("释放程序资源失败 {}: {err}", path.display()),
+        if let Some(file) = Assets::get(rel) {
+            match std::fs::write(&path, file.data.as_ref()) {
+                Ok(()) => info!("已释放程序资源: {}", path.display()),
+                Err(err) => warn!("释放程序资源失败 {}: {err}", path.display()),
+            }
         }
     }
     if !version_ok {

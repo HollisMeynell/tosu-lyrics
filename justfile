@@ -33,8 +33,23 @@ default:
 
 @build: build-frontend build-backend copy-backend
 
-# 给已构建的 exe 做 Authenticode 签名。
-# 需要正式代码签名证书（-PfxPath / OSU_LYRIC_PFX_PATH）；没有证书时会明确
-# 说明原因并以非零码退出，不会生成假证书，也不会修改 Defender / SmartScreen。
-@sign exe="./dist/osu-lyric.exe":
-    powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/sign-windows.ps1 -ExePath "{{exe}}"
+# 组装 embed/ 目录：前端产物 + 字体 → cargo build 时由 rust-embed 嵌入二进制。
+assemble-embed:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rm -rf ./embed
+    mkdir -p ./embed
+    pnpm exec vite build --outDir tosu-proxy/target/dist-package --emptyOutDir
+    cp ./tosu-proxy/target/dist-package/index.html ./embed/
+    cp -r ./tosu-proxy/target/dist-package/assets ./embed/
+    [ -f ./tosu-proxy/target/dist-package/osu.svg ] && cp ./tosu-proxy/target/dist-package/osu.svg ./embed/ || true
+    cp ./static/LRC.otf ./static/tLRC.otf ./embed/
+    [ -f ./tosu-proxy/lib/ffprobe.exe ] && cp ./tosu-proxy/lib/ffprobe.exe ./embed/ffprobe || true
+    echo "embed/ 文件数: $(find ./embed -type f | wc -l)"
+
+# 单文件发行：前端 → embed/ → cargo release build → 输出到 ../release/tosu-lyrics.exe
+@package final_dir="../release": assemble-embed build-backend
+    mkdir -p {{final_dir}}
+    cp ./tosu-proxy/target/release/osu-lyric.exe {{final_dir}}/tosu-lyrics.exe
+    echo "输出: $(realpath {{final_dir}}/tosu-lyrics.exe) ($(du -h {{final_dir}}/tosu-lyrics.exe | cut -f1))"
+

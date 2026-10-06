@@ -31,8 +31,7 @@ serde_json = "1.0.149"
 thiserror = "2.0.18"
 serde_path_to_error = "0.1.20"
 tokio = { version = "1.50.0", features = ["fs", "rt-multi-thread", "process", "sync", "macros"] }
-# 后续将文件打包进二进制文件?
-# rust-embed="8.6.0"
+rust-embed = "8.6.0"
 
 # new
 async-trait = { version = "0.1.89", optional = true }

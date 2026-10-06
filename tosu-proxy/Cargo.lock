@@ -4726,6 +4726,7 @@ dependencies = [
  "rand 0.10.0",
  "regex",
  "reqwest",
+ "rust-embed",
  "salvo",
  "sea-orm",
  "sea-orm-migration",
