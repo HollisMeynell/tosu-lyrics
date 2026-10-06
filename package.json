@@ -29,5 +29,12 @@
         "reconnecting-websocket": "^4.4.0",
         "solid-js": "1.9.6",
         "tailwindcss": "4.1.11"
+    },
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "@parcel/watcher",
+            "@tailwindcss/oxide",
+            "esbuild"
+        ]
     }
 }
