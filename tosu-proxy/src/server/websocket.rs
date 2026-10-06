@@ -14,35 +14,49 @@ pub static ALL_SESSIONS: LazyLock<WebsocketSession> = LazyLock::new(WebsocketSes
 
 type LyricWebsocketMessage = String;
 
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientSnapshot {
+    pub key: String,
+    pub identity: Option<String>,
+    pub connected_at: i64,
+    pub user_agent: Option<String>,
+}
+
 fn lyric_message_to_str(msg: LyricWebsocketMessage) -> Message {
     Message::text(msg)
 }
 
-#[derive(Debug)]
-enum ClientType {
-    Client(UnboundedSender<Message>),
-    Setter(UnboundedSender<Message>),
+fn display_channel(channel: UnboundedSender<Message>) -> UnboundedSender<Message> {
+    channel
 }
 
-impl ClientType {
-    fn create(is_client: bool, channel: UnboundedSender<Message>) -> Self {
-        if is_client {
-            ClientType::Client(channel)
-        } else {
-            ClientType::Setter(channel)
-        }
-    }
+/// key 是每次连接随机生成的会话标识；identity 是客户端通过 ?id= 自报的稳定身份。
+#[derive(Debug)]
+pub struct SessionEntry {
+    channel: UnboundedSender<Message>,
+    identity: Option<String>,
+    connected_at: i64,
+    user_agent: Option<String>,
+}
 
-    fn get_channel(&self) -> &UnboundedSender<Message> {
-        match self {
-            ClientType::Client(ch) => ch,
-            ClientType::Setter(ch) => ch,
-        }
+impl SessionEntry {
+    pub fn is_display(&self) -> bool {
+        true
+    }
+    pub fn identity(&self) -> Option<&str> {
+        self.identity.as_deref()
+    }
+    pub fn connected_at(&self) -> i64 {
+        self.connected_at
+    }
+    pub fn user_agent(&self) -> Option<&str> {
+        self.user_agent.as_deref()
     }
 }
 
 #[derive(Debug)]
-pub struct WebsocketSession(RwLock<HashMap<String, ClientType>>);
+pub struct WebsocketSession(RwLock<HashMap<String, SessionEntry>>);
 
 impl Default for WebsocketSession {
     fn default() -> Self {
@@ -54,13 +68,57 @@ impl WebsocketSession {
         Self::default()
     }
 
-    async fn add_client(&self, sender: ClientType) -> String {
+    async fn add_client(
+        &self,
+        channel: UnboundedSender<Message>,
+        identity: Option<String>,
+        user_agent: Option<String>,
+    ) -> String {
         let mut key = generate_random_string();
         while self.0.read().await.contains_key(&key) {
             key = generate_random_string()
         }
-        self.0.write().await.insert(key.clone(), sender);
+        let now = sea_orm::sqlx::types::chrono::Utc::now().timestamp_millis();
+        let entry = SessionEntry {
+            channel: display_channel(channel),
+            identity,
+            connected_at: now,
+            user_agent,
+        };
+        self.0.write().await.insert(key.clone(), entry);
         key
+    }
+
+    pub async fn display_clients(&self) -> Vec<(String, ClientSnapshot)> {
+        self.0
+            .read()
+            .await
+            .iter()
+            .filter(|(_, e)| e.is_display())
+            .map(|(key, e)| {
+                (
+                    key.clone(),
+                    ClientSnapshot {
+                        key: key.clone(),
+                        identity: e.identity().map(|s| s.to_string()),
+                        connected_at: e.connected_at(),
+                        user_agent: e.user_agent().map(|s| s.to_string()),
+                    },
+                )
+            })
+            .collect()
+    }
+
+    pub async fn resolve_display_targets(&self, target: &str) -> Vec<String> {
+        self.0
+            .read()
+            .await
+            .iter()
+            .filter(|(key, e)| {
+                e.is_display() && (key.as_str() == target || e.identity() == Some(target))
+            })
+            .map(|(key, _)| key.clone())
+            .collect()
     }
 
     async fn remove_client<T>(&self, key: &T)
@@ -70,15 +128,16 @@ impl WebsocketSession {
         self.0.write().await.remove(key.as_ref());
     }
 
-    async fn find_clients<F: Fn(&String, &ClientType) -> bool>(&self, message: Message, f: F) {
+    async fn find_clients<F: Fn(&String, &SessionEntry) -> bool>(&self, message: Message, f: F) {
         let sessions = self.0.read().await;
 
-        // 收集发送失败的客户端 key
         let failed_keys: Vec<String> = sessions
             .iter()
             .filter(|(key, client)| f(key, client))
             .filter_map(|(key, client)| {
-                client.get_channel().send(message.clone())
+                client
+                    .channel
+                    .send(message.clone())
                     .err()
                     .map(|_| key.clone())
             })
@@ -86,7 +145,6 @@ impl WebsocketSession {
 
         drop(sessions); // 释放读锁
 
-        // 移除失效的客户端
         for key in failed_keys {
             self.remove_client(&key).await;
             debug!("Removed dead client: {key}");
@@ -94,17 +152,14 @@ impl WebsocketSession {
     }
 
     pub async fn send_to_all_client(&self, message: Message) {
-        self.find_clients(message, |_, client| {
-            matches!(*client, ClientType::Client(_))
-        })
-        .await;
+        self.find_clients(message, |_, _| true).await;
     }
     pub async fn send_to_one_client<T>(&self, key: &T, message: Message)
     where
         T: AsRef<str>,
     {
         self.find_clients(message, |k, client| {
-            key.as_ref() == k && matches!(*client, ClientType::Client(_))
+            key.as_ref() == k && client.is_display()
         })
         .await;
     }
@@ -114,9 +169,12 @@ impl WebsocketSession {
         T: AsRef<str>,
     {
         let key_str = key.as_ref();
-        let send_result = self.0.read().await
+        let send_result = self
+            .0
+            .read()
+            .await
             .get(key_str)
-            .map(|channel| channel.get_channel().send(message));
+            .map(|entry| entry.channel.send(message));
 
         if let Some(Err(e)) = send_result {
             error!("Failed to send message to {key_str}: {e}");
@@ -130,9 +188,12 @@ impl WebsocketSession {
     {
         let key_str = key.as_ref();
         let pong = Message::pong(message.as_bytes().to_vec());
-        let send_result = self.0.read().await
+        let send_result = self
+            .0
+            .read()
+            .await
             .get(key_str)
-            .map(|channel| channel.get_channel().send(pong));
+            .map(|entry| entry.channel.send(pong));
 
         if let Some(Err(e)) = send_result {
             error!("Failed to send pong to {key_str}: {e}");
@@ -142,6 +203,7 @@ impl WebsocketSession {
     }
 }
 
+/// WS 不再是管理通道：客户端发来的任何文本只记录，不做业务操作。
 async fn on_ws_message(key: &str, message: Message) {
     if message.is_ping() {
         ALL_SESSIONS.send_pong(&key, message).await;
@@ -153,8 +215,11 @@ async fn on_ws_message(key: &str, message: Message) {
         return;
     }
 
-    if let Ok(message) = message.as_str() {
-        crate::service::on_setting(key, message).await
+    if let Ok(text) = message.as_str() {
+        debug!(
+            "忽略展示端上行消息(WS 管理已移除, id={key}): {}",
+            &text[..text.len().min(80)]
+        );
     }
 }
 
@@ -175,7 +240,6 @@ async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message
         let key = key.clone();
         match data {
             Ok(message) => {
-                // 提前处理关闭消息
                 if message.is_close() {
                     break;
                 }
@@ -192,20 +256,46 @@ async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message
     ALL_SESSIONS.remove_client(&key).await;
 }
 
-/// is setter client if url "ws://(ip:port)?setter=true"
 #[handler]
 async fn connect(req: &mut Request, res: &mut Response) -> Result<()> {
     use salvo::websocket::WebSocketUpgrade;
-    // 因为要忽略向设置端发送歌词, 需要通过 ws 连接的参数 setter 来判断是否为设置器 "ws://127.0.0.1:41280?setter=true"
-    let is_client = req
-        .query::<bool>(CONFIG_ENDPOINT_WEBSOCKET_NO_LYRIC_POINT)
-        .is_none();
+    // ?setter=true 仍被接受但不再有一任何特权，仅为兼容旧客户端保留
+    let _legacy_setter_param = req.query::<bool>(CONFIG_ENDPOINT_WEBSOCKET_NO_LYRIC_POINT);
+    let identity = req
+        .query::<String>("id")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty() && s.len() <= 64);
+    let user_agent = req
+        .headers()
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.chars().take(160).collect::<String>());
     WebSocketUpgrade::new()
         .upgrade(req, res, async move |ws| {
             let (tx, rx) = mpsc::unbounded_channel::<Message>();
-            let key = ALL_SESSIONS
-                .add_client(ClientType::create(is_client, tx))
-                .await;
+            let key = ALL_SESSIONS.add_client(tx, identity, user_agent).await;
+            {
+                crate::service::send_settings_snapshot(&key).await;
+                // 无歌词时下发清屏，避免断线重连 / OBS 刷新后残留上一次歌词
+                match crate::service::LYRIC_SERVICE
+                    .call(|svc| Box::pin(async move { svc.get_snapshot() }))
+                    .await
+                {
+                    Some(snapshot) => ALL_SESSIONS.send_message(&key, snapshot.into()).await,
+                    None => {
+                        let clean = crate::model::websocket::setting::SettingPayload::new(
+                            "setClear".to_string(),
+                        );
+                        ALL_SESSIONS
+                            .send_message(
+                                &key,
+                                Into::<crate::model::websocket::WebSocketMessage>::into(clean)
+                                    .into(),
+                            )
+                            .await;
+                    }
+                }
+            }
             handle_ws(ws, key, rx).await;
         })
         .await?;

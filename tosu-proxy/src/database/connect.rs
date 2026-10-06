@@ -1,9 +1,9 @@
-use crate::error::*;
-use sea_orm::{
-    ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbBackend, Statement,
-};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use sea_orm_migration::MigratorTrait;
 use std::sync::OnceLock;
 use tracing::info;
+
+use super::migration::Migrator;
 
 static DATABASE_CONNECT: OnceLock<DatabaseConnection> = OnceLock::new();
 
@@ -21,8 +21,15 @@ pub async fn init_database() {
     connect.ping().await.expect("数据库检查失败");
     info!("数据库连接完成");
     DATABASE_CONNECT.set(connect).expect("无法初始化数据库");
-    use super::entity::init_all_table;
-    init_all_table().await.expect("can not create all table");
+
+    // 运行 schema 迁移（建表、加列、建索引）
+    Migrator::up(database(), None)
+        .await
+        .expect("数据库迁移失败");
+    // 运行纯数据迁移（旧 lyric_config -> lyric_block 黑名单）
+    super::entity::migrate_legacy_data()
+        .await
+        .expect("数据迁移失败");
 }
 
 pub fn database() -> &'static DatabaseConnection {
@@ -31,27 +38,4 @@ pub fn database() -> &'static DatabaseConnection {
 
 pub async fn close() {
     let _ = database().clone().close().await;
-}
-
-pub async fn table_exists<T: AsRef<str>>(table_name: T) -> Result<bool> {
-    let table_name = table_name.as_ref();
-    let db = database();
-    let backend = db.get_database_backend();
-    let sql = match backend {
-        DbBackend::Sqlite => {
-            format!("SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
-        }
-        DbBackend::Postgres => {
-            format!(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='{table_name}'"
-            )
-        }
-        DbBackend::MySql => {
-            format!(
-                "SELECT table_name FROM information_schema.tables WHERE table_name = '{table_name}'"
-            )
-        }
-    };
-    let stmt = Statement::from_sql_and_values(backend, sql, vec![]);
-    Ok(db.query_one(stmt).await?.is_some())
 }

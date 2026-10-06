@@ -10,11 +10,6 @@ strip = true
 codegen-units = 1
 
 [[bin]]
-name = "tosu-proxy"
-path = "src/bin/old.rs"
-required-features = ["old"]
-
-[[bin]]
 name = "osu-lyric"
 path = "src/bin/new.rs"
 required-features = ["new"]
@@ -31,10 +26,8 @@ serde_json = "1.0.149"
 thiserror = "2.0.18"
 serde_path_to_error = "0.1.20"
 tokio = { version = "1.50.0", features = ["fs", "rt-multi-thread", "process", "sync", "macros"] }
-# 后续将文件打包进二进制文件?
-# rust-embed="8.6.0"
+rust-embed = "8.6.0"
 
-# new
 async-trait = { version = "0.1.89", optional = true }
 bincode = { version = "2.0.1", optional = true }
 config = { version = "0.15.22", optional = true }
@@ -44,18 +37,12 @@ paste = { version = "1.0.15", optional = true}
 regex = { version = "1.12.3", optional = true }
 salvo = { version = "0.89.3", features = ["default", "serve-static", "websocket"], optional = true }
 sea-orm = { version = "1.1.19", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"], optional = true }
+sea-orm-migration = { version = "1.1.19", features = ["sqlx-sqlite", "runtime-tokio-native-tls"], optional = true }
 sea-schema = { version = "0.16.2", features = ["writer"], optional = true }
 tokio-tungstenite = { version = "0.29.0", optional = true }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", optional = true }
 tungstenite = { version = "0.29.0", optional = true }
-
-# old
-actix-web = { version = "4.13.0", optional = true }
-actix-ws = { version = "0.4.0", optional = true }
-actix-cors = { version = "0.7.1", optional = true }
-actix-files = { version = "0.6.10", optional = true }
-
 
 [features]
 default = ["new"]
@@ -73,11 +60,6 @@ new = [
     "futures-util",
     "futures",
     "sea-orm",
+    "sea-orm-migration",
     "sea-schema",
-]
-old = [
-    "actix-web",
-    "actix-ws",
-    "actix-cors",
-    "actix-files",
 ]

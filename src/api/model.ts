@@ -1,3 +1,4 @@
+import type { Shadow } from "@/types/globalTypes";
 interface WebsocketMessage {
     type: string;
 }
@@ -33,34 +34,23 @@ type WebsocketSetting<
     type: "setting";
     key: K;
     value?: WebsocketSettingTypeMap[K];
-    error?: string;
     echo?: string;
 };
 
 interface WebsocketSettingTypeMap {
     setClear: null;
     setFont: BaseLyricSetter;
-    getFont: BaseLyricSetter;
     setFontSize: BaseLyricSetter;
-    getFontSize: BaseLyricSetter;
     setAlignment: BaseLyricSetter;
-    getAlignment: BaseLyricSetter;
     setColor: BaseLyricSetter;
-    getColor: BaseLyricSetter;
     setTranslationMain: boolean;
-    getTranslationMain: boolean;
     setSecondShow: boolean;
-    getSecondShow: boolean;
-    setLyricSource: SongInfoKey;
-    getLyricList: SongInfoList;
-    getAllLyric: LyricLine[];
-    setBlock: null;
-    setUnblock: null;
-    getBlockList: BlockItem[];
-    getCacheCount: number;
-    setCacheClean: null;
-    getLyricOffset: number;
-    setLyricOffset: number;
+    /** 歌词行数：1 / 3 / 5 / … / 15（标量，不是 Pair） */
+    setLyricLines: number;
+    setBlink: null;
+    setShadow: { first?: Shadow; second?: Shadow };
+    /** 歌词加载中 / 加载结束: 展示端的 `.` 提示据此显示与清除 */
+    setLyricLoading: boolean;
 }
 
 interface LyricLine {
@@ -73,15 +63,6 @@ interface BaseLyricSetter {
     second?: string;
 }
 
-interface SongInfoKey {
-    type: "QQ" | "Netease";
-    key: string;
-}
-
-interface SongInfoList {
-    QQ: SongInfo[];
-    Netease: SongInfo[];
-}
 
 interface SongInfo {
     title: string;
@@ -90,11 +71,6 @@ interface SongInfo {
     key: string;
 }
 
-interface BlockItem {
-    bid?: number;
-    sid?: number;
-    title?: string;
-}
 
 export { isWebsocketMessage, isLyric, isSetting };
 
@@ -104,9 +80,6 @@ export type {
     WebsocketSetting,
     WebsocketSettingTypeMap,
     BaseLyricSetter,
-    SongInfoKey,
-    SongInfoList,
     SongInfo,
     LyricLine,
-    BlockItem,
 };

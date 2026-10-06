@@ -13,9 +13,9 @@ mod tests {
     #[tokio::test]
     async fn test_parse_lyric() -> Result<()> {
         let title = "稻香";
-        let all_music = QQLyricSource.search_all_music(title, "周杰伦").await?;
+        let mut all_music = QQLyricSource.search_all_music(title, "周杰伦").await?;
         let mut lyric = QQ_LYRIC_SOURCE
-            .search_lyrics(&all_music, title, 203000, "周杰伦")
+            .search_lyrics(&mut all_music, title, 203000, "周杰伦")
             .await?
             .ok_or::<Error>("没找到对应歌曲".into())?;
         let l1 = &lyric.lyric.unwrap();

@@ -7,6 +7,7 @@ import ToggleNSwitch from "./ToggleNSwitch";
 import DragPanel from "./DragPanel";
 import ColorSelector from "./CustomColorSelector";
 import Select from "./Select";
+import FontPicker from "./FontPicker";
 import Mask from "./Mask";
 
 export {
@@ -19,5 +20,6 @@ export {
     DragPanel,
     ColorSelector,
     Select,
+    FontPicker,
     Mask,
 };

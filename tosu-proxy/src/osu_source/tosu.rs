@@ -213,12 +213,18 @@ impl TosuWebsocketClient {
 
     /// 处理 Tosu 消息
     async fn handle_tosu_message(&self, tosu_data: TosuApi) {
-        // 2025-10-04 tosu 更新, 出现无歌曲的事件下发, 在这里过滤掉
-        if tosu_data.beatmap.id == i64::default() {
-            // return;
+        // 2025-10-04 tosu 更新, 出现无歌曲的事件下发, 在这里过滤掉:
+        // 菜单/无歌曲状态仅触发一次清空, 并重置歌曲记录,
+        // 使下次进歌(即使与之前相同)也会重新走换歌流程
+        let bid = tosu_data.beatmap.id;
+        if bid == i64::default() {
+            if self.bid.swap(i64::default(), Ordering::SeqCst) != i64::default() {
+                self.sid.store(i64::default(), Ordering::SeqCst);
+                self.on_osu_state_change(super::OsuState::Clean).await;
+            }
+            return;
         }
 
-        let bid = tosu_data.beatmap.id;
         let sid = tosu_data.beatmap.set;
         let now = tosu_data.beatmap.time.live;
 

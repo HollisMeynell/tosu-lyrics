@@ -1,7 +1,8 @@
 use serde::Serialize;
 use serde_json::Value;
 
-pub mod setting;
+pub mod http;
+pub mod shared;
 pub mod tosu_types;
 pub mod websocket;
 

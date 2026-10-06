@@ -30,4 +30,50 @@ package-lock.json
 *.sw?
 
 # Resources
-/public/*.otf
+#
+# 这里原本有一行 `/public/*.otf`（沿袭自原项目），会忽略默认字体 public/LRC.otf。
+# 但它是**项目正式运行所需的默认字体**，不是编译缓存 —— 全新 clone 后
+# 应当可以直接使用默认字体，因此该规则已删除。
+#
+# 注意：`dist/` 仍被忽略（见上面 Build files），所以构建时复制到 dist/ 的
+# 字体副本不会进仓库，只有 public/ 下的源码资源会被跟踪。
+
+# ---- 本项目补充（在 origin 规则基础上）----
+
+# Rust 后端产物与运行数据
+tosu-proxy/target/
+tosu-proxy/target
+tosu-proxy/config.json5
+tosu-proxy/*.db
+tosu-proxy/ffprobe
+tosu-proxy/static
+
+# 后端运行时会生成的资源（源码在 public/，这里是提取/构建出来的副本）
+/dist
+
+# 运行时数据库与提取出的辅助程序（每个部署实例各自生成）
+*.db
+*.db-journal
+*.db-wal
+
+# Vite 分析报告
+stats.html
+
+# 端到端测试的临时产物（假 tosu 的媒体、截图、追踪输出）
+*.out
+frames.json
+trace.json
+
+# 编辑器 / 操作系统
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 打包流程填充的内嵌资源目录（由 build.rs 扫描，可空）
+/embed/
+/release

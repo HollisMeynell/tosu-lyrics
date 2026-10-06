@@ -2,6 +2,7 @@ use super::{CLIENT, LyricResult, LyricSource, SongInfo};
 use crate::error::{Error, Result};
 use async_trait::async_trait;
 use serde::Deserialize;
+use tracing::warn;
 
 const NETEASE_API_BASE: &str = "https://music.163.com/api";
 
@@ -116,27 +117,36 @@ impl LyricSource for NeteaseLyricSource {
     /// 获取指定网易云歌曲 ID 的原文和翻译歌词。
     async fn fetch_lyrics(&self, song_id: &str) -> Result<LyricResult> {
         let url = Self::lyric_url(song_id);
-        let response = CLIENT.get(&url).send().await?;
+        let response = match CLIENT.get(&url).send().await {
+            Ok(response) => response,
+            Err(e) => {
+                warn!("Netease 歌词获取失败: {}", e);
+                return Ok(LyricResult::new());
+            }
+        };
 
-        if !response.status().is_success() {
-            return Err(Error::Runtime(format!(
-                "请求失败: {} {}",
-                response.status(),
-                response.text().await?,
-            )));
+        let status = response.status();
+        if !status.is_success() {
+            let e = response.text().await.unwrap_or_else(|e| format!("{e:?}"));
+            warn!("Netease 歌词请求失败: {status}, {e}");
+            return Ok(LyricResult::new());
         }
 
-        let result: NeteaseLyricResponse = response.json().await?;
+        let result: NeteaseLyricResponse = match response.json().await {
+            Ok(result) => result,
+            Err(e) => {
+                warn!("Netease 歌词响应解析失败: {}", e);
+                return Ok(LyricResult::new());
+            }
+        };
 
         if result.code != 200 {
-            return Err(Error::Runtime(format!("Netease API 错误: {}", result.code)));
+            warn!("Netease API 错误: {}", result.code);
+            return Ok(LyricResult::new());
         }
 
         if result.pure_music {
-            return Ok(LyricResult {
-                lyric: None,
-                trans: None,
-            });
+            return Ok(LyricResult::new());
         }
 
         let lyric = result.lrc.map(|item| item.lyric).filter(|s| !s.is_empty());

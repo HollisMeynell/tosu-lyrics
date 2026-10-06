@@ -2,7 +2,7 @@ mod tosu;
 
 pub use tosu::TosuWebsocketClient;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OsuSongInfo {
     pub bid: i64,
     pub sid: i64,

@@ -89,10 +89,11 @@ impl Default for Lyric {
 
 impl Lyric {
     pub fn from_json_cache(json: &[u8]) -> Result<Self> {
-        let lyrics: Vec<LyricLine> = serde_json::from_slice(json)?;
-        let Some(end_time) = lyrics.last().map(|it| it.time) else {
+        let mut lyrics: Vec<LyricLine> = serde_json::from_slice(json)?;
+        if lyrics.is_empty() {
             return Err(Error::from("缓存无效"));
-        };
+        }
+        let end_time = lyrics.last().map(|it| it.time).unwrap_or(-1.0);
 
         let result = Self {
             lyrics,
@@ -143,116 +144,75 @@ impl Lyric {
 
         let trans_lines = parse_lyric_text_raw(trans.unwrap());
         for tr in trans_lines {
-            let lyric = lyric.get_line_mut(tr.time)?;
-            let line = Some(tr.into());
-            if lyric.origin.is_none() {
-                lyric.origin = line
-            } else {
-                lyric.translation = line
-            }
+            let Some(lyric_line) = lyric
+                .lyrics
+                .iter_mut()
+                .find(|line| eq_f32(line.time, tr.time))
+            else {
+                continue;
+            };
+            lyric_line.translation = Some(tr.into());
         }
         lyric.cursor = 0;
         Ok(lyric)
     }
 
     fn get_line_mut(&mut self, time: f32) -> Result<&mut LyricLine> {
-        if time > self.end_time || self.lyrics.is_empty() {
+        if !time.is_finite() {
+            return Err(Error::LyricParse("invalid time"));
+        }
+
+        if self.lyrics.is_empty() {
             self.lyrics.push(LyricLine {
                 time,
                 origin: None,
                 translation: None,
             });
             self.end_time = time;
+            self.cursor = 0;
             return self.lyrics.last_mut().ok_or(Error::Impossible);
         }
 
-        if eq_f32(time, self.end_time) {
+        // 时间已经超过最后一条，直接追加
+        if time > self.end_time && !eq_f32(time, self.end_time) {
+            self.lyrics.push(LyricLine {
+                time,
+                origin: None,
+                translation: None,
+            });
+            self.end_time = time;
+            self.cursor = self.lyrics.len() - 1;
             return self.lyrics.last_mut().ok_or(Error::Impossible);
         }
 
-        // no cursor
+        // cursor 无效，从头二分
         if self.cursor >= self.lyrics.len() {
-            let (index, line_time) = self
-                .lyrics
-                .iter()
-                .enumerate()
-                .rfind(|(_, v)| v.time <= time)
-                .map(|(index, line)| (index, line.time))
-                .unwrap_or((0usize, 999f32));
-            self.cursor = index;
-            return if eq_f32(time, line_time) {
-                self.lyrics.get_mut(index).ok_or(Error::Impossible)
-            } else {
-                let index = index + 1;
-                self.cursor += 1;
-                self.lyrics.insert(
-                    index,
-                    LyricLine {
-                        time,
-                        origin: None,
-                        translation: None,
-                    },
-                );
-                self.lyrics.get_mut(index).ok_or(Error::Impossible)
-            };
+            self.cursor = 0;
         }
-        // has cursor
-        let cursor_time = self.lyrics.get(self.cursor).unwrap().time;
-        if eq_f32(cursor_time, time) {
-            return self.lyrics.get_mut(self.cursor).ok_or(Error::Impossible);
-        }
-        let cursor = self.cursor;
 
-        if cursor_time > time {
-            let (index, line_time) = self.lyrics[0..cursor]
-                .iter()
-                .enumerate()
-                .rfind(|(_, v)| v.time <= time)
-                .map(|(i, v)| (i, v.time))
-                .unwrap_or((0, 999f32));
-
-            self.cursor = index;
-            if !eq_f32(time, line_time) {
-                let index = index + 1;
-                self.cursor += 1;
-                self.lyrics.insert(
-                    index,
-                    LyricLine {
-                        time,
-                        origin: None,
-                        translation: None,
-                    },
-                );
-                self.lyrics.get_mut(index).ok_or(Error::Impossible)
-            } else {
-                self.lyrics.get_mut(index).ok_or(Error::Impossible)
-            }
+        let index = if self.lyrics[self.cursor].time > time {
+            self.lyrics[..self.cursor].partition_point(|line| line.time < time)
         } else {
-            let (index, line_time) = self.lyrics[cursor..]
-                .iter()
-                .enumerate()
-                .find(|(_, v)| v.time >= time)
-                .map(|(i, v)| (i, v.time))
-                .unwrap_or_else(|| {
-                    let last = self.lyrics.last().unwrap();
-                    (self.lyrics.len() - 1, last.time)
-                });
+            self.cursor + self.lyrics[self.cursor..].partition_point(|line| line.time < time)
+        };
+
+        if index < self.lyrics.len() && eq_f32(self.lyrics[index].time, time) {
             self.cursor = index;
-            if eq_f32(time, line_time) {
-                self.lyrics.get_mut(index).ok_or(Error::Impossible)
-            } else {
-                self.end_time = time;
-                self.lyrics.insert(
-                    index,
-                    LyricLine {
-                        time,
-                        origin: None,
-                        translation: None,
-                    },
-                );
-                self.lyrics.get_mut(index).ok_or(Error::Impossible)
-            }
+            return self.lyrics.get_mut(index).ok_or(Error::Impossible);
         }
+
+        self.lyrics.insert(
+            index,
+            LyricLine {
+                time,
+                origin: None,
+                translation: None,
+            },
+        );
+
+        self.cursor = index;
+
+        self.lyrics.get_mut(index).ok_or(Error::Impossible)
     }
 
     /// `time` 时间, 秒

@@ -1,15 +1,10 @@
-use crate::config::CONFIG_FRONTEND;
-use salvo::prelude::*;
-use salvo::serve_static::StaticDir;
+use crate::server::Assets;
+use salvo::serve_static::static_embed;
 
-static STATIC_FILE_PATHS: [&str; 3] = ["./static/lyrics", "./static", "./"];
-
-pub fn get_file_route() -> Router {
-    let static_handler = StaticDir::new(STATIC_FILE_PATHS)
-        .defaults("index.html")
-        .fallback("index.html")
-        .include_dot_files(false)
-        .auto_list(false);
-
-    Router::new().push(Router::with_path(CONFIG_FRONTEND).goal(static_handler))
+pub fn get_file_route() -> salvo::Router {
+    salvo::Router::with_path("{*path}").get(
+        static_embed::<Assets>()
+            .defaults(["index.html"])
+            .fallback("lyrics/index.html"),
+    )
 }

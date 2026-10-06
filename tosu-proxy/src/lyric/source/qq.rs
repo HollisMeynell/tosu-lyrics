@@ -1,7 +1,9 @@
 use super::{CLIENT, LyricResult, LyricSource, SongInfo};
 use crate::error::Result;
 use async_trait::async_trait;
+use reqwest::StatusCode;
 use serde::Deserialize;
+use tracing::warn;
 
 pub struct QQLyricSource;
 
@@ -108,13 +110,31 @@ impl LyricSource for QQLyricSource {
 
     async fn fetch_lyrics(&self, song_id: &str) -> Result<LyricResult> {
         let url = Self::lyric_url(song_id);
-        let result: QQLyricResponse = CLIENT
+        let response = match CLIENT
             .get(&url)
             .header("Referer", "https://y.qq.com/portal/player.html")
             .send()
-            .await?
-            .json()
-            .await?;
+            .await
+        {
+            Ok(response) => response,
+            Err(err) => {
+                warn!("qq 歌词获取失败: {}", err);
+                return Ok(LyricResult::new());
+            }
+        };
+        let status = response.status();
+        if !status.is_success() {
+            let e = response.text().await.unwrap_or_else(|e| format!("{e:?}"));
+            warn!("qq 歌词请求失败: {status}, {e}");
+            return Ok(LyricResult::new());
+        }
+        let result: QQLyricResponse = match response.json().await {
+            Ok(result) => result,
+            Err(err) => {
+                warn!("qq 歌词响应解析失败: {}", err);
+                return Ok(LyricResult::new());
+            }
+        };
         // 腾讯你是不是有点大病
         let lyric = if result.lyric.is_empty() || result.lyric.contains("此歌曲为没有填词的纯音乐")
         {

@@ -1,6 +1,23 @@
-import TosuManager from "@/services/managers/tosuManager";
-import store from "@/stores/indexStore";
-import { alignment, font } from "@/stores/settingsStore";
+import {
+    alignment,
+    font,
+    fontSize,
+    loadedSubFamily,
+    lyricLines,
+    secondFont,
+    shadow,
+    textColor,
+    useTranslationAsMain,
+    showSecond,
+} from "@/stores/settingsStore";
+import {
+    cursor,
+    lyricLoading,
+    lyrics,
+    nextTime,
+    setCursor,
+    setLyrics,
+} from "@/stores/lyricStore";
 import {
     Component,
     Accessor,
@@ -9,50 +26,94 @@ import {
     Index,
     on,
     onCleanup,
-    onMount,
     Show,
 } from "solid-js";
 import { LyricLine } from "@/types/lyricTypes.ts";
-import { loadFont } from "@/utils/fonts.ts";
+import { loadFont, resolveFamily } from "@/utils/fonts.ts";
+import { measureLineWidth } from "@/utils/lyricScroll.ts";
+import {
+    LYRIC_LINE_HEIGHT,
+    LyricLineLevel,
+    boxLineCount,
+    lineDistance,
+    lineLevel,
+    lineLevelScale,
+    lyricBoxHeight,
+    visibleSideCount,
+    windowLineCount,
+    windowTranslateY,
+} from "@/utils/lyricLines.ts";
+
+/** 加载提示最多显示的点数; 到顶后回到 1 个点继续循环 */
+const LOADING_DOT_MAX = 5;
 
 let blink = () => void 0;
-let tosu: TosuManager | undefined;
 
-// 触发歌词闪烁三次
 export const lyricBlink = () => {
     blink();
 };
 
-interface LyricsBoxProps {
-    debug: boolean;
-}
-
 interface MainLyricProps {
     text: string | undefined;
     align?: "left" | "center" | "right";
-    active: boolean;
+    /** 样式层级：0 当前歌词 / 1 相邻 / ≥2 最外层（见 utils/lyricLines.ts） */
+    level: LyricLineLevel;
 }
 
 interface SecondLyricProps {
     block: boolean;
     text: string | undefined;
     align?: "left" | "center" | "right";
-    active: boolean;
+    level: LyricLineLevel;
+}
+
+export interface LyricsBoxProps {
+    /**
+     * 固定 viewport 行数（只有 Controller 顶部预览传 3）。
+     *
+     * 传了之后窗口高度恒定 = viewportLines 行，不再跟随 lyricLines：
+     * 下面的控制面板位置始终保持与 3 行时一致，多出来的歌词只在固定 viewport
+     * 内显示、其余整行隐藏。
+     *
+     * `/lyrics` 不传，行为与之前完全一致（窗口高度 = lyricLines，按设置完整显示）。
+     */
+    viewportLines?: number;
 }
 
 const LyricsBox: Component<LyricsBoxProps> = (props) => {
-    const isDebug = props.debug && !(import.meta.env.MODE === "development");
     const [scroll, setScroll] = createSignal(false);
-    const [lyrics, setLyrics] = createSignal<LyricLine[]>([]);
-    const [cursor, setCursor] = createSignal(0);
     const [lyricLIRef, setLyricLIRef] = createSignal<HTMLLIElement | undefined>(
         undefined
     );
     let lyricUL: HTMLUListElement | undefined;
 
-    const linkTosu = () => {
-        if (!isDebug) tosu = new TosuManager(setLyrics, setCursor);
-    };
+    // 加载提示: 从 1 个点开始, 每 0.5s 增加一个, 到上限后回到 1 个点循环。
+    const [loadingDots, setLoadingDots] = createSignal(1);
+    // 只在"正在加载且还没有歌词可显示"时出现, 不覆盖正常歌词
+    const showLoading = () => lyricLoading() && lyrics().length === 0;
+
+    /**
+     * 窗口高度 / 居中位移用的行数。
+     *
+     * Controller（传了 viewportLines）固定 3 行高度，控制面板位置永不改变；
+     * /lyrics 没传，跟随 lyricLines（1/3/…/15）—— 展示端行为不变。
+     */
+    const boxLines = () => boxLineCount(lyricLines(), props.viewportLines);
+    /** 允许参与显示的最大行数：Controller 不会超过固定 viewport */
+    const visibleLines = () => windowLineCount(lyricLines(), props.viewportLines);
+    /** 当前歌词上下各允许显示多少行（Controller 里 lyricLines=1 时为 0） */
+    const visibleSide = () => visibleSideCount(visibleLines());
+
+    createEffect(() => {
+        if (!lyricLoading()) {
+            setLoadingDots(1);
+            return;
+        }
+        const timer = setInterval(() => {
+            setLoadingDots((n) => (n >= LOADING_DOT_MAX ? 1 : n + 1));
+        }, 500);
+        onCleanup(() => clearInterval(timer));
+    });
 
     const lyricShow = (show?: boolean) => {
         if (show == undefined) show = true;
@@ -70,7 +131,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         } else {
             blinkKey = 10;
         }
-        tosu?.pause();
         let needBack: boolean;
         const lyricsBack = lyrics();
         const cursorBack = cursor();
@@ -97,7 +157,6 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                     setLyrics(lyricsBack);
                     setCursor(cursorBack);
                 }
-                tosu?.continue();
                 return;
             }
             isVisible = !isVisible;
@@ -106,24 +165,12 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         }, 250);
     };
 
-    onCleanup(() => {
-        tosu?.stop();
-    });
-
-    // 更新滚动
     const updateScroll = (p: HTMLLIElement) => {
         setLyricLIRef(p);
-        const getMaxWidth = () => {
-            if (p.children.length === 2) {
-                return Math.max(
-                    p.children[0].scrollWidth * 2,
-                    p.children[1].scrollWidth
-                );
-            }
-            return p.children[0].scrollWidth;
-        };
-
-        const maxWidth = getMaxWidth();
+        // 按目标(active)字号补偿后再比较, 详见 utils/lyricScroll.ts。
+        // 目标字号必须与下面 MainLyric / SecondLyric 实际用的 font-size 一致。
+        const sizes = fontSize();
+        const maxWidth = measureLineWidth(p, sizes.first, sizes.second);
 
         if (!lyricUL) return;
 
@@ -131,11 +178,8 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
 
         const alignmentStyle = p.style.alignItems || "center";
 
-        console.log(`${maxWidth} || ${clientWidth}`);
         if (maxWidth > clientWidth) {
             const ulPadding = 40;
-            // 计算偏移量(非常精细)
-
             if (alignmentStyle === "flex-start") {
                 const offset =
                     Math.round(maxWidth - clientWidth) + 2 * ulPadding;
@@ -152,14 +196,16 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 p.style.setProperty("--offset", `${offset}px`);
                 p.style.setProperty("--offset-f", `${0}px`);
             }
-            p.style.setProperty("--time", `${tosu?.getNextTime()}s`);
+            p.style.setProperty(
+                "--time",
+                `${nextTime() > 0 ? nextTime() / 1000 : 0}s`
+            );
             setScroll(true);
         } else if (scroll()) {
             setScroll(false);
         }
     };
 
-    // 更新歌词滚动
     createEffect(
         on(
             [lyrics, cursor],
@@ -174,43 +220,33 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         )
     );
 
-    // 更新字体
+    // 字体选择变化时重新解析并注册所需字体。不再要求"选择为空"才加载 ——
+    // 现在选择码可能指向"内置"或"上传"两套 family，且内置字体是按需注册的。
+    // registered 的版本检查保证同一字体不会重复下载。
     createEffect(
-        on([font], () => {
-            if (!lyricUL) return;
-            const fontName = font();
-            if (fontName.length === 0) {
-                loadFont().then((font) => {
-                    lyricUL.style.fontStyle = font;
-                });
-            }
-            lyricUL.style.fontFamily = fontName;
+        on([font, secondFont], () => {
+            void loadFont();
         })
     );
 
-    // 初始化歌词
-    onMount(() => {
-        if (isDebug) {
-            tosu?.stop();
-            setLyrics([
-                { main: "测试歌词1", origin: "Test Lyrics 1" },
-                { main: "测试歌词2", origin: "Test Lyrics 2" },
-                { main: "测试歌词3", origin: "Test Lyrics 3" },
-            ]);
-            setCursor(1);
-        } else {
-            linkTosu();
-        }
-    });
+    // 未启用阴影时返回 undefined，不写空 filter
+    const shadowFilter = (which: "first" | "second") => {
+        const s = which === "first" ? shadow().first : shadow().second;
+        if (!s.enable) return undefined;
+        // CSS drop-shadow: <x> <y> <blur> <color>
+        return `drop-shadow(${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.color})`;
+    };
 
-    // 子组件
     const MainLyric: Component<MainLyricProps> = (props) => (
         <p
-            class="font-tLRC whitespace-nowrap text-4xl font-bold drop-shadow-[5px_5px_3px_rgba(0,0,0,1)] shadow-[#fff] transition-[font-size] duration-300"
+            class="font-tLRC whitespace-nowrap text-4xl font-bold transition-[font-size] duration-300"
             style={{
-                color: store.getState.settings.textColor.first,
+                filter: shadowFilter("first"),
+                color: textColor().first,
+                "font-family": resolveFamily(font()),
                 "text-align": props.align || "center",
-                "font-size": props.active ? "3em" : "1.5em",
+                // 层级 0 为 1 倍、层级 1 与 2 为 1/2 倍 —— 与改动前的 active/inactive 完全一致
+                "font-size": `${fontSize().first * lineLevelScale(props.level)}em`,
             }}
         >
             {props.text}
@@ -220,22 +256,27 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     const SecondLyric: Component<SecondLyricProps> = (props) => (
         <p
             classList={{
-                "font-oLRC whitespace-nowrap text-2xl font-bold text-[#a0a0a0] drop-shadow-[5px_5px_2.5px_rgba(0,0,0,1)] mt-4 transition-[font-size] duration-300":
+                "font-oLRC whitespace-nowrap text-2xl font-bold mt-4 transition-[font-size] duration-300":
                     true,
                 block: props.block,
                 hidden: !props.block,
             }}
             style={{
-                color: store.getState.settings.textColor.second,
+                filter: shadowFilter("second"),
+                color: textColor().second,
+                // 副歌词：有独立选择就按副字体解析；否则沿用原有语义
+                // （先看已注册的副字体，再回落到主字体的选择）
+                "font-family": secondFont()
+                    ? resolveFamily(secondFont())
+                    : loadedSubFamily() || resolveFamily(font()),
                 "text-align": props.align || "center",
-                "font-size": props.active ? "2em" : "1em",
+                "font-size": `${fontSize().second * lineLevelScale(props.level)}em`,
             }}
         >
             {props.text}
         </p>
     );
 
-    // 歌词对齐样式
     const lyricAlignmentStyle = () => {
         let alignmentStyle = "";
         let transformOrigin = "";
@@ -261,10 +302,9 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         };
     };
 
-    // 渲染歌词行
     const lines = (lyric: Accessor<LyricLine>, index: number) => {
         const getMainLyric = () =>
-            store.getState.settings.useTranslationAsMain
+            useTranslationAsMain()
                 ? lyric().main
                     ? lyric().main
                     : lyric().origin
@@ -273,27 +313,45 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                   : lyric().main;
 
         const getSecondLyric = () =>
-            store.getState.settings.useTranslationAsMain
+            useTranslationAsMain()
                 ? lyric().origin
                 : lyric().main;
+
+        // 行距离 → 样式层级：距离 0 当前行 / 1 相邻行 / ≥2 最外层行，
+        // 距离再大也不会继续缩小字号（15 行时距离 2…7 都是最外层样式）
+        const distance = () => lineDistance(index, cursor());
+        const level = () => lineLevel(distance());
+        /**
+         * Controller 固定 viewport 下，超出「允许显示行数」的行整行隐藏。
+         *
+         * 用 visibility 而不是 display：每行仍占满 100px，居中位移与相邻行位置
+         * 完全不变（15 行时 Controller 显示的仍是与 3 行时相同的三行）。
+         * /lyrics 不加这个限制 —— 它的窗口高度本身就会裁掉多余行。
+         */
+        const clipped = () =>
+            props.viewportLines !== undefined && distance() > visibleSide();
 
         return (
             <li
                 classList={{
-                    "w-fit h-[100px] flex flex-col justify-center items-center select-none":
+                    "w-fit flex flex-col justify-center items-center select-none":
                         true,
                     "animate-scroll": cursor() === index && scroll(),
+                    invisible: clipped(),
                 }}
-                style={lyricAlignmentStyle()}
+                style={{
+                    ...lyricAlignmentStyle(),
+                    height: `${LYRIC_LINE_HEIGHT}px`,
+                }}
             >
-                <MainLyric text={getMainLyric()} active={cursor() === index} />
+                <MainLyric text={getMainLyric()} level={level()} />
                 <Show
-                    when={lyric().origin && store.getState.settings.showSecond}
+                    when={lyric().origin && showSecond()}
                 >
                     <SecondLyric
-                        block={cursor() === index}
+                        block={level() === 0}
                         text={getSecondLyric()}
-                        active={cursor() === index}
+                        level={level()}
                     />
                 </Show>
             </li>
@@ -301,12 +359,48 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     };
 
     return (
-        <div class="w-full h-[300px] overflow-hidden">
+        // 窗口高度 = boxLines × 单行高度：/lyrics 为 lyricLines（3 行即原来的 300px），
+        // Controller 恒为固定 viewport 的 3 行高度（300px），所以面板位置不会被挤动。
+        // 歌词列表仍是整份渲染，由 overflow-hidden 裁出可见窗口，不会生成 undefined / 重复歌词
+        <div
+            class="w-full overflow-hidden relative"
+            style={{ height: `${lyricBoxHeight(boxLines())}px` }}
+        >
+            <Show when={showLoading()}>
+                <div
+                    class="absolute inset-0 flex flex-col justify-center pointer-events-none px-10"
+                    style={lyricAlignmentStyle()}
+                >
+                    <p
+                        class="font-tLRC whitespace-nowrap font-bold"
+                        style={{
+                            filter: shadowFilter("first"),
+                            color: textColor().first,
+                            "font-family": resolveFamily(font()),
+                            // 复用主歌词字号体系(用户调整主字号时提示同步变化),
+                            // 取 1.15 倍: 比正常歌词再大一点, 让加载状态足够醒目
+                            "font-size": `${fontSize().first * 1.15}em`,
+                            // 点与点之间留出明显间隔, 让每个点独立可辨;
+                            // 负 margin 抵消最后一个点之后的空白,
+                            // 保证居中 / 左右对齐时整串不会偏移
+                            "letter-spacing": "0.4em",
+                            "margin-right": "-0.4em",
+                        }}
+                    >
+                        {".".repeat(loadingDots())}
+                    </p>
+                </div>
+            </Show>
             <ul
                 ref={lyricUL}
                 class="w-full px-10 flex flex-col list-none transition-transform duration-300"
                 style={{
-                    transform: `translateY(${-(cursor() - 1) * 100}px)`,
+                    // 当前歌词始终落在窗口正中间（3 行时即原来的 -(cursor - 1) * 100；
+                    // Controller 恒按 3 行窗口居中，/lyrics 按设置的 windowLineCount 居中）
+                    transform: `translateY(${windowTranslateY(
+                        cursor(),
+                        boxLines()
+                    )}px)`,
                     ...lyricAlignmentStyle(),
                 }}
             >
