@@ -16,7 +16,12 @@ pub fn error_body(code: &str, message: impl Into<String>) -> Value {
     json!({ "error": { "code": code, "message": message.into() } })
 }
 
-pub fn render_error(res: &mut Response, status: StatusCode, code: &str, message: impl Into<String>) {
+pub fn render_error(
+    res: &mut Response,
+    status: StatusCode,
+    code: &str,
+    message: impl Into<String>,
+) {
     res.status_code(status);
     res.render(Json(error_body(code, message)));
 }

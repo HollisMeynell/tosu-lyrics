@@ -168,13 +168,11 @@ fn display_name_for(path: &Path, kind: FontKind) -> String {
     // 会让该接口慢到 7~8 ms（约为 /api/status 的 9 倍），属于关键路径上的白开销。
     // 以 mtime+size 作版本号，只有字体真被覆盖时才重新解析。
     let cache = DISPLAY_NAME_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-    if let Ok(guard) = cache.lock() {
-        if let Some((cached_version, name)) = guard.get(path) {
-            if *cached_version == version {
+    if let Ok(guard) = cache.lock()
+        && let Some((cached_version, name)) = guard.get(path)
+            && *cached_version == version {
                 return name.clone();
             }
-        }
-    }
 
     let Ok(bytes) = std::fs::read(path) else {
         return fallback;
@@ -225,7 +223,8 @@ fn font_display_name(bytes: &[u8]) -> Option<String> {
                 continue;
             }
             let length = u16::from_be_bytes([*table.get(rec + 8)?, *table.get(rec + 9)?]) as usize;
-            let offset = u16::from_be_bytes([*table.get(rec + 10)?, *table.get(rec + 11)?]) as usize;
+            let offset =
+                u16::from_be_bytes([*table.get(rec + 10)?, *table.get(rec + 11)?]) as usize;
             let start = storage.checked_add(offset)?;
             let Some(raw) = table.get(start..start.checked_add(length)?) else {
                 continue;
@@ -258,11 +257,11 @@ fn font_display_name(bytes: &[u8]) -> Option<String> {
 }
 
 fn decode_utf16_be(raw: &[u8]) -> Option<String> {
-    if raw.len() % 2 != 0 {
+    if !raw.len().is_multiple_of(2) {
         return None;
     }
     let units: Vec<u16> = raw
-        .chunks_exact(2)
+        .as_chunks::<2>().0.iter()
         .map(|c| u16::from_be_bytes([c[0], c[1]]))
         .collect();
     let text = String::from_utf16(&units).ok()?;

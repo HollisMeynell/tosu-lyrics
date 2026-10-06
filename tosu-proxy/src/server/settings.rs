@@ -1,6 +1,6 @@
 use crate::config::CONFIG_ENDPOINT_SETTINGS;
 use crate::error::Error;
-use crate::model::setting::LyricSettingsPatch;
+use crate::model::shared::setting::LyricSettingsPatch;
 use crate::server::response::{CODE_INVALID_PARAM, render_error, render_service_error};
 use crate::service::{current_settings, patch_settings as apply_settings_patch};
 use salvo::http::StatusCode;
@@ -36,7 +36,8 @@ async fn parse_patch(req: &mut Request) -> Result<LyricSettingsPatch, String> {
     if text.trim().is_empty() {
         return Err("请求体为空".to_string());
     }
-    crate::util::to_json::<LyricSettingsPatch>(text).map_err(|e: Error| format!("请求体格式错误: {e}"))
+    crate::util::to_json::<LyricSettingsPatch>(text)
+        .map_err(|e: Error| format!("请求体格式错误: {e}"))
 }
 
 pub fn get_settings_route() -> Router {

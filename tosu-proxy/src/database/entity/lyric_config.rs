@@ -70,7 +70,10 @@ impl Entity {
     }
 
     pub async fn get_by_bid(bid: i32) -> crate::error::Result<Option<i32>> {
-        Ok(Self::find_by_id(bid).one(database()).await?.map(|m| m.offset))
+        Ok(Self::find_by_id(bid)
+            .one(database())
+            .await?
+            .map(|m| m.offset))
     }
 
     /// 取出所有 disable = true 的旧行（黑名单迁往 lyric_block）

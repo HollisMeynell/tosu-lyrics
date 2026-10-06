@@ -1,7 +1,7 @@
-use crate::database::lyric_block::{is_valid_scope, Model};
+use crate::database::lyric_block::{Model, is_valid_scope};
 use crate::database::{LyricBlockEntity, SCOPE_BID, SCOPE_SID, SCOPE_TITLE};
 use crate::error::Error;
-use crate::service::lyric_service::{lyric_service, LyricService};
+use crate::service::lyric_service::{LyricService, lyric_service};
 use serde::{Deserialize, Serialize};
 
 pub type Result<T> = std::result::Result<T, BlockError>;
@@ -180,11 +180,18 @@ async fn apply_current_song_effects() {
         .is_some();
 
     if blocked {
-        crate::service::LYRIC_SERVICE.call(move |service| Box::pin(async move {
-            if service.get_now_song().is_some_and(|song| song.bid as i32 == ident.bid) {
-                service.clear_display().await;
-            }
-        })).await;
+        crate::service::LYRIC_SERVICE
+            .call(move |service| {
+                Box::pin(async move {
+                    if service
+                        .get_now_song()
+                        .is_some_and(|song| song.bid as i32 == ident.bid)
+                    {
+                        service.clear_display().await;
+                    }
+                })
+            })
+            .await;
     } else {
         // 解除屏蔽: 重新载入当前歌的歌词
         LyricService::reload_current().await;

@@ -1,27 +1,30 @@
 use crate::config::CONFIG_ENDPOINT_AUDIO_LEN;
+use crate::model::http::audio::AudioLengthResponse;
+use crate::server::response::{CODE_INTERNAL, CODE_INVALID_PARAM, render_error};
 use crate::util::read_audio_length;
 use salvo::http::StatusCode;
 use salvo::prelude::*;
 
 #[handler]
 async fn get_audio_length(req: &mut Request, res: &mut Response) {
-    let path_query = req.query::<String>("path");
-    if path_query.is_none() {
-        res.status_code(StatusCode::BAD_REQUEST);
-        res.render(Text::Plain(
-            "Query parameter 'path' is required.".to_string(),
-        ));
+    let Some(path) = req.query::<String>("path") else {
+        render_error(
+            res,
+            StatusCode::BAD_REQUEST,
+            CODE_INVALID_PARAM,
+            "缺少查询参数 path",
+        );
         return;
+    };
+    match read_audio_length(&path).await {
+        Ok(length) => res.render(Json(AudioLengthResponse { length })),
+        Err(err) => render_error(
+            res,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            CODE_INTERNAL,
+            format!("读取音频时长失败: {err}"),
+        ),
     }
-    let path_value = path_query.unwrap();
-    let length_result = read_audio_length(&path_value).await;
-    if let Err(err) = length_result {
-        res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
-        res.render(Text::Plain(format!("Failed to read audio length: {}", err)));
-        return;
-    }
-    let length = length_result.unwrap();
-    res.render(Text::Plain(length.to_string()));
 }
 
 pub fn get_audio_route() -> Router {

@@ -114,22 +114,21 @@ impl LyricSource for QQLyricSource {
             .get(&url)
             .header("Referer", "https://y.qq.com/portal/player.html")
             .send()
-            .await {
-            Ok (response) => response,
+            .await
+        {
+            Ok(response) => response,
             Err(err) => {
                 warn!("qq 歌词获取失败: {}", err);
                 return Ok(LyricResult::new());
             }
         };
         let status = response.status();
-        if !status.is_success() { 
+        if !status.is_success() {
             let e = response.text().await.unwrap_or_else(|e| format!("{e:?}"));
             warn!("qq 歌词请求失败: {status}, {e}");
             return Ok(LyricResult::new());
         }
-        let result: QQLyricResponse = match response
-            .json()
-            .await {
+        let result: QQLyricResponse = match response.json().await {
             Ok(result) => result,
             Err(err) => {
                 warn!("qq 歌词响应解析失败: {}", err);

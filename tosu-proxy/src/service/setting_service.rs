@@ -1,5 +1,7 @@
 use crate::error::Result;
-use crate::model::setting::{ALL_SETTING_KEYS, LyricSettings, LyricSettingsPatch, SettingKey};
+use crate::model::shared::setting::{
+    ALL_SETTING_KEYS, LyricSettings, LyricSettingsPatch, SettingKey,
+};
 use crate::model::websocket::WebSocketMessage;
 use crate::model::websocket::setting::SettingPayload;
 use crate::server::ALL_SESSIONS;
@@ -57,7 +59,7 @@ pub async fn send_settings_snapshot(session_key: &str) {
 
 #[cfg(test)]
 mod test {
-    use crate::model::setting::{LyricSettings, LyricSettingsPatch, SettingKey};
+    use crate::model::shared::setting::{LyricSettings, LyricSettingsPatch, SettingKey};
 
     #[test]
     fn changed_keys_map_to_frontend_ws_keys() {
@@ -101,7 +103,6 @@ mod test {
         assert_eq!(value["second"], "center");
     }
 }
-
 
 pub fn keys_of(before: &LyricSettings, after: &LyricSettings) -> Vec<SettingKey> {
     after.changed_keys(before)

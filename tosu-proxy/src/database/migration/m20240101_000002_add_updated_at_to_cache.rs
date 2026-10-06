@@ -23,7 +23,10 @@ impl MigrationTrait for Migration {
         let backfilled = db
             .execute(sea_orm::Statement::from_string(
                 sea_orm::DatabaseBackend::Sqlite,
-                format!("UPDATE lyric_cache SET updated_at = {} WHERE updated_at = 0", now_ms),
+                format!(
+                    "UPDATE lyric_cache SET updated_at = {} WHERE updated_at = 0",
+                    now_ms
+                ),
             ))
             .await?;
         if backfilled.rows_affected() > 0 {

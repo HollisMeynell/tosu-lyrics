@@ -1,12 +1,12 @@
 use crate::config::{
     CONFIG_ENDPOINT_CACHE, CONFIG_ENDPOINT_CACHE_CLEANUP, CONFIG_ENDPOINT_CACHE_COUNT,
 };
+use crate::model::http::cache::{CleanupResponse, CountResponse, RemovedResponse};
 use crate::server::response::{CODE_INVALID_PARAM, render_error, render_service_error};
 use crate::service::cache_service;
 use salvo::http::StatusCode;
 use salvo::prelude::*;
 use serde::Deserialize;
-use serde_json::json;
 
 #[derive(Debug, Deserialize)]
 struct PageQuery {
@@ -37,7 +37,7 @@ async fn list_cache(req: &mut Request, res: &mut Response) {
 #[handler]
 async fn count_cache(res: &mut Response) {
     match cache_service::count().await {
-        Ok(total) => res.render(Json(json!({ "total": total }))),
+        Ok(total) => res.render(Json(CountResponse { total })),
         Err(err) => render_service_error(res, err),
     }
 }
@@ -54,7 +54,9 @@ async fn delete_cache(req: &mut Request, res: &mut Response) {
         return;
     };
     match cache_service::delete(bid).await {
-        Ok(removed) => res.render(Json(json!({ "removed": if removed { 1 } else { 0 } }))),
+        Ok(removed) => res.render(Json(RemovedResponse {
+            removed: if removed { 1 } else { 0 },
+        })),
         Err(err) => render_service_error(res, err),
     }
 }
@@ -66,15 +68,15 @@ struct DeleteQuery {
 
 #[handler]
 async fn clear_cache(req: &mut Request, res: &mut Response) {
-    let query = req.parse_queries::<DeleteQuery>().unwrap_or(DeleteQuery {
-        title: None,
-    });
+    let query = req
+        .parse_queries::<DeleteQuery>()
+        .unwrap_or(DeleteQuery { title: None });
     let result = match query.title.as_deref().filter(|t| !t.trim().is_empty()) {
         Some(title) => cache_service::delete_by_title(title).await,
         None => cache_service::clear().await,
     };
     match result {
-        Ok(removed) => res.render(Json(json!({ "removed": removed }))),
+        Ok(removed) => res.render(Json(RemovedResponse { removed })),
         Err(err) => render_service_error(res, err),
     }
 }
@@ -82,10 +84,10 @@ async fn clear_cache(req: &mut Request, res: &mut Response) {
 #[handler]
 async fn cleanup_cache(res: &mut Response) {
     match cache_service::purge_expired().await {
-        Ok(removed) => res.render(Json(json!({
-            "removed": removed,
-            "ttlMs": cache_service::ttl_ms(),
-        }))),
+        Ok(removed) => res.render(Json(CleanupResponse {
+            removed,
+            ttl_ms: cache_service::ttl_ms(),
+        })),
         Err(err) => render_service_error(res, err),
     }
 }
@@ -95,8 +97,6 @@ pub fn get_cache_route() -> Router {
         .get(list_cache)
         .delete(clear_cache)
         .push(Router::with_path(CONFIG_ENDPOINT_CACHE_COUNT).get(count_cache))
-        .push(
-            Router::with_path(CONFIG_ENDPOINT_CACHE_CLEANUP).post(cleanup_cache),
-        )
+        .push(Router::with_path(CONFIG_ENDPOINT_CACHE_CLEANUP).post(cleanup_cache))
         .push(Router::with_path("{bid}").delete(delete_cache))
 }

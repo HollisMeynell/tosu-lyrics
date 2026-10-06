@@ -145,7 +145,9 @@ pub fn ensure_runtime_dir() {
     // 会被下面的资源释放覆盖掉。先把这类**上传字体**搬到 `uploaded/`，再释放默认字体，
     // 用户上传的字体不会丢，被覆盖的默认字体也回到原位。
     for name in crate::service::font_service::migrate_legacy_uploaded_fonts(&dir, |name, bytes| {
-        embedded_resource(name).map(|default| default == bytes).unwrap_or(false)
+        embedded_resource(name)
+            .map(|default| default == bytes)
+            .unwrap_or(false)
     }) {
         info!(
             "已把历史上传字体 {name} 迁移到 {}/",
@@ -173,7 +175,9 @@ pub fn ensure_runtime_dir() {
         }
     }
     if !version_ok {
-        let body = format!("{{\n  \"version\": \"{RESOURCE_VERSION}\",\n  \"resources\": [\"LRC.otf\", \"tLRC.otf\"]\n}}\n");
+        let body = format!(
+            "{{\n  \"version\": \"{RESOURCE_VERSION}\",\n  \"resources\": [\"LRC.otf\", \"tLRC.otf\"]\n}}\n"
+        );
         let _ = std::fs::write(&manifest, body);
     }
     if let Err(err) = std::env::set_current_dir(&dir) {
@@ -190,12 +194,14 @@ pub fn ensure_runtime_dir() {
 /// - 非阻塞：不等待、不 kill；tosu 之后退出不会影响本进程
 /// - 输出以 `[tosu]` 前缀转发到本进程日志，不吞日志
 /// - 不改动 tosu.exe，也不影响用户手动启动 tosu
-/// 单次探测不够可靠（tosu 可能刚启动、尚未完成监听），因此做多次重试。
-/// 只有在**确认没有** tosu 时才会启动新实例，避免 EADDRINUSE。
+///   单次探测不够可靠（tosu 可能刚启动、尚未完成监听），因此做多次重试。
+///   只有在**确认没有** tosu 时才会启动新实例，避免 EADDRINUSE。
 fn tosu_already_running(port: u16) -> bool {
     let probe = std::net::SocketAddr::from(([127, 0, 0, 1], port));
     for _ in 0..6 {
-        if std::net::TcpStream::connect_timeout(&probe, std::time::Duration::from_millis(250)).is_ok() {
+        if std::net::TcpStream::connect_timeout(&probe, std::time::Duration::from_millis(250))
+            .is_ok()
+        {
             return true;
         }
         std::thread::sleep(std::time::Duration::from_millis(250));

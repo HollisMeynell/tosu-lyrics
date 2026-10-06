@@ -1,14 +1,12 @@
 use crate::config::CONFIG_ENDPOINT_BLOCKS;
 use crate::error::Error;
+use crate::model::http::blocks::{BlockListResponse, ClearBlocksResponse, DeleteBlockResponse};
 use crate::server::response::{
     CODE_INVALID_PARAM, CODE_NOT_FOUND, render_error, render_service_error,
 };
-use crate::service::block_service::{
-    self, BlockError, BlockRuleInput, BlockRulePatch,
-};
+use crate::service::block_service::{self, BlockError, BlockRuleInput, BlockRulePatch};
 use salvo::http::StatusCode;
 use salvo::prelude::*;
-use serde_json::json;
 
 fn render_block_error(res: &mut Response, err: BlockError) {
     match err {
@@ -37,10 +35,10 @@ async fn parse_body<T: serde::de::DeserializeOwned>(req: &mut Request) -> Result
 #[handler]
 async fn list_blocks(res: &mut Response) {
     match block_service::list().await {
-        Ok(rules) => res.render(Json(json!({
-            "total": rules.len(),
-            "items": rules,
-        }))),
+        Ok(rules) => res.render(Json(BlockListResponse {
+            total: rules.len(),
+            items: rules,
+        })),
         Err(err) => render_block_error(res, err),
     }
 }
@@ -97,7 +95,10 @@ async fn delete_block(req: &mut Request, res: &mut Response) {
         return;
     };
     match block_service::delete(id).await {
-        Ok(Some(rule)) => res.render(Json(json!({ "removed": true, "rule": rule }))),
+        Ok(Some(rule)) => res.render(Json(DeleteBlockResponse {
+            removed: true,
+            rule,
+        })),
         Ok(None) => render_error(
             res,
             StatusCode::NOT_FOUND,
@@ -111,7 +112,7 @@ async fn delete_block(req: &mut Request, res: &mut Response) {
 #[handler]
 async fn clear_blocks(res: &mut Response) {
     match block_service::clear_all().await {
-        Ok(removed) => res.render(Json(json!({ "removed": removed }))),
+        Ok(removed) => res.render(Json(ClearBlocksResponse { removed })),
         Err(err) => render_block_error(res, err),
     }
 }

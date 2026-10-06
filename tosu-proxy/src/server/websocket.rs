@@ -114,7 +114,9 @@ impl WebsocketSession {
             .read()
             .await
             .iter()
-            .filter(|(key, e)| e.is_display() && (key.as_str() == target || e.identity() == Some(target)))
+            .filter(|(key, e)| {
+                e.is_display() && (key.as_str() == target || e.identity() == Some(target))
+            })
             .map(|(key, _)| key.clone())
             .collect()
     }
@@ -133,7 +135,9 @@ impl WebsocketSession {
             .iter()
             .filter(|(key, client)| f(key, client))
             .filter_map(|(key, client)| {
-                client.channel.send(message.clone())
+                client
+                    .channel
+                    .send(message.clone())
                     .err()
                     .map(|_| key.clone())
             })
@@ -154,7 +158,9 @@ impl WebsocketSession {
     where
         T: AsRef<str>,
     {
-        self.find_clients(message, |k, client| key.as_ref() == k && client.is_display())
+        self.find_clients(message, |k, client| {
+            key.as_ref() == k && client.is_display()
+        })
         .await;
     }
 
@@ -163,7 +169,10 @@ impl WebsocketSession {
         T: AsRef<str>,
     {
         let key_str = key.as_ref();
-        let send_result = self.0.read().await
+        let send_result = self
+            .0
+            .read()
+            .await
             .get(key_str)
             .map(|entry| entry.channel.send(message));
 
@@ -179,7 +188,10 @@ impl WebsocketSession {
     {
         let key_str = key.as_ref();
         let pong = Message::pong(message.as_bytes().to_vec());
-        let send_result = self.0.read().await
+        let send_result = self
+            .0
+            .read()
+            .await
             .get(key_str)
             .map(|entry| entry.channel.send(pong));
 
@@ -204,7 +216,10 @@ async fn on_ws_message(key: &str, message: Message) {
     }
 
     if let Ok(text) = message.as_str() {
-        debug!("忽略展示端上行消息(WS 管理已移除, id={key}): {}", &text[..text.len().min(80)]);
+        debug!(
+            "忽略展示端上行消息(WS 管理已移除, id={key}): {}",
+            &text[..text.len().min(80)]
+        );
     }
 }
 
@@ -258,13 +273,14 @@ async fn connect(req: &mut Request, res: &mut Response) -> Result<()> {
     WebSocketUpgrade::new()
         .upgrade(req, res, async move |ws| {
             let (tx, rx) = mpsc::unbounded_channel::<Message>();
-            let key = ALL_SESSIONS
-                .add_client(tx, identity, user_agent)
-                .await;
+            let key = ALL_SESSIONS.add_client(tx, identity, user_agent).await;
             {
                 crate::service::send_settings_snapshot(&key).await;
                 // 无歌词时下发清屏，避免断线重连 / OBS 刷新后残留上一次歌词
-                match crate::service::LYRIC_SERVICE.call(|svc| Box::pin(async move { svc.get_snapshot() })).await {
+                match crate::service::LYRIC_SERVICE
+                    .call(|svc| Box::pin(async move { svc.get_snapshot() }))
+                    .await
+                {
                     Some(snapshot) => ALL_SESSIONS.send_message(&key, snapshot.into()).await,
                     None => {
                         let clean = crate::model::websocket::setting::SettingPayload::new(

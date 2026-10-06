@@ -2,7 +2,7 @@ use crate::database::LyricBindingEntity;
 use crate::error::{Error, Result};
 use crate::lyric::{Lyric, LyricLine, LyricSource, LyricSourceEnum, SongInfo};
 use crate::service::LYRIC_SERVICE;
-use crate::service::lyric_service::{lyric_service, LyricService, SongIdent, STALE_REQUEST};
+use crate::service::lyric_service::{LyricService, STALE_REQUEST, SongIdent, lyric_service};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -80,10 +80,16 @@ pub async fn candidates() -> Vec<Candidate> {
     let (ident, binding) = current_context().await;
     let _ = ident;
     let query = query_of(&ident).await;
-    let mut items: Vec<Candidate> = crate::service::lyric_candidates().await
+    let mut items: Vec<Candidate> = crate::service::lyric_candidates()
+        .await
         .into_iter()
         .map(|(source, song)| {
-            to_candidate(source, &song, binding.as_ref(), query.as_ref().map(|(t, l)| (t.as_str(), *l)))
+            to_candidate(
+                source,
+                &song,
+                binding.as_ref(),
+                query.as_ref().map(|(t, l)| (t.as_str(), *l)),
+            )
         })
         .collect();
     sort_candidates(&mut items);
@@ -94,12 +100,17 @@ async fn query_of(ident: &Option<SongIdent>) -> Option<(String, i64)> {
     let ident = ident.as_ref()?;
     let svc = lyric_service().await;
     let song = svc.get_now_song()?;
-    if song.bid as i32 != ident.bid { return None; }
+    if song.bid as i32 != ident.bid {
+        return None;
+    }
     Some((ident.title.clone(), song.length as i64))
 }
 
 async fn current_length() -> i64 {
-    lyric_service().await.get_now_song().map_or(0, |song| song.length as i64)
+    lyric_service()
+        .await
+        .get_now_song()
+        .map_or(0, |song| song.length as i64)
 }
 
 /// title / artist 为空时使用当前播放歌曲；联网期间不持服务锁
@@ -124,7 +135,12 @@ pub async fn search(title: Option<String>, artist: Option<String>) -> Result<Vec
     let mut items: Vec<Candidate> = found
         .into_iter()
         .map(|(source, song)| {
-            to_candidate(source, &song, binding.as_ref(), query.as_ref().map(|(t, l)| (t.as_str(), *l)))
+            to_candidate(
+                source,
+                &song,
+                binding.as_ref(),
+                query.as_ref().map(|(t, l)| (t.as_str(), *l)),
+            )
         })
         .collect();
     sort_candidates(&mut items);
@@ -201,20 +217,14 @@ pub async fn apply_source(source: &str, key: &str) -> Result<Candidate> {
         .unwrap_or_else(|| (ident.title.clone(), String::new(), 0));
 
     // 先落绑定再提交歌词：即使代际失效没提交，下次进入同 sid 也会按这份绑定取词
-    LyricBindingEntity::upsert(
-        ident.sid,
-        source,
-        key,
-        &title,
-        &artist,
-        ident.bid,
-    )
-    .await?;
+    LyricBindingEntity::upsert(ident.sid, source, key, &title, &artist, ident.bid).await?;
 
     let sid = ident.sid;
-    let stale = LYRIC_SERVICE.call(move |svc| Box::pin(async move {
-        svc.apply_source_lyric(generation, sid, lyric).await
-    })).await;
+    let stale = LYRIC_SERVICE
+        .call(move |svc| {
+            Box::pin(async move { svc.apply_source_lyric(generation, sid, lyric).await })
+        })
+        .await;
     if let Err(err) = stale {
         if err.to_string() == STALE_REQUEST {
             return Err(Error::Runtime(STALE_REQUEST.into()));
@@ -235,7 +245,8 @@ pub async fn apply_source(source: &str, key: &str) -> Result<Candidate> {
 }
 
 async fn find_candidate_meta(source: &str, key: &str) -> Option<(String, String, u32)> {
-    crate::service::lyric_candidates().await
+    crate::service::lyric_candidates()
+        .await
         .into_iter()
         .find(|(name, song)| *name == source && song.key == key)
         .map(|(_, song)| (song.title, song.artist, song.length))
@@ -248,16 +259,22 @@ pub async fn clear_source() -> Result<bool> {
     };
     let removed = LyricBindingEntity::remove(ident.sid).await?;
 
-    LYRIC_SERVICE.call(|svc| Box::pin(async move { svc.clear_display_bump().await })).await;
+    LYRIC_SERVICE
+        .call(|svc| Box::pin(async move { svc.clear_display_bump().await }))
+        .await;
     LyricService::reload_current().await;
     Ok(removed)
 }
 
 pub async fn set_offset(offset: i32) -> i32 {
-    LYRIC_SERVICE.call(move |svc| Box::pin(async move {
-        svc.set_offset(offset).await;
-        svc.get_offset()
-    })).await
+    LYRIC_SERVICE
+        .call(move |svc| {
+            Box::pin(async move {
+                svc.set_offset(offset).await;
+                svc.get_offset()
+            })
+        })
+        .await
 }
 
 pub struct ContextSummary {
@@ -293,16 +310,16 @@ pub async fn current_context_summary() -> ContextSummary {
     }
 }
 
-pub async fn binding() -> Option<Value> {
+pub async fn binding() -> Option<crate::model::http::lyrics::SourceBinding> {
     let (ident, binding) = current_context().await;
     let ident = ident?;
-    binding.map(|(source_type, source_key)| {
-        json!({
-            "sid": ident.sid,
-            "source": source_type,
-            "key": source_key,
-        })
-    })
+    binding.map(
+        |(source_type, source_key)| crate::model::http::lyrics::SourceBinding {
+            sid: ident.sid,
+            source: source_type,
+            key: source_key,
+        },
+    )
 }
 
 #[cfg(test)]
@@ -339,10 +356,7 @@ mod test {
         let c = to_candidate("Netease", &song("k2", "B", ""), Some(&binding), None);
         assert!(!a.active);
         assert!(b.active);
-        assert!(
-            !c.active,
-            "来源不同即使 key 相同也不能算命中绑定"
-        );
+        assert!(!c.active, "来源不同即使 key 相同也不能算命中绑定");
     }
 
     #[test]
@@ -362,7 +376,6 @@ mod test {
     }
 }
 
-
 /// 结果来自真实取词，不是猜测；并发受限避免把上游打满
 pub async fn check_translations(items: Vec<(String, String)>) -> Vec<(String, String, bool)> {
     use futures_util::stream::{self, StreamExt};
@@ -372,10 +385,11 @@ pub async fn check_translations(items: Vec<(String, String)>) -> Vec<(String, St
     let results: Vec<_> = stream::iter(items)
         .map(|(source, key)| async move {
             let has = match fetch(&source, &key).await {
-                Ok(lyric) => lyric
-                    .get_lyrics()
-                    .iter()
-                    .any(|line| line.translation.as_deref().is_some_and(|t| !t.trim().is_empty())),
+                Ok(lyric) => lyric.get_lyrics().iter().any(|line| {
+                    line.translation
+                        .as_deref()
+                        .is_some_and(|t| !t.trim().is_empty())
+                }),
                 Err(_) => false,
             };
             (source, key, has)

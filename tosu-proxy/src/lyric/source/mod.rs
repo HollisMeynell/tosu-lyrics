@@ -468,6 +468,7 @@ impl TryInto<Lyric> for LyricResult {
 }
 
 #[async_trait]
+#[allow(clippy::double_must_use)]
 pub trait LyricSource: Send + Sync {
     fn name(&self) -> &str;
     async fn search_music(&self, title: &str) -> Result<Vec<SongInfo>>;
@@ -565,10 +566,8 @@ pub trait LyricSource: Send + Sync {
             self.name(),
             with_artist.chars().count(),
         );
-        let (by_title, by_artist) = tokio::join!(
-            self.search_music(title),
-            self.search_music(&with_artist)
-        );
+        let (by_title, by_artist) =
+            tokio::join!(self.search_music(title), self.search_music(&with_artist));
         let mut merged = by_title?;
         for song in by_artist? {
             if !merged.iter().any(|m| m.key == song.key) {
@@ -769,7 +768,10 @@ mod tests {
             suffix,
         )
         .unwrap();
-        assert!(real < QQ_SEARCH_URL_MAX, "真实日文 query 不应被误判超长: {real}");
+        assert!(
+            real < QQ_SEARCH_URL_MAX,
+            "真实日文 query 不应被误判超长: {real}"
+        );
     }
 
     /// 实测**失败**的长度必须落在上限之外；上限必须严格低于实测失败边界。
@@ -777,15 +779,13 @@ mod tests {
     fn limit_is_below_measured_failure_boundary() {
         // QQ 实测: URL 9772 成功 / 9872 → HTTP 400
         let (qq_prefix, qq_suffix, qq_max) = search_url_limit("QQ").unwrap();
-        let qq_fail =
-            encoded_search_url_len(qq_prefix, &"a".repeat(9800), qq_suffix).unwrap();
+        let qq_fail = encoded_search_url_len(qq_prefix, &"a".repeat(9800), qq_suffix).unwrap();
         assert_eq!(qq_fail, 9872, "前缀长度变化会破坏与实测边界的对应关系");
         assert!(qq_fail > qq_max, "实测失败的长度必须被拒绝");
 
         // NetEase 实测: URL 8154 成功 / 8204 → HTTP 200 + body {{\"code\":400}}
         let (ne_prefix, ne_suffix, ne_max) = search_url_limit("Netease").unwrap();
-        let ne_fail =
-            encoded_search_url_len(ne_prefix, &"a".repeat(8150), ne_suffix).unwrap();
+        let ne_fail = encoded_search_url_len(ne_prefix, &"a".repeat(8150), ne_suffix).unwrap();
         assert_eq!(ne_fail, 8204, "NetEase 的固定后缀必须计入长度");
         assert!(ne_fail > ne_max, "实测失败的长度必须被拒绝");
 

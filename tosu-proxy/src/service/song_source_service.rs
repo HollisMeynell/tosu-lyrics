@@ -15,13 +15,19 @@ pub async fn init_song_service() -> Result<()> {
 }
 
 pub async fn on_osu_state_change(state: OsuState) {
-    LYRIC_SERVICE.call(move |svc| Box::pin(async move {
-        match state {
-            OsuState::Time(time) => if let Err(err) = svc.time_next(time).await {
-                error!("time update error: {err}");
-            },
-            OsuState::Song(song) => svc.observe_song(song).await,
-            OsuState::Clean => svc.song_clean().await,
-        }
-    })).await;
+    LYRIC_SERVICE
+        .call(move |svc| {
+            Box::pin(async move {
+                match state {
+                    OsuState::Time(time) => {
+                        if let Err(err) = svc.time_next(time).await {
+                            error!("time update error: {err}");
+                        }
+                    }
+                    OsuState::Song(song) => svc.observe_song(song).await,
+                    OsuState::Clean => svc.song_clean().await,
+                }
+            })
+        })
+        .await;
 }

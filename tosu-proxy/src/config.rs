@@ -182,22 +182,26 @@ impl Config {
                     if self.ansi {
                         if is_tosu {
                             // tosu 自带版本号/时间戳/颜色，原样保留，只加左侧来源标签
-                            write!(
-                                w,
-                                "{BLUE}{:<6}{RESET} {BLUE}\u{2502}{RESET} {line}",
-                                "tosu"
-                            )?;
+                            write!(w, "{BLUE}{:<6}{RESET} {BLUE}\u{2502}{RESET} {line}", "tosu")?;
                         } else {
                             write!(
                                 w,
                                 "{PINK}{:<6}{RESET} {PINK}\u{2502}{RESET}{:mid$}{level_color}\u{2503}{RESET}  {GRAY}{stamp}{RESET}  {line}",
-                                "lyrics", "", mid = mid
+                                "lyrics",
+                                "",
+                                mid = mid
                             )?;
                         }
                     } else if is_tosu {
                         write!(w, "{:<6} | {line}", "tosu")?;
                     } else {
-                        write!(w, "{:<6} | {:mid$} |  {stamp}  {line}", "lyrics", "", mid = mid)?;
+                        write!(
+                            w,
+                            "{:<6} | {:mid$} |  {stamp}  {line}",
+                            "lyrics",
+                            "",
+                            mid = mid
+                        )?;
                     }
                     if index + 1 < lines.len() {
                         writeln!(w)?;
@@ -333,7 +337,7 @@ fn create_default_config(config_path: &Path) -> Config {
 
             // 首次启动：默认配置已在上面写入磁盘，这里【直接返回它】让本次进程继续初始化，
             // 与第二次启动行为一致（不再 exit，避免"首次启动无日志、无监听、需重启"）。
-            return default_config;
+            default_config
         }
         Err(err) => {
             error!("无法序列化默认配置: {}", err);

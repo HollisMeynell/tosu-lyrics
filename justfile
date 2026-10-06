@@ -1,10 +1,7 @@
-#!/usr/bin/env just --justfile
-#
-# 构建入口。
-#
-# 注意：`pnpm build`（vite）会把 dist/ 清空，而 dist/ 里同时放着后端二进制、
-# config.json5、lyric.db、字体等**运行产物**。因此这里先构建到临时目录，
-# 再把前端产物并入 dist/，避免每次构建都丢掉运行产物。
+
+
+bin_name := if os() == "windows" { "osu-lyric.exe" } else { "osu-lyric" }
+ext      := if os() == "windows" { ".exe" } else { "" }
 
 default:
     @just --list
@@ -19,7 +16,7 @@ default:
     cargo build -r --bin osu-lyric --features=new
 
 @copy-backend:
-    cp ./tosu-proxy/target/release/osu-lyric.exe ./dist/osu-lyric.exe
+    cp ./tosu-proxy/target/release/{{bin_name}} ./dist/osu-lyric{{ext}}
 
 @build-frontend:
     pnpm build --outDir dist-new --emptyOutDir
@@ -47,9 +44,8 @@ assemble-embed:
     [ -f ./tosu-proxy/lib/ffprobe.exe ] && cp ./tosu-proxy/lib/ffprobe.exe ./embed/ffprobe || true
     echo "embed/ 文件数: $(find ./embed -type f | wc -l)"
 
-# 单文件发行：前端 → embed/ → cargo release build → 输出到 ../release/tosu-lyrics.exe
-@package final_dir="../release": assemble-embed build-backend
+# 单文件发行：前端 → embed/ → cargo release build → 输出到目标目录
+@package final_dir="./release": assemble-embed build-backend
     mkdir -p {{final_dir}}
-    cp ./tosu-proxy/target/release/osu-lyric.exe {{final_dir}}/tosu-lyrics.exe
-    echo "输出: $(realpath {{final_dir}}/tosu-lyrics.exe) ($(du -h {{final_dir}}/tosu-lyrics.exe | cut -f1))"
-
+    cp ./tosu-proxy/target/release/{{bin_name}} {{final_dir}}/tosu-lyrics{{ext}}
+    echo "输出: $(realpath {{final_dir}}/tosu-lyrics{{ext}}) ($(du -h {{final_dir}}/tosu-lyrics{{ext}} | cut -f1))"
