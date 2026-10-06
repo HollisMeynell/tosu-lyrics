@@ -6,48 +6,17 @@ permissions:
 on:
   push:
     tags:
-      - 'v.*'
+      - 'v*'
 
 jobs:
-  build-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9.15.3
-
-      - name: Setup Node.js and pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
-      - name: Install dependencies and build
-        run: |
-          pnpm install
-          pnpm run build
-
-      - name: Upload frontend artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: dist
-
-  build-backend:
-    needs: [build-frontend]
+  build:
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
-            exe: tosu-proxy
             target: linux-release.zip
 
           - os: windows-latest
-            exe: tosu-proxy.exe
             target: win-release.zip
 
     runs-on: ${{ matrix.os }}
@@ -56,29 +25,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
 
-      - name: Build backend
-        run: |
-          mkdir -p release
-          cd tosu-proxy
-          cargo build --release --bin tosu-proxy --features=old
-          mv target/release/${{ matrix.exe }} ../release
-          cd ..
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tosu-proxy
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Build (just package)
+        run: just package ./release
+
       - name: Run upx
         continue-on-error: true
         uses: crazy-max/ghaction-upx@v3
         with:
           version: latest
-          files: release/${{ matrix.exe }}
+          files: release/osu-lyric*
           args: --best -q
-
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: ./release/static/lyrics
 
       - name: Prepare archive
         uses: thedoctor0/zip-release@0.7.5
