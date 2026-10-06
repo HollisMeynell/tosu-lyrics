@@ -99,7 +99,6 @@ pub async fn add(input: BlockRuleInput) -> Result<BlockRule> {
     .await?;
     let rule = BlockRule::from(model);
 
-    // 若被拉黑的正是当前播放的歌，立即清屏
     apply_current_song_effects().await;
     Ok(rule)
 }
@@ -125,7 +124,6 @@ pub async fn delete(id: i32) -> Result<Option<BlockRule>> {
     let existing = LyricBlockEntity::get_by_id(id).await?;
     LyricBlockEntity::remove_by_id(id).await?;
     if existing.is_some() {
-        // 解除屏蔽后当前歌可能要恢复展示
         apply_current_song_effects().await;
     }
     Ok(existing.map(BlockRule::from))

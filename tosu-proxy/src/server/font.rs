@@ -68,7 +68,6 @@ async fn download_font(req: &mut Request, res: &mut Response) {
 
 #[handler]
 async fn upload_font(req: &mut Request, res: &mut Response) {
-    // 兼容旧入口 /api/font/upload：没有 kind 参数（或不是 main/sub）时按主字体处理
     let kind = req
         .param::<String>("kind")
         .and_then(|k| FontKind::parse(&k).ok())

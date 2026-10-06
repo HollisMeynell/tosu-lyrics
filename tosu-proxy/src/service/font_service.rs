@@ -87,14 +87,12 @@ pub fn migrate_legacy_uploaded_fonts(
         let name = kind.file_name();
         let legacy = dir.join(name);
         let target = dir.join(UPLOAD_DIR).join(name);
-        // 新位置已有上传（或没有历史文件）时不动
         if target.exists() || !legacy.is_file() {
             continue;
         }
         let Ok(bytes) = std::fs::read(&legacy) else {
             continue;
         };
-        // 内容就是程序自带默认字体 → 不是上传字体
         if is_program_default(name, &bytes) {
             continue;
         }

@@ -107,7 +107,6 @@ pub async fn search(title: Option<String>, artist: Option<String>) -> Result<Vec
     let (title, artist) = match (title, artist) {
         (Some(t), Some(a)) if !t.is_empty() && !a.is_empty() => (t, a),
         _ => {
-            // 未显式给条件：必须有一首正在播放的歌
             let svc = lyric_service().await;
             let key = svc
                 .get_now_song()
@@ -218,7 +217,6 @@ pub async fn apply_source(source: &str, key: &str) -> Result<Candidate> {
     })).await;
     if let Err(err) = stale {
         if err.to_string() == STALE_REQUEST {
-            // 绑定已保存，只是这次没赶上播放上下文
             return Err(Error::Runtime(STALE_REQUEST.into()));
         }
         return Err(err);
@@ -231,7 +229,6 @@ pub async fn apply_source(source: &str, key: &str) -> Result<Candidate> {
         artist,
         length,
         active: true,
-        // 刚应用的就是当前绑定，标题必然匹配当前歌
         title_score: 100,
         duration_delta: length as i64 - current_length().await,
     })

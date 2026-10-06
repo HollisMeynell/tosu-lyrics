@@ -74,7 +74,6 @@ pub async fn start_server() {
     let listener_url = format!("{}:{}", GLOBAL_CONFIG.server, GLOBAL_CONFIG.port);
     info!("server start: http://127.0.0.1:{}", GLOBAL_CONFIG.port);
     let acceptor = TcpListener::new(listener_url).bind().await;
-    // 监听套接字已就绪，这时拉起浏览器不会再出现"打开过早、连不上"的问题
     open_controller_page();
     let server = Server::new(acceptor);
     let handle = server.handle();
@@ -96,8 +95,6 @@ pub async fn start_server() {
 /// 小文件在读完 body 后才失败，表现为 400 + 错误体；5 MB 的文件在 body 发完
 /// 之前服务端就已断开，浏览器只看到 `ERR_CONNECTION_ABORTED`。
 /// 换到程序自己目录下即可绕开，且不依赖外部环境。
-/// 程序资源版本：资源内容变化时递增，用于判断 `lyrics/` 内程序资源是否需要补齐。
-///
 /// v3：上传字体改到 `uploaded/`，默认字体不再被上传覆盖 —— 递增一次版本，
 /// 让已有安装把被覆盖的默认字体资源（`./LRC.otf` / `./tLRC.otf`）重新释放回来。
 const RESOURCE_VERSION: &str = "3";
@@ -193,8 +190,6 @@ pub fn ensure_runtime_dir() {
 /// - 非阻塞：不等待、不 kill；tosu 之后退出不会影响本进程
 /// - 输出以 `[tosu]` 前缀转发到本进程日志，不吞日志
 /// - 不改动 tosu.exe，也不影响用户手动启动 tosu
-/// 判断 127.0.0.1:port 是否已有正常运行的 tosu。
-///
 /// 单次探测不够可靠（tosu 可能刚启动、尚未完成监听），因此做多次重试。
 /// 只有在**确认没有** tosu 时才会启动新实例，避免 EADDRINUSE。
 fn tosu_already_running(port: u16) -> bool {
@@ -261,7 +256,6 @@ fn spawn_tosu_linked() {
     }
 }
 
-/// 把子进程输出逐行转发到本进程日志，带来源前缀。
 fn forward_output<R: std::io::Read + Send + 'static>(reader: R, tag: &'static str) {
     use std::io::BufRead;
     for line in std::io::BufReader::new(reader).lines() {

@@ -137,7 +137,6 @@ pub struct LyricService {
     now_time: i32,
     current_lyric_start_time: i32,
     current_lyric_end_time: i32,
-    // 仅由状态任务访问。
     music_cache: HashMap<&'static str, Vec<SongInfo>>,
     is_song_changed: bool,
 
@@ -202,7 +201,6 @@ impl LyricService {
 
     pub(crate) async fn observe_song(&mut self, song: OsuSongInfo) {
         if song.sid < 0 && song.artist == "nekodex" { return; }
-        // [perf] 纯日志：换歌链路计时起点
         let flow_start = std::time::Instant::now();
         debug!(
             "[perf] (1) 换歌事件 bid={} sid={} len={}ms gen={} title={:?} artist={:?}",
@@ -212,7 +210,6 @@ impl LyricService {
         self.clear_state();
         self.invalidate_async();
         Self::broadcast_clear().await;
-        // 换歌即进入"加载中": 展示端据此开始显示 `.` 增长的提示
         Self::broadcast_loading(true).await;
         let generation = self.generation;
         let task = tokio::spawn(async move {
@@ -663,7 +660,6 @@ impl LyricService {
         self.now_save_cache = None;
         self.now_ident = None;
         Self::broadcast_clear().await;
-        // 回到菜单: 没有加载中的歌词了
         Self::broadcast_loading(false).await;
     }
 
@@ -807,7 +803,6 @@ impl LyricService {
 
         let t = self.now_time.saturating_add(self.offset);
 
-        // 时间未越过当前行窗口(左闭右开): 无需推送。
         // 右端取开区间, 保证播放头到达下一行起点时一定重新计算, 也保证
         // "首行之前"的窗口在到达首行时能正常结束。
         if t >= self.current_lyric_start_time && t < self.current_lyric_end_time {
@@ -829,7 +824,6 @@ impl LyricService {
 
         let frame = Self::frame_at(lyric, t);
         let prev_index = self.now_index;
-        // 下标变化、或刚要下发完整歌词、或"首行之前"这一状态本身发生变化时才推送
         let target_index = if frame.in_line {
             frame.current as usize
         } else {
@@ -932,7 +926,6 @@ impl LyricService {
                 .ok();
         }
         self.now_lyric = Some(Arc::new(lyric));
-        // 按当前播放位置立即下发完整帧, 不等下一次时间事件
         self.push_now(self.now_time).await;
         Ok(())
     }
