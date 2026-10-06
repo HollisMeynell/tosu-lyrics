@@ -20,8 +20,3 @@ async fn main() -> error::Result<()> {
     info!("bye~");
     Ok(())
 }
-
-#[cfg(feature = "old")]
-fn main() {
-    println!("no compile")
-}

@@ -1,3 +1,5 @@
+pub use crate::model::shared::LyricLineData as LyricLinePayload;
+
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -7,16 +9,6 @@ use std::sync::Arc;
 pub enum SequenceType {
     Up,
     Down,
-}
-
-/// 歌词行
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct LyricLinePayload {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub translation: Option<String>,
 }
 
 /// 表示包含歌词信息的消息负载。

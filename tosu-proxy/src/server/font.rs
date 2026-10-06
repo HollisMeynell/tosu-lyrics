@@ -3,12 +3,12 @@ use crate::config::{
     CONFIG_ENDPOINT_FONT, CONFIG_ENDPOINT_FONT_DOWNLOAD, CONFIG_ENDPOINT_FONT_UPLOAD,
 };
 use crate::error::Error;
+use crate::model::http::font::{FontInfoResponse, UploadFontResponse};
 use crate::server::response::{CODE_INVALID_PARAM, render_error, render_service_error};
 use crate::service::font_service::{self, FontKind};
-use salvo::http::header::CONTENT_TYPE;
 use salvo::http::StatusCode;
+use salvo::http::header::CONTENT_TYPE;
 use salvo::prelude::*;
-use serde_json::json;
 
 fn font_content_type(bytes: &[u8]) -> &'static str {
     match bytes.get(..4) {
@@ -22,12 +22,15 @@ fn font_content_type(bytes: &[u8]) -> &'static str {
 #[handler]
 async fn font_info(res: &mut Response) {
     let items = font_service::all_info();
-    res.render(Json(json!({ "items": items })));
+    res.render(Json(FontInfoResponse { items }));
 }
 
 #[handler]
 async fn download_font(req: &mut Request, res: &mut Response) {
-    let Some(kind) = req.param::<String>("kind").and_then(|k| FontKind::parse(&k).ok()) else {
+    let Some(kind) = req
+        .param::<String>("kind")
+        .and_then(|k| FontKind::parse(&k).ok())
+    else {
         render_error(
             res,
             StatusCode::BAD_REQUEST,
@@ -117,7 +120,10 @@ async fn upload_font(req: &mut Request, res: &mut Response) {
     };
 
     match font_service::save(kind, &bytes).await {
-        Ok(info) => res.render(Json(json!({ "ok": true, "font": info }))),
+        Ok(info) => res.render(Json(UploadFontResponse {
+            ok: true,
+            font: info,
+        })),
         Err(Error::Runtime(message)) => {
             let (code, text) = match message.split_once(':') {
                 Some(("invalid_param", rest)) => (CODE_INVALID_PARAM, rest),
@@ -189,8 +195,10 @@ async fn read_static_font(kind: FontKind) -> Option<(Vec<u8>, String)> {
             return Some((bytes, font_service::version_of(&path).0));
         }
     }
-    crate::server::embedded_resource(kind.file_name())
-        .map(|bytes| { let len = bytes.len(); (bytes, format!("embedded-{len}")) })
+    crate::server::embedded_resource(kind.file_name()).map(|bytes| {
+        let len = bytes.len();
+        (bytes, format!("embedded-{len}"))
+    })
 }
 
 async fn serve_static_font(res: &mut Response, kind: FontKind, label: &str) {

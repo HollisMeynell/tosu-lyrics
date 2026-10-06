@@ -1,13 +1,13 @@
 use crate::config::{CONFIG_ENDPOINT_LYRIC, CONFIG_ENDPOINT_LYRIC_UPLOAD};
 use crate::error::Error;
 use crate::lyric::Lyric;
+use crate::model::http::lyrics::{UploadLyricResponse, UploadSongInfo};
 use crate::server::response::{
     CODE_INVALID_PARAM, CODE_NO_LYRIC, CODE_NO_SONG, CODE_SONG_CHANGED, render_error,
 };
-use crate::service::{lyric_service, LyricService, STALE_REQUEST};
+use crate::service::{LyricService, STALE_REQUEST, lyric_service};
 use salvo::http::StatusCode;
 use salvo::prelude::*;
-use serde_json::json;
 
 const MAX_UPLOAD_BYTES: usize = 1024 * 1024;
 
@@ -109,14 +109,21 @@ pub async fn upload_lyric(req: &mut Request, res: &mut Response) {
     // 2) 提交：换到服务锁后再校验一次代际与身份。
     //    上传（尤其是大文件 / 慢网络）期间完全可能切歌，那时整份丢弃。
     let sid = ident.sid;
-    match crate::service::LYRIC_SERVICE.call(move |service| Box::pin(async move {
-        service.apply_uploaded_lyric(sid, lyric).await
-    })).await {
-        Ok(()) => res.render(Json(json!({
-            "ok": true,
-            "lines": line_count,
-            "song": { "bid": ident.bid, "sid": ident.sid, "title": ident.title },
-        }))),
+    match crate::service::LYRIC_SERVICE
+        .call(move |service| {
+            Box::pin(async move { service.apply_uploaded_lyric(sid, lyric).await })
+        })
+        .await
+    {
+        Ok(()) => res.render(Json(UploadLyricResponse {
+            ok: true,
+            lines: line_count,
+            song: UploadSongInfo {
+                bid: ident.bid,
+                sid: ident.sid,
+                title: ident.title,
+            },
+        })),
         Err(err) if err.to_string().contains(STALE_REQUEST) => render_error(
             res,
             StatusCode::CONFLICT,

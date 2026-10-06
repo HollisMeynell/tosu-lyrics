@@ -63,10 +63,14 @@ impl Entity {
         reason: &str,
     ) -> Res<Model> {
         if !is_valid_scope(scope) {
-            return Err(crate::error::Error::Runtime(format!("未知的屏蔽作用域: {scope}")));
+            return Err(crate::error::Error::Runtime(format!(
+                "未知的屏蔽作用域: {scope}"
+            )));
         }
         if value.trim().is_empty() {
-            return Err(crate::error::Error::Runtime("屏蔽作用域取值不能为空".into()));
+            return Err(crate::error::Error::Runtime(
+                "屏蔽作用域取值不能为空".into(),
+            ));
         }
 
         let now = sea_orm::sqlx::types::chrono::Utc::now().timestamp_millis();
@@ -177,5 +181,4 @@ impl Entity {
         }
         Ok(None)
     }
-
 }

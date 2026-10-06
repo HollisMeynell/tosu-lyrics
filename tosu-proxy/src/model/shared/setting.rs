@@ -24,7 +24,7 @@ pub fn normalize_lyric_lines(value: i32) -> i32 {
     let clamped = value.clamp(MIN_LYRIC_LINES, MAX_LYRIC_LINES);
     if clamped % 2 == 1 {
         clamped
-    } else if clamped + 1 <= MAX_LYRIC_LINES {
+    } else if clamped < MAX_LYRIC_LINES {
         clamped + 1
     } else {
         clamped - 1
@@ -457,14 +457,29 @@ mod test {
 
     #[test]
     fn shadow_range_validation() {
-        let ok = ShadowSettings { enable: true, color: "#000000".into(), blur: 4.0, offset_x: -5.0, offset_y: 5.0 };
+        let ok = ShadowSettings {
+            enable: true,
+            color: "#000000".into(),
+            blur: 4.0,
+            offset_x: -5.0,
+            offset_y: 5.0,
+        };
         assert!(validate_shadow(&ok).is_ok());
         // 超出范围必须拒绝，避免用户把歌词推到看不见的地方
-        let too_far = ShadowSettings { offset_x: 999.0, ..ok.clone() };
+        let too_far = ShadowSettings {
+            offset_x: 999.0,
+            ..ok.clone()
+        };
         assert!(validate_shadow(&too_far).is_err());
-        let too_blurry = ShadowSettings { blur: 999.0, ..ok.clone() };
+        let too_blurry = ShadowSettings {
+            blur: 999.0,
+            ..ok.clone()
+        };
         assert!(validate_shadow(&too_blurry).is_err());
-        let negative_blur = ShadowSettings { blur: -1.0, ..ok.clone() };
+        let negative_blur = ShadowSettings {
+            blur: -1.0,
+            ..ok.clone()
+        };
         assert!(validate_shadow(&negative_blur).is_err());
     }
 

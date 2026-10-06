@@ -10,8 +10,8 @@ use crate::error::Result;
 
 pub use lyric_service::*;
 pub use setting_service::{
-    key_value_of, keys_of,
-    broadcast_settings, current_settings, patch_settings, send_settings_snapshot,
+    broadcast_settings, current_settings, key_value_of, keys_of, patch_settings,
+    send_settings_snapshot,
 };
 pub use song_source_service::on_osu_state_change;
 

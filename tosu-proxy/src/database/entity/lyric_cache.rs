@@ -64,7 +64,11 @@ impl Entity {
             .await?)
     }
 
-    pub async fn page(query: Option<&str>, offset: u64, limit: u64) -> crate::error::Result<Vec<Model>> {
+    pub async fn page(
+        query: Option<&str>,
+        offset: u64,
+        limit: u64,
+    ) -> crate::error::Result<Vec<Model>> {
         let mut select = Self::find();
         if let Some(q) = query.filter(|q| !q.is_empty()) {
             select = select.filter(Column::Title.contains(q));

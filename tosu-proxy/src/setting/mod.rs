@@ -1,4 +1,4 @@
-use super::model::setting::LyricSettings;
+use super::model::shared::setting::LyricSettings;
 use std::sync::OnceLock;
 use tokio::sync::RwLock;
 use tracing::info;
@@ -15,7 +15,10 @@ pub async fn init_setting() {
     let lyric_setting = LyricSettings::load().await;
     if let Err(err) = lyric_setting.validate() {
         tracing::error!("数据库中的设置非法({err}), 使用默认设置");
-        if GLOBAL_SETTINGS.set(RwLock::new(LyricSettings::default())).is_err() {
+        if GLOBAL_SETTINGS
+            .set(RwLock::new(LyricSettings::default()))
+            .is_err()
+        {
             panic!("无法初始化歌词配置, 请尝试删除数据库文件 (.db)")
         }
         return;

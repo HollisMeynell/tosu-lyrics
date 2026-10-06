@@ -17,6 +17,3 @@ pub mod server;
 pub mod service;
 #[cfg(feature = "new")]
 pub mod setting;
-
-#[cfg(feature = "old")]
-pub mod old;

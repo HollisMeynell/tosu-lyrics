@@ -13,26 +13,30 @@ use crate::model::websocket::setting::block::BlockItem;
 use crate::osu_source::OsuSongInfo;
 use crate::server::ALL_SESSIONS;
 use futures_util::FutureExt;
+use futures_util::future::BoxFuture;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
 use std::sync::{Arc, LazyLock};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinSet;
-use futures_util::future::BoxFuture;
 use tracing::{debug, error};
 
 type ServiceJob = Box<dyn for<'a> FnOnce(&'a mut LyricService) -> BoxFuture<'a, ()> + Send>;
 
 /// 状态由单任务独占，有界邮箱提供背压。
-pub struct LyricServiceHandle { sender: mpsc::Sender<ServiceJob> }
+pub struct LyricServiceHandle {
+    sender: mpsc::Sender<ServiceJob>,
+}
 
 impl LyricServiceHandle {
     fn start() -> Self {
         let (sender, mut receiver) = mpsc::channel::<ServiceJob>(64);
         tokio::spawn(async move {
             let mut service = LyricService::new();
-            while let Some(job) = receiver.recv().await { job(&mut service).await; }
+            while let Some(job) = receiver.recv().await {
+                job(&mut service).await;
+            }
         });
         Self { sender }
     }
@@ -45,13 +49,20 @@ impl LyricServiceHandle {
         F: for<'a> FnOnce(&'a mut LyricService) -> BoxFuture<'a, R> + Send + 'static,
     {
         let (reply, response) = oneshot::channel();
-        self.sender.send(Box::new(move |service| Box::pin(async move {
-            if !reply.is_closed() {
-                let result = operation(service).await;
-                let _ = reply.send(result);
-            }
-        }))).await.expect("lyric service task stopped");
-        response.await.expect("lyric service task stopped before replying")
+        self.sender
+            .send(Box::new(move |service| {
+                Box::pin(async move {
+                    if !reply.is_closed() {
+                        let result = operation(service).await;
+                        let _ = reply.send(result);
+                    }
+                })
+            }))
+            .await
+            .expect("lyric service task stopped");
+        response
+            .await
+            .expect("lyric service task stopped before replying")
     }
 }
 
@@ -66,27 +77,39 @@ pub struct LyricSnapshot {
 }
 
 impl LyricSnapshot {
-    pub fn get_now_song(&self) -> Option<&OsuSongInfo> { self.song.as_ref() }
+    pub fn get_now_song(&self) -> Option<&OsuSongInfo> {
+        self.song.as_ref()
+    }
     pub fn get_now_all_lyrics(&self) -> Option<&[LyricLine]> {
         self.lyric.as_ref().map(|lyric| lyric.get_lyrics())
     }
-    pub fn get_offset(&self) -> i32 { self.offset }
-    pub fn current_frame(&self) -> Option<FrameTime> { self.frame }
+    pub fn get_offset(&self) -> i32 {
+        self.offset
+    }
+    pub fn current_frame(&self) -> Option<FrameTime> {
+        self.frame
+    }
 }
 
 pub async fn lyric_service() -> LyricSnapshot {
-    LYRIC_SERVICE.call(|service| Box::pin(async move {
-        LyricSnapshot {
-            song: service.now_save_cache.clone(),
-            lyric: service.now_lyric.clone(),
-            offset: service.offset,
-            frame: service.current_frame(),
-        }
-    })).await
+    LYRIC_SERVICE
+        .call(|service| {
+            Box::pin(async move {
+                LyricSnapshot {
+                    song: service.now_save_cache.clone(),
+                    lyric: service.now_lyric.clone(),
+                    offset: service.offset,
+                    frame: service.current_frame(),
+                }
+            })
+        })
+        .await
 }
 
 pub async fn lyric_candidates() -> Vec<(&'static str, SongInfo)> {
-    LYRIC_SERVICE.call(|service| Box::pin(async move { service.all_candidates().await })).await
+    LYRIC_SERVICE
+        .call(|service| Box::pin(async move { service.all_candidates().await }))
+        .await
 }
 
 /// 判定"同一首歌"只认 bid；title 仅用于展示与标题级黑名单，绝不用于判等
@@ -200,7 +223,9 @@ impl LyricService {
     }
 
     pub(crate) async fn observe_song(&mut self, song: OsuSongInfo) {
-        if song.sid < 0 && song.artist == "nekodex" { return; }
+        if song.sid < 0 && song.artist == "nekodex" {
+            return;
+        }
         let flow_start = std::time::Instant::now();
         debug!(
             "[perf] (1) 换歌事件 bid={} sid={} len={}ms gen={} title={:?} artist={:?}",
@@ -214,15 +239,26 @@ impl LyricService {
         let generation = self.generation;
         let task = tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-            debug!("[perf] (3) debounce 结束 +{}ms", flow_start.elapsed().as_millis());
-            let plan = LYRIC_SERVICE.call(move |svc| Box::pin(async move {
-                if !svc.generation_matches(generation) { return Ok(None); }
-                svc.begin_song(song).await
-            })).await;
+            debug!(
+                "[perf] (3) debounce 结束 +{}ms",
+                flow_start.elapsed().as_millis()
+            );
+            let plan = LYRIC_SERVICE
+                .call(move |svc| {
+                    Box::pin(async move {
+                        if !svc.generation_matches(generation) {
+                            return Ok(None);
+                        }
+                        svc.begin_song(song).await
+                    })
+                })
+                .await;
             match plan {
-                Ok(plan) => if let Err(err) = Self::load_plan(plan).await {
-                    error!("song update error: {err}");
-                },
+                Ok(plan) => {
+                    if let Err(err) = Self::load_plan(plan).await {
+                        error!("song update error: {err}");
+                    }
+                }
                 Err(err) => error!("song update error: {err}"),
             }
             debug!(
@@ -234,7 +270,9 @@ impl LyricService {
     }
 
     fn cancel_pending_song(&mut self) {
-        if let Some(task) = self.pending_song.take() { task.abort(); }
+        if let Some(task) = self.pending_song.take() {
+            task.abort();
+        }
     }
 
     #[cfg(test)]
@@ -244,14 +282,16 @@ impl LyricService {
     }
 
     pub async fn now_ident() -> Option<SongIdent> {
-        LYRIC_SERVICE.call(|svc| Box::pin(async move { svc.now_ident.clone() })).await
+        LYRIC_SERVICE
+            .call(|svc| Box::pin(async move { svc.now_ident.clone() }))
+            .await
     }
 
     /// 邮箱负责状态提交，搜索和取词在调用任务中执行。
     pub async fn song_change(song: OsuSongInfo) -> Result<()> {
-        let plan = LYRIC_SERVICE.call(move |svc| Box::pin(async move {
-            svc.begin_song(song).await
-        })).await?;
+        let plan = LYRIC_SERVICE
+            .call(move |svc| Box::pin(async move { svc.begin_song(song).await }))
+            .await?;
         Self::load_plan(plan).await
     }
 
@@ -306,12 +346,14 @@ impl LyricService {
                     netease_fetch_done = true;
                     if let Some(songs) = results.get_mut(NETEASE_LYRIC_SOURCE.name()) {
                         let t0 = std::time::Instant::now();
-                        let hit = NETEASE_LYRIC_SOURCE.search_lyrics(
-                            songs, &plan.ident.title, plan.length, &plan.artist,
-                        ).await?;
+                        let hit = NETEASE_LYRIC_SOURCE
+                            .search_lyrics(songs, &plan.ident.title, plan.length, &plan.artist)
+                            .await?;
                         debug!(
                             "[perf] (8) NetEase 取词 候选数={} 耗时={}ms 命中={}",
-                            songs.len(), t0.elapsed().as_millis(), hit.is_some(),
+                            songs.len(),
+                            t0.elapsed().as_millis(),
+                            hit.is_some(),
                         );
                         if let Some(l) = hit {
                             lyric = Some(l.try_into()?);
@@ -326,7 +368,9 @@ impl LyricService {
             debug!(
                 "[perf] (7) 搜索阶段结束(NetEase-first) 总耗时={}ms 候选数 netease={} qq={}",
                 search_start.elapsed().as_millis(),
-                results.get(NETEASE_LYRIC_SOURCE.name()).map_or(0, |v| v.len()),
+                results
+                    .get(NETEASE_LYRIC_SOURCE.name())
+                    .map_or(0, |v| v.len()),
                 results.get(QQ_LYRIC_SOURCE.name()).map_or(0, |v| v.len()),
             );
 
@@ -347,14 +391,18 @@ impl LyricService {
                 }
                 if let Some(songs) = results.get_mut(QQ_LYRIC_SOURCE.name()) {
                     let t0 = std::time::Instant::now();
-                    let hit = QQ_LYRIC_SOURCE.search_lyrics(
-                        songs, &plan.ident.title, plan.length, &plan.artist,
-                    ).await?;
+                    let hit = QQ_LYRIC_SOURCE
+                        .search_lyrics(songs, &plan.ident.title, plan.length, &plan.artist)
+                        .await?;
                     debug!(
                         "[perf] (9) QQ 取词 候选数={} 耗时={}ms 命中={}",
-                        songs.len(), t0.elapsed().as_millis(), hit.is_some(),
+                        songs.len(),
+                        t0.elapsed().as_millis(),
+                        hit.is_some(),
                     );
-                    if let Some(l) = hit { lyric = Some(l.try_into()?); }
+                    if let Some(l) = hit {
+                        lyric = Some(l.try_into()?);
+                    }
                 }
             }
             debug!(
@@ -362,9 +410,11 @@ impl LyricService {
                 fetch_start.elapsed().as_millis(),
                 lyric.is_some(),
             );
-            LYRIC_SERVICE.call(move |svc| Box::pin(async move {
-                svc.commit_search(plan, results, lyric).await
-            })).await
+            LYRIC_SERVICE
+                .call(move |svc| {
+                    Box::pin(async move { svc.commit_search(plan, results, lyric).await })
+                })
+                .await
         }
         .await;
         Self::broadcast_loading(false).await;
@@ -377,25 +427,33 @@ impl LyricService {
     ) -> Result<Option<Lyric>> {
         if let Some(songs) = results.get_mut(NETEASE_LYRIC_SOURCE.name()) {
             let t0 = std::time::Instant::now();
-            let hit = NETEASE_LYRIC_SOURCE.search_lyrics(
-                songs, &plan.ident.title, plan.length, &plan.artist,
-            ).await?;
+            let hit = NETEASE_LYRIC_SOURCE
+                .search_lyrics(songs, &plan.ident.title, plan.length, &plan.artist)
+                .await?;
             debug!(
                 "[perf] (8) NetEase 取词 候选数={} 耗时={}ms 命中={}",
-                songs.len(), t0.elapsed().as_millis(), hit.is_some(),
+                songs.len(),
+                t0.elapsed().as_millis(),
+                hit.is_some(),
             );
-            if let Some(lyric) = hit { return Ok(Some(lyric.try_into()?)); }
+            if let Some(lyric) = hit {
+                return Ok(Some(lyric.try_into()?));
+            }
         }
         if let Some(songs) = results.get_mut(QQ_LYRIC_SOURCE.name()) {
             let t0 = std::time::Instant::now();
-            let hit = QQ_LYRIC_SOURCE.search_lyrics(
-                songs, &plan.ident.title, plan.length, &plan.artist,
-            ).await?;
+            let hit = QQ_LYRIC_SOURCE
+                .search_lyrics(songs, &plan.ident.title, plan.length, &plan.artist)
+                .await?;
             debug!(
                 "[perf] (9) QQ 取词 候选数={} 耗时={}ms 命中={}",
-                songs.len(), t0.elapsed().as_millis(), hit.is_some(),
+                songs.len(),
+                t0.elapsed().as_millis(),
+                hit.is_some(),
             );
-            if let Some(lyric) = hit { return Ok(Some(lyric.try_into()?)); }
+            if let Some(lyric) = hit {
+                return Ok(Some(lyric.try_into()?));
+            }
         }
         Ok(None)
     }
@@ -492,7 +550,10 @@ impl LyricService {
             .call(move |svc| {
                 Box::pin(async move {
                     if !svc.generation_matches(generation) {
-                        debug!("丢弃过期候选: {} 的代次 {} != 当前 {}", title, generation, svc.generation);
+                        debug!(
+                            "丢弃过期候选: {} 的代次 {} != 当前 {}",
+                            title, generation, svc.generation
+                        );
                         return Ok(());
                     }
                     match &svc.now_ident {
@@ -536,13 +597,11 @@ impl LyricService {
             }
         }
 
-
         if let Some(lyric) = lyric {
-            if let Some(save_key) = self.now_save_cache.as_ref() {
-                if let Err(err) = Self::save_lyric(save_key, &lyric).await {
+            if let Some(save_key) = self.now_save_cache.as_ref()
+                && let Err(err) = Self::save_lyric(save_key, &lyric).await {
                     error!("存储缓存异常: {err}");
                 }
-            }
             self.now_lyric = Some(Arc::new(lyric));
             self.push_now(self.now_time).await;
         } else {
@@ -574,14 +633,22 @@ impl LyricService {
 
     pub async fn reload_current() {
         // 读取歌曲与开始重载在同一条消息内完成，避免旧歌覆盖新歌。
-        let plan = LYRIC_SERVICE.call(|svc| Box::pin(async move {
-            let Some(song) = svc.now_save_cache.clone() else { return Ok(None); };
-            svc.begin_song(song).await
-        })).await;
+        let plan = LYRIC_SERVICE
+            .call(|svc| {
+                Box::pin(async move {
+                    let Some(song) = svc.now_save_cache.clone() else {
+                        return Ok(None);
+                    };
+                    svc.begin_song(song).await
+                })
+            })
+            .await;
         match plan {
-            Ok(plan) => if let Err(err) = Self::load_plan(plan).await {
-                error!("重新加载当前歌失败: {err}");
-            },
+            Ok(plan) => {
+                if let Err(err) = Self::load_plan(plan).await {
+                    error!("重新加载当前歌失败: {err}");
+                }
+            }
             Err(err) => error!("重新加载当前歌失败: {err}"),
         }
     }
@@ -1038,9 +1105,9 @@ impl LyricService {
 
     /// 异步操作发起时取一份，提交前比对；不一致就丢弃
     pub async fn ticket() -> (u64, Option<SongIdent>) {
-        LYRIC_SERVICE.call(|svc| Box::pin(async move {
-            (svc.generation, svc.now_ident.clone())
-        })).await
+        LYRIC_SERVICE
+            .call(|svc| Box::pin(async move { (svc.generation, svc.now_ident.clone()) }))
+            .await
     }
 
     pub async fn all_candidates(&self) -> Vec<(&'static str, SongInfo)> {
@@ -1058,24 +1125,30 @@ impl LyricService {
         title: String,
         artist: String,
     ) -> Result<Vec<(&'static str, SongInfo)>> {
-        let generation = LYRIC_SERVICE.call(|svc| Box::pin(async move { svc.generation() })).await;
+        let generation = LYRIC_SERVICE
+            .call(|svc| Box::pin(async move { svc.generation() }))
+            .await;
         let results = Self::search_raw(&title, &artist).await;
 
-        LYRIC_SERVICE.call(move |svc| Box::pin(async move {
-        if !svc.generation_matches(generation) {
-            return Err(Error::Runtime(STALE_REQUEST.into()));
-        }
-        {
-            let cache = &mut svc.music_cache;
-            for (name, musics) in results {
-                if let Some(slot) = cache.get_mut(name) {
-                    slot.clear();
-                    slot.extend(musics);
-                }
-            }
-        }
-        Ok(svc.all_candidates().await)
-        })).await
+        LYRIC_SERVICE
+            .call(move |svc| {
+                Box::pin(async move {
+                    if !svc.generation_matches(generation) {
+                        return Err(Error::Runtime(STALE_REQUEST.into()));
+                    }
+                    {
+                        let cache = &mut svc.music_cache;
+                        for (name, musics) in results {
+                            if let Some(slot) = cache.get_mut(name) {
+                                slot.clear();
+                                slot.extend(musics);
+                            }
+                        }
+                    }
+                    Ok(svc.all_candidates().await)
+                })
+            })
+            .await
     }
 
     /// 为两个源各 spawn 一个**独立的 tokio 任务**（真并发 + 单源 panic 隔离），
@@ -1088,10 +1161,7 @@ impl LyricService {
     ///
     /// 单源 panic 由 `catch_unwind` 捕获，不影响另一个源；
     /// 调用方被取消（future 被 drop）时 `JoinSet` 随之 drop，子任务一并取消。
-    fn spawn_sources(
-        title: &str,
-        artist: &str,
-    ) -> JoinSet<Option<(&'static str, Vec<SongInfo>)>> {
+    fn spawn_sources(title: &str, artist: &str) -> JoinSet<Option<(&'static str, Vec<SongInfo>)>> {
         let mut tasks: JoinSet<Option<(&'static str, Vec<SongInfo>)>> = JoinSet::new();
 
         let (qq_title, qq_artist) = (title.to_string(), artist.to_string());
@@ -1103,11 +1173,20 @@ impl LyricService {
                 .await
             {
                 Ok(Ok(songs)) => {
-                    debug!("[perf] (2) {} 搜索完成 耗时={}ms 候选={}", name, t0.elapsed().as_millis(), songs.len());
+                    debug!(
+                        "[perf] (2) {} 搜索完成 耗时={}ms 候选={}",
+                        name,
+                        t0.elapsed().as_millis(),
+                        songs.len()
+                    );
                     Some((name, songs))
                 }
                 Ok(Err(err)) => {
-                    debug!("[perf] (2) {} 搜索失败 耗时={}ms: {err}", name, t0.elapsed().as_millis());
+                    debug!(
+                        "[perf] (2) {} 搜索失败 耗时={}ms: {err}",
+                        name,
+                        t0.elapsed().as_millis()
+                    );
                     None
                 }
                 Err(_) => {
@@ -1128,11 +1207,20 @@ impl LyricService {
             .await
             {
                 Ok(Ok(songs)) => {
-                    debug!("[perf] (2) {} 搜索完成 耗时={}ms 候选={}", name, t0.elapsed().as_millis(), songs.len());
+                    debug!(
+                        "[perf] (2) {} 搜索完成 耗时={}ms 候选={}",
+                        name,
+                        t0.elapsed().as_millis(),
+                        songs.len()
+                    );
                     Some((name, songs))
                 }
                 Ok(Err(err)) => {
-                    debug!("[perf] (2) {} 搜索失败 耗时={}ms: {err}", name, t0.elapsed().as_millis());
+                    debug!(
+                        "[perf] (2) {} 搜索失败 耗时={}ms: {err}",
+                        name,
+                        t0.elapsed().as_millis()
+                    );
                     None
                 }
                 Err(_) => {
@@ -1242,7 +1330,10 @@ mod test {
                     key: "stale".into(),
                 }],
             )]);
-            service.commit_search(plan, results, Some(lyric_3())).await.unwrap();
+            service
+                .commit_search(plan, results, Some(lyric_3()))
+                .await
+                .unwrap();
             assert!(service.all_candidates().await.is_empty());
             assert!(service.now_lyric.is_none());
         }
