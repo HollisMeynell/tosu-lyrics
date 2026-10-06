@@ -46,7 +46,6 @@ async fn blink_client(req: &mut Request, res: &mut Response) {
         return;
     };
 
-    // 目标可以是会话 key，也可以是客户端自报的稳定身份
     let targets = ALL_SESSIONS.resolve_display_targets(&target).await;
     if targets.is_empty() {
         render_error(

@@ -19,7 +19,6 @@ pub static CONFIG_ENDPOINT_FONT_DOWNLOAD: &str = "download";
 pub static CONFIG_ENDPOINT_AUDIO_LEN: &str = "audio/len";
 pub static CONFIG_ENDPOINT_LYRIC: &str = "lyric";
 pub static CONFIG_ENDPOINT_LYRIC_UPLOAD: &str = "upload";
-// 管理 HTTP(新增): 只读状态查询 + 展示控制, 不依赖控制台改造即可用 HTTP 独立验证
 pub static CONFIG_ENDPOINT_STATUS: &str = "status";
 pub static CONFIG_ENDPOINT_LYRICS: &str = "lyrics";
 pub static CONFIG_ENDPOINT_LYRICS_CURRENT: &str = "current";

@@ -31,7 +31,6 @@ async fn read_payload(req: &mut Request) -> Result<Vec<u8>, (StatusCode, &'stati
     Ok(payload.to_vec())
 }
 
-/// 解码 + 解析。任何一步不合法都返回结构化错误，**不触碰当前歌词**。
 fn parse_upload(bytes: &[u8]) -> Result<Lyric, (StatusCode, &'static str, String)> {
     if bytes.is_empty() {
         return Err((

@@ -123,7 +123,6 @@ struct SearchBody {
 
 #[handler]
 async fn post_search(req: &mut Request, res: &mut Response) {
-    // body 可以为空：表示"按当前播放歌曲搜索"
     let body = parse_body::<SearchBody>(req).await.unwrap_or(SearchBody {
         title: None,
         artist: None,

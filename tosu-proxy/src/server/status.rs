@@ -16,7 +16,6 @@ fn song_json(song: &OsuSongInfo) -> Value {
         "sid": song.sid,
         "title": song.title_unicode,
         "artist": song.artist_unicode,
-        // 毫秒; -1 表示未能读取到音频时长
         "length": song.length,
     })
 }
@@ -26,7 +25,6 @@ fn lyric_lines_json(lines: &[LyricLine]) -> Vec<Value> {
         .iter()
         .map(|line| {
             let mut item = Map::new();
-            // 毫秒(与展示 WS 的时间单位统一)
             item.insert(
                 "time".to_string(),
                 json!((line.time * 1000.0).round() as i64),
@@ -44,8 +42,6 @@ fn lyric_lines_json(lines: &[LyricLine]) -> Vec<Value> {
 
 #[handler]
 async fn get_status(res: &mut Response) {
-    // 黑名单**现查**，不使用任何缓存字段：
-    // 规则可能在歌曲播放途中被增删，缓存会让状态在那一刻变得不真实。
     // 先取身份再放锁，避免在持锁期间去查数据库。
     let service = crate::service::lyric_service().await;
     let song = service.get_now_song();
@@ -72,7 +68,6 @@ async fn get_status(res: &mut Response) {
             "cleared": false,
             "lineCount": line_count,
             "current": frame.current,
-            // 距离下一行开始的剩余毫秒; 末行为 -1
             "nextTime": frame.next_time,
         }),
         None => json!({
