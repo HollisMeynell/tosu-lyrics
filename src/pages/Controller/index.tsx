@@ -19,7 +19,7 @@ const CustomA: Component<CustomAProps> = (props) => {
     const location = useLocation();
     const isActive = () =>
         location.pathname === props.href ||
-        (props.icon == "default" && location.pathname == "/lyrics/controller");
+        (props.icon == "content" && location.pathname == "/lyrics/controller");
     return (
         <A
             href={props.href}
@@ -40,7 +40,6 @@ const CustomA: Component<CustomAProps> = (props) => {
 const Controller: Component<ControllerProps> = (props) => {
     // 导航栏配置（阴影 / 上传与字体已并入文字样式页，不再单独占一项）
     const navItems = [
-        { href: "/lyrics/controller/client", icon: "default" },
         { href: "/lyrics/controller/content", icon: "content" },
         { href: "/lyrics/controller/textstyle", icon: "palette" },
         { href: "/lyrics/controller/blackList", icon: "blackList" },

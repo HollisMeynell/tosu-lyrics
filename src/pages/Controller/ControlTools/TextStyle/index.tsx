@@ -15,6 +15,7 @@ import {
 import { createSettingsController } from "@/hooks/useSettings";
 import { DEFAULT_SHADOW } from "@/stores/settingsStore";
 import { SettingsPatch } from "@/types/globalTypes";
+import { setFontMode, clearSplitBackup } from "@/stores/fontModeStore";
 import LyricLines from "./LyricLines";
 import { DEFAULT_LYRIC_LINES } from "@/utils/lyricLines";
 
@@ -50,7 +51,11 @@ export default function TextStyle() {
             <div class="flex flex-row items-center gap-3">
                 <Button
                     class="px-4 py-1"
-                    onClick={() => settings.update(DEFAULT_TEXT_STYLE)}
+                    onClick={() => {
+                        setFontMode("split");
+                        clearSplitBackup();
+                        void settings.update(DEFAULT_TEXT_STYLE);
+                    }}
                     disabled={settings.saving()}
                 >
                     恢复默认样式

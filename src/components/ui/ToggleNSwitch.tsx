@@ -1,4 +1,4 @@
-import { Component, For, createSignal, onMount } from "solid-js";
+import { Component, For, createEffect, createSignal, onMount } from "solid-js";
 
 interface Option {
     key: string;
@@ -40,6 +40,16 @@ const ToggleNSwitch: Component<ToggleNSwitchProps> = (props) => {
     // 初始化或更新选中值时调用
     onMount(() => {
         updateSlider(selectedValue());
+    });
+
+    // 当外部 selectedValue 变化时同步内部状态（例如「恢复默认样式」后对齐方式归位）
+    createEffect(() => {
+        const external = props.selectedValue;
+        if (external != null && external !== selectedValue()) {
+            setSelectedValue(external);
+            // DOM 更新后再刷新滑块位置
+            queueMicrotask(() => updateSlider(external));
+        }
     });
 
     // 点击项时切换选中值

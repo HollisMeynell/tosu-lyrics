@@ -1,5 +1,5 @@
 import { For, Show, createSignal, onCleanup, onMount } from "solid-js";
-import { Button, ColorSelector, Select } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { ApiError } from "@/services/settingsService";
 import {
     DisplayClient,
@@ -10,7 +10,6 @@ import {
     fetchClients,
 } from "@/services/clientsService";
 import { createSettingsController } from "@/hooks/useSettings";
-import type { AlignType } from "@/types/globalTypes";
 
 const POLL_MS = 4000;
 
@@ -74,7 +73,9 @@ export default function ClientList() {
         try {
             setNotice(await fn());
         } catch (err) {
-            setError(`${failLabel}：${err instanceof ApiError ? err.message : String(err)}`);
+            setError(
+                `${failLabel}：${err instanceof ApiError ? err.message : String(err)}`
+            );
         } finally {
             setBusy(false);
         }
@@ -123,150 +124,6 @@ export default function ClientList() {
         onCleanup(() => clearInterval(timer));
     });
 
-    const StyleRow = () => (
-        <div class="flex flex-col gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div class="flex flex-row items-center gap-3 flex-wrap">
-                <span class="text-base font-medium">样式调整</span>
-                <span
-                    class={
-                        isGlobal()
-                            ? "px-2 py-0.5 text-xs rounded bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200"
-                            : "px-2 py-0.5 text-xs rounded bg-pink-100 dark:bg-pink-900/40 text-pink-800 dark:text-pink-200"
-                    }
-                >
-                    {isGlobal() ? "全局（所有展示端）" : `仅「${labelOf(selected())}」`}
-                </span>
-                <Show when={!isGlobal()}>
-                    <span class="text-xs text-gray-500">
-                        即时调整，不保存；该端重连后回到全局设置
-                    </span>
-                </Show>
-            </div>
-
-            <div class="flex flex-row items-center gap-4 flex-wrap text-sm">
-                {/* 颜色按钮复用「文字样式」页同一个 ColorSelector（圆形色块），
-                    不再用原生 input[type=color]，保证两处视觉一致 */}
-                <div class="flex flex-row items-center gap-2">
-                    主色
-                    <ColorSelector
-                        class="min-w-6"
-                        value={draft().first}
-                        disabled={busy()}
-                        onCommit={(value) =>
-                            applyStyle({
-                                textColor: {
-                                    first: value,
-                                    second: draft().second,
-                                },
-                            })
-                        }
-                    />
-                </div>
-                <div class="flex flex-row items-center gap-2">
-                    副色
-                    <ColorSelector
-                        class="min-w-6"
-                        value={draft().second}
-                        disabled={busy()}
-                        onCommit={(value) =>
-                            applyStyle({
-                                textColor: {
-                                    first: draft().first,
-                                    second: value,
-                                },
-                            })
-                        }
-                    />
-                </div>
-                <label class="flex flex-row items-center gap-2">
-                    主字号
-                    <Select
-                        class="min-w-0 w-24 py-1"
-                        clearable={false}
-                        value={String(draft().sizeFirst)}
-                        disabled={busy()}
-                        options={["1", "1.5", "2", "2.5", "3", "3.5", "4", "5", "6"].map(
-                            (v) => ({ code: v, name: v })
-                        )}
-                        onChange={(v) =>
-                            applyStyle({
-                                fontSize: {
-                                    first: Number(v),
-                                    second: draft().sizeSecond,
-                                },
-                            })
-                        }
-                    />
-                </label>
-                <label class="flex flex-row items-center gap-2">
-                    副字号
-                    <Select
-                        class="min-w-0 w-24 py-1"
-                        clearable={false}
-                        value={String(draft().sizeSecond)}
-                        disabled={busy()}
-                        options={["1", "1.5", "2", "2.5", "3", "3.5", "4", "5", "6"].map(
-                            (v) => ({ code: v, name: v })
-                        )}
-                        onChange={(v) =>
-                            applyStyle({
-                                fontSize: {
-                                    first: draft().sizeFirst,
-                                    second: Number(v),
-                                },
-                            })
-                        }
-                    />
-                </label>
-            </div>
-
-            <div class="flex flex-row items-center gap-2 flex-wrap text-sm">
-                <span>对齐</span>
-                <For each={[
-                    { code: "left", name: "左" },
-                    { code: "center", name: "中" },
-                    { code: "right", name: "右" },
-                ]}>
-                    {(opt) => (
-                        <button
-                            class="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40"
-                            disabled={busy()}
-                            onClick={() =>
-                                run(async () => {
-                                    const patch = {
-                                        alignment: opt.code as AlignType,
-                                    };
-                                    if (isGlobal()) {
-                                        const ok = await settings.update(patch);
-                                        if (!ok) throw new Error(settings.error() ?? "保存失败");
-                                        return "已应用到全部展示端（全局设置）";
-                                    }
-                                    await applyClientSettings(selected(), patch);
-                                    return `已只应用到「${labelOf(selected())}」`;
-                                }, "对齐失败")
-                            }
-                        >
-                            {opt.name}
-                        </button>
-                    )}
-                </For>
-                <Button
-                    class="px-3 py-1 ml-auto"
-                    disabled={busy() || isGlobal()}
-                    onClick={() => setSelected("")}
-                >
-                    回到全局
-                </Button>
-            </div>
-
-            <p class="text-xs text-gray-500">
-                需要更多样式（字体 / 阴影 / 副歌词显隐）时，请在
-                <span class="font-medium">全局</span>模式下到对应页面调整；
-                本页用于快速预览"某个端现在长什么样"。
-            </p>
-        </div>
-    );
-
     return (
         <div class="flex flex-col gap-4">
             <div class="header space-x-4">
@@ -293,16 +150,23 @@ export default function ClientList() {
                 <div class="flex flex-1 min-w-0 flex-col gap-3">
                     <div class="flex flex-row items-center gap-3 flex-wrap">
                         <span class="text-sm text-gray-500">
-                            在线 {clients().length} 个（每 {POLL_MS / 1000} 秒自动刷新）
+                            在线 {clients().length} 个（每 {POLL_MS / 1000}{" "}
+                            秒自动刷新）
                         </span>
                         {/* 顺序固定为 [刷新] [测试] */}
-                        <Button class="px-3 py-1" onClick={() => void load()} disabled={loading()}>
+                        <Button
+                            class="px-3 py-1"
+                            onClick={() => void load()}
+                            disabled={loading()}
+                        >
                             {loading() ? "刷新中..." : "刷新"}
                         </Button>
                         <Button
                             class="px-3 py-1"
                             onClick={test}
-                            disabled={busy() || (clients().length === 0 && isGlobal())}
+                            disabled={
+                                busy() || (clients().length === 0 && isGlobal())
+                            }
                         >
                             {busy()
                                 ? "发送中..."
@@ -319,7 +183,8 @@ export default function ClientList() {
 
                     <Show when={clients().length === 0 && !loading()}>
                         <p class="text-sm text-gray-500">
-                            暂无在线展示端。在浏览器 / OBS 中打开歌词页即可看到它。
+                            暂无在线展示端。在浏览器 / OBS
+                            中打开歌词页即可看到它。
                         </p>
                     </Show>
 
@@ -334,24 +199,24 @@ export default function ClientList() {
                                     }`}
                                     onClick={() => pick(client.id)}
                                 >
-                                    <span class="text-base">{clientLabel(client)}</span>
+                                    <span class="text-base">
+                                        {clientLabel(client)}
+                                    </span>
                                     <Show when={client.identity === null}>
                                         <span class="text-xs text-gray-500">
                                             未自报身份（可用 ?id=xxx 指定）
                                         </span>
                                     </Show>
                                     <span class="text-xs text-gray-500 ml-auto">
-                                        连接于 {new Date(client.connectedAt).toLocaleTimeString()}
+                                        连接于{" "}
+                                        {new Date(
+                                            client.connectedAt
+                                        ).toLocaleTimeString()}
                                     </span>
                                 </button>
                             )}
                         </For>
                     </div>
-                </div>
-
-                {/* 右侧：样式调整 */}
-                <div class="flex flex-1 min-w-0 flex-col gap-4">
-                    <StyleRow />
                 </div>
             </div>
         </div>

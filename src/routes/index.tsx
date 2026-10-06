@@ -88,7 +88,7 @@ export default function AppRoutes() {
             <Route path="/" component={() => <LyricsBox />} />
             <Route path="/lyric" component={() => <LyricsBox />} />
             <Route path="/controller" component={ControllerLayout}>
-                <Route path="/" component={ClientList} />
+                <Route path="/" component={Content} />
                 <Route path="/blackList" component={BlackListLyrics} />
                 <Route path="/client" component={ClientList} />
                 <Route path="/content" component={Content} />

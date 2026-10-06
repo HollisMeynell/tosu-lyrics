@@ -56,6 +56,14 @@ export const writeSplitBackup = (backup: SplitBackup) => {
     }
 };
 
+export const clearSplitBackup = () => {
+    try {
+        localStorage.removeItem(BACKUP_KEY);
+    } catch {
+        /* ignore */
+    }
+};
+
 export const setFontMode = (mode: FontMode) => {
     try {
         localStorage.setItem(MODE_KEY, mode);
