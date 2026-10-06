@@ -7,15 +7,11 @@ export interface UploadResult {
     song: { bid: number; sid: number; title: string };
 }
 
-export interface FontInfo {
-    kind: "main" | "sub";
-    /** FontFace 名（`LRC` / `LRC-Sub`）：注册与实际渲染用的就是它 */
-    family: string;
-    /** 字体文件内部的真实名称，**仅供 UI 显示**（后端解析 name 表得到） */
-    displayName: string;
-    exists: boolean;
-    version: string;
+export interface FontEntry {
+    name: string;
+    fileName: string;
     size: number;
+    version: string;
     url: string;
 }
 
@@ -45,24 +41,21 @@ export async function uploadLrc(file: File): Promise<UploadResult> {
     return (await res.json()) as UploadResult;
 }
 
-export async function fetchFontInfo(): Promise<FontInfo[]> {
-    const res = await fetch(`${BACKEND_API_BASE}/font/info`);
+export async function fetchFontList(): Promise<FontEntry[]> {
+    const res = await fetch(`${BACKEND_API_BASE}/font/list`);
     if (!res.ok) throw await toApiError(res);
-    const body = (await res.json()) as { items: FontInfo[] };
+    const body = (await res.json()) as { items: FontEntry[] };
     return body.items ?? [];
 }
 
-export async function uploadFontFile(
-    kind: "main" | "sub",
-    file: File
-): Promise<FontInfo> {
+export async function uploadFontFile(file: File): Promise<FontEntry> {
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch(`${BACKEND_API_BASE}/font/${kind}`, {
+    const res = await fetch(`${BACKEND_API_BASE}/font/upload`, {
         method: "POST",
         body: form,
     });
     if (!res.ok) throw await toApiError(res);
-    const body = (await res.json()) as { font: FontInfo };
+    const body = (await res.json()) as { font: FontEntry };
     return body.font;
 }

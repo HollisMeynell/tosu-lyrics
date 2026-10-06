@@ -18,7 +18,7 @@ use crate::server::blocks::get_blocks_route;
 use crate::server::cache::get_cache_route;
 use crate::server::clients::get_clients_route;
 use crate::server::file::get_file_route;
-use crate::server::font::{get_font_route, get_static_font_route};
+use crate::server::font::get_font_route;
 use crate::server::lyric::get_lyric_route;
 use crate::server::lyrics::get_lyrics_route as get_content_lyrics_route;
 use crate::server::settings::get_settings_route;
@@ -66,11 +66,8 @@ pub async fn start_server() {
     let router = Router::new()
         .get(root_redirect)
         .push(get_ws_route())
-        // 必须在静态目录之前：否则 /lyrics/LRC.otf 找不到时会命中 StaticDir 的
-        // index.html 回退，浏览器把 HTML 当字体解析（OTS parsing error）
-        .push(get_static_font_route())
-        .push(get_file_route())
-        .push(api_router);
+        .push(api_router)
+        .push(get_file_route());
     let listener_url = format!("{}:{}", GLOBAL_CONFIG.server, GLOBAL_CONFIG.port);
     info!("server start: http://127.0.0.1:{}", GLOBAL_CONFIG.port);
     let acceptor = TcpListener::new(listener_url).bind().await;
@@ -85,43 +82,26 @@ pub async fn start_server() {
     server.serve(router).await;
 }
 
-/// 把上传用的临时目录指到程序自身目录下的 `temp/`。
-///
-/// **为什么需要**：salvo 解析 multipart 时会先把内容写进
-/// `tempfile::Builder::new().prefix("salvo_http_multipart").tempdir()`
-/// （salvo_core `http/form.rs`），而它取的是 `std::env::temp_dir()`，也就是
-/// 用户级 `%TEMP%`。这台机器上该目录不可写，实测返回
-/// `I/O error: 拒绝访问。 (os error 5)`，于是**任何**字体上传都会失败：
-/// 小文件在读完 body 后才失败，表现为 400 + 错误体；5 MB 的文件在 body 发完
-/// 之前服务端就已断开，浏览器只看到 `ERR_CONNECTION_ABORTED`。
-/// 换到程序自己目录下即可绕开，且不依赖外部环境。
-/// v3：上传字体改到 `uploaded/`，默认字体不再被上传覆盖 —— 递增一次版本，
-/// 让已有安装把被覆盖的默认字体资源（`./LRC.otf` / `./tLRC.otf`）重新释放回来。
-const RESOURCE_VERSION: &str = "3";
-
 /// 内嵌程序资源（路径 → 内容）：这些是**程序资源**，可由程序维护/补齐。
 ///
 /// 由 `rust-embed` 在编译时从仓库根目录 `embed/` 嵌入。
 /// `embed/` 由 `just assemble-embed` 在 `cargo build` 之前组装。
 #[derive(rust_embed::RustEmbed)]
 #[folder = "../embed"]
-struct Assets;
+pub(crate) struct Assets;
 
 /// 取一份内嵌的程序自带资源（默认字体等）的副本，没有则 `None`。
-pub fn embedded_resource(rel: &str) -> Option<Vec<u8>> {
+fn embedded_resource(rel: &str) -> Option<Vec<u8>> {
     Assets::get(rel).map(|f| f.data.to_vec())
 }
 
-/// 用户数据 / 用户配置：**绝不写入、绝不覆盖**。
-const USER_FILES: &[&str] = &["lyric.db", "config.json5"];
-
-/// 单文件发行：确保 exe 同目录的 `lyrics/` 运行目录存在且程序资源完整。
+/// 单文件发行：确保 exe 同目录的 `lyrics/` 运行目录存在，释放默认资源。
 ///
 /// - 无 `lyrics/` → 创建
-/// - 程序资源缺失或版本过期 → 只补齐该文件（不全量覆盖）
+/// - 释放内嵌的默认字体到 `font/` 目录（仅当不存在时）
+/// - 迁移旧的 `uploaded/` 目录到 `font/`
 /// - **绝不触碰** `lyric.db` / `config.json5`
-/// - 最后把工作目录切到 `lyrics/`：既有相对路径（config.json5 / lyric.db /
-///   static / temp）自然全部落在 `lyrics/` 内，无需改动其它模块。
+/// - 最后把工作目录切到 `lyrics/`
 pub fn ensure_runtime_dir() {
     let Ok(exe) = std::env::current_exe() else {
         warn!("无法确定程序路径，跳过 lyrics/ 资源检查");
@@ -136,56 +116,55 @@ pub fn ensure_runtime_dir() {
         warn!("无法创建 {}: {err}", dir.display());
         return;
     }
-    let manifest = dir.join("resources.json");
-    let version_ok = std::fs::read_to_string(&manifest)
-        .map(|text| text.contains(RESOURCE_VERSION))
-        .unwrap_or(false);
 
-    // 先做历史兼容：早期上传字体写在 `./LRC.otf` / `./tLRC.otf`（与默认字体同路径），
-    // 会被下面的资源释放覆盖掉。先把这类**上传字体**搬到 `uploaded/`，再释放默认字体，
-    // 用户上传的字体不会丢，被覆盖的默认字体也回到原位。
-    for name in crate::service::font_service::migrate_legacy_uploaded_fonts(&dir, |name, bytes| {
-        embedded_resource(name)
-            .map(|default| default == bytes)
-            .unwrap_or(false)
-    }) {
-        info!(
-            "已把历史上传字体 {name} 迁移到 {}/",
-            crate::service::font_service::UPLOAD_DIR
-        );
-    }
+    // 创建字体和临时目录
+    let font_dir = dir.join(crate::service::font_service::FONT_DIR);
+    let _ = std::fs::create_dir_all(&font_dir);
+    let temp_dir = dir.join("temp");
+    let _ = std::fs::create_dir_all(&temp_dir);
 
-    for asset in Assets::iter() {
-        let rel = asset.as_ref();
-        if USER_FILES.contains(&rel) {
-            continue;
-        }
-        let path = dir.join(rel);
-        if version_ok && path.exists() {
-            continue;
-        }
-        if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        if let Some(file) = Assets::get(rel) {
-            match std::fs::write(&path, file.data.as_ref()) {
-                Ok(()) => info!("已释放程序资源: {}", path.display()),
-                Err(err) => warn!("释放程序资源失败 {}: {err}", path.display()),
+    // 迁移旧的 uploaded/ 目录到 font/
+    crate::service::font_service::migrate_uploaded_to_font(&dir);
+
+    // 释放 ffprobe（如果内嵌了且目标不存在）
+    let ffprobe_name = if cfg!(target_os = "windows") {
+        "ffprobe.exe"
+    } else {
+        "ffprobe"
+    };
+    let ffprobe_target = dir.join(ffprobe_name);
+    if !ffprobe_target.exists()
+        && let Some(bytes) = embedded_resource(ffprobe_name)
+    {
+        match std::fs::write(&ffprobe_target, &bytes) {
+            Ok(()) => {
+                info!("已释放: {}", ffprobe_target.display());
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let _ = std::fs::set_permissions(
+                        &ffprobe_target,
+                        std::fs::Permissions::from_mode(0o755),
+                    );
+                }
             }
+            Err(err) => warn!("释放 ffprobe 失败 {}: {err}", ffprobe_target.display()),
         }
     }
-    if !version_ok {
-        let body = format!(
-            "{{\n  \"version\": \"{RESOURCE_VERSION}\",\n  \"resources\": [\"LRC.otf\", \"tLRC.otf\"]\n}}\n"
-        );
-        let _ = std::fs::write(&manifest, body);
+
+    // 删除旧的 resources.json（如果存在）
+    let manifest = dir.join("resources.json");
+    if manifest.exists() {
+        let _ = std::fs::remove_file(&manifest);
     }
+
     if let Err(err) = std::env::set_current_dir(&dir) {
         warn!("无法切换到运行目录 {}: {err}", dir.display());
     } else {
         info!("运行目录: {}", dir.display());
     }
 }
+
 /// 自动联动同目录的 `tosu.exe`。
 ///
 /// - 若 127.0.0.1:24050 已在监听 → 认为 tosu 已运行，**不重复启动**

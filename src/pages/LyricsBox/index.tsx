@@ -243,7 +243,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
             style={{
                 filter: shadowFilter("first"),
                 color: textColor().first,
-                "font-family": resolveFamily(font(), "main"),
+                "font-family": resolveFamily(font()),
                 "text-align": props.align || "center",
                 // 层级 0 为 1 倍、层级 1 与 2 为 1/2 倍 —— 与改动前的 active/inactive 完全一致
                 "font-size": `${fontSize().first * lineLevelScale(props.level)}em`,
@@ -267,8 +267,8 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 // 副歌词：有独立选择就按副字体解析；否则沿用原有语义
                 // （先看已注册的副字体，再回落到主字体的选择）
                 "font-family": secondFont()
-                    ? resolveFamily(secondFont(), "sub")
-                    : loadedSubFamily() || resolveFamily(font(), "main"),
+                    ? resolveFamily(secondFont())
+                    : loadedSubFamily() || resolveFamily(font()),
                 "text-align": props.align || "center",
                 "font-size": `${fontSize().second * lineLevelScale(props.level)}em`,
             }}
@@ -376,7 +376,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                         style={{
                             filter: shadowFilter("first"),
                             color: textColor().first,
-                            "font-family": resolveFamily(font(), "main"),
+                            "font-family": resolveFamily(font()),
                             // 复用主歌词字号体系(用户调整主字号时提示同步变化),
                             // 取 1.15 倍: 比正常歌词再大一点, 让加载状态足够醒目
                             "font-size": `${fontSize().first * 1.15}em`,
