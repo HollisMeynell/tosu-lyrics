@@ -3,32 +3,12 @@ import { Button } from "@/components/ui";
 import { ApiError } from "@/services/settingsService";
 import { fetchStatus } from "@/services/statusService";
 import {
-    FontInfo,
-    fetchFontInfo,
+    fetchFontList,
     uploadFontFile,
     uploadLrc,
 } from "@/services/uploadService";
+import type { FontEntry } from "@/services/uploadService";
 import { loadFont } from "@/utils/fonts.ts";
-
-const KIND_LABEL: Record<"main" | "sub", string> = {
-    main: "主字体",
-    sub: "副字体",
-};
-
-async function probeFont(info: FontInfo): Promise<string> {
-    if (!info.exists || !info.url) return "尚未上传";
-    try {
-        const res = await fetch(info.url);
-        if (!res.ok) return `取不到（HTTP ${res.status}）`;
-        const buf = await res.arrayBuffer();
-        if (buf.byteLength !== info.size) {
-            return `字节数不符（期望 ${info.size}，实际 ${buf.byteLength}）`;
-        }
-        return `可加载（${buf.byteLength} 字节）`;
-    } catch (err) {
-        return `取不到：${String(err)}`;
-    }
-}
 
 export default function Upload() {
     const [songTitle, setSongTitle] = createSignal<string | null>(null);
@@ -36,8 +16,7 @@ export default function Upload() {
     const [error, setError] = createSignal<string | null>(null);
     const [notice, setNotice] = createSignal<string | null>(null);
 
-    const [fonts, setFonts] = createSignal<FontInfo[]>([]);
-    const [probe, setProbe] = createSignal<Record<string, string>>({});
+    const [fonts, setFonts] = createSignal<FontEntry[]>([]);
 
     const refreshSong = async () => {
         try {
@@ -50,13 +29,8 @@ export default function Upload() {
 
     const refreshFonts = async () => {
         try {
-            const items = await fetchFontInfo();
+            const items = await fetchFontList();
             setFonts(items);
-            const results: Record<string, string> = {};
-            for (const item of items) {
-                results[item.kind] = await probeFont(item);
-            }
-            setProbe(results);
         } catch (err) {
             setError(err instanceof ApiError ? err.message : String(err));
         }
@@ -83,16 +57,14 @@ export default function Upload() {
             return `已上传并应用：${file.name}（${result.lines} 行）`;
         }, "LRC 上传失败");
 
-    const uploadFontFor = (kind: "main" | "sub") => (file: File) =>
+    const uploadFont = (file: File) =>
         run(async () => {
-            const info = await uploadFontFile(kind, file);
+            const entry = await uploadFontFile(file);
             await refreshFonts();
-            // 让新字体立刻生效：重新注册 FontFace。
-            // loadFont 内部按版本号判断是否需要重新拉取，同版本不会重复加载；
-            // 之前只刷新了字体列表，上传成功后展示端仍用旧字体（或静态回退）。
+            // 让新字体立刻生效：重新注册 FontFace
             await loadFont();
-            return `${KIND_LABEL[kind]}已覆盖：${file.name}（版本 ${info.version}）`;
-        }, `${KIND_LABEL[kind]}上传失败`);
+            return `字体已上传：${entry.name}（${entry.fileName}，${entry.size} 字节）`;
+        }, "字体上传失败");
 
     const onLrc = (e: Event) => {
         const input = e.currentTarget as HTMLInputElement;
@@ -101,11 +73,11 @@ export default function Upload() {
         if (file) void uploadLrcFile(file);
     };
 
-    const onFont = (kind: "main" | "sub") => (e: Event) => {
+    const onFont = (e: Event) => {
         const input = e.currentTarget as HTMLInputElement;
         const file = input.files?.[0];
         input.value = "";
-        if (file) void uploadFontFor(kind)(file);
+        if (file) void uploadFont(file);
     };
 
     const dropHandler =
@@ -128,7 +100,7 @@ export default function Upload() {
             <div class="header space-x-4">
                 <h2 class="text-xl font-medium inline">上传字体或歌词文件</h2>
                 <p class="text-sm inline text-gray-500">
-                    LRC 绑定到当前歌曲；字体上传后按版本 URL 加载，无需手工放文件
+                    LRC 绑定到当前歌曲；字体上传后按名称加载，无需手工放文件
                 </p>
             </div>
             <hr class="w-30 border-gray-400 dark:border-gray-600" />
@@ -189,7 +161,7 @@ export default function Upload() {
             {/* ---------------- 字体 ---------------- */}
             <section class="flex flex-col gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div class="flex flex-row items-center gap-3 flex-wrap">
-                    <h3 class="text-xl font-normal">字体资源</h3>
+                    <h3 class="text-xl font-normal">字体库</h3>
                     <Button
                         class="px-3 py-1"
                         onClick={() => void refreshFonts()}
@@ -199,65 +171,54 @@ export default function Upload() {
                     </Button>
                 </div>
 
-                <For each={["main", "sub"] as const}>
-                    {(kind) => {
-                        const info = () => fonts().find((f) => f.kind === kind);
-                        return (
-                            <div
-                                class={`flex flex-col gap-2 p-3 rounded-md border-2 border-dashed transition-colors ${
-                                    dragOver() === kind
-                                        ? "border-[#ec4899] bg-pink-50 dark:bg-pink-900/20"
-                                        : "border-transparent bg-gray-50 dark:bg-gray-800"
-                                }`}
-                                onDragOver={(e) => {
-                                    e.preventDefault();
-                                    setDragOver(kind);
-                                }}
-                                onDragLeave={() => setDragOver(null)}
-                                onDrop={dropHandler((f) => void uploadFontFor(kind)(f))}
-                            >
-                                <div class="flex flex-row items-center gap-3 flex-wrap">
-                                    <span class="text-base font-medium">
-                                        {KIND_LABEL[kind]}
-                                    </span>
-                                    <Show
-                                        when={info()?.exists}
-                                        fallback={
-                                            <span class="text-sm text-gray-500">
-                                                尚未上传（展示端会用随包字体）
-                                            </span>
-                                        }
-                                    >
-                                        <span class="text-sm text-gray-500">
-                                            版本 {info()!.version} / {info()!.size} 字节
-                                            / 家族 {info()!.family}
-                                        </span>
-                                    </Show>
-                                    <span class="text-xs text-gray-400 ml-auto">
-                                        拖拽到此处，或
-                                    </span>
-                                    <input
-                                        type="file"
-                                        accept=".ttf,.otf,.woff,.woff2"
-                                        disabled={busy()}
-                                        onChange={onFont(kind)}
-                                        class="text-sm"
-                                    />
-                                </div>
-                                <Show when={info()?.exists}>
-                                    <div class="flex flex-row items-center gap-2 text-xs text-gray-500">
-                                        <code class="break-all">{info()!.url}</code>
-                                        <span>· {probe()[kind]}</span>
-                                    </div>
-                                </Show>
-                            </div>
-                        );
+                {/* 上传区域 */}
+                <div
+                    class={`flex flex-row items-center gap-3 p-3 rounded-md border-2 border-dashed transition-colors ${
+                        dragOver() === "font"
+                            ? "border-[#ec4899] bg-pink-50 dark:bg-pink-900/20"
+                            : "border-gray-300 dark:border-gray-600"
+                    }`}
+                    onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOver("font");
                     }}
-                </For>
-
+                    onDragLeave={() => setDragOver(null)}
+                    onDrop={dropHandler((f) => void uploadFont(f))}
+                >
+                    <span class="text-sm text-gray-500">把字体文件拖到这里，或</span>
+                    <input
+                        type="file"
+                        accept=".ttf,.otf,.woff,.woff2"
+                        disabled={busy()}
+                        onChange={onFont}
+                        class="text-sm"
+                    />
+                </div>
                 <p class="text-xs text-gray-500">
-                    连续覆盖上传后版本号会变化，展示端据此重新拉取，不会继续用旧字体。
+                    上传后自动解析字体名称，保存到字体库。在"文字样式"页面可选择使用。
                 </p>
+
+                {/* 已上传字体列表 */}
+                <Show when={fonts().length > 0}>
+                    <div class="flex flex-col gap-2">
+                        <h4 class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                            已上传字体（{fonts().length}）
+                        </h4>
+                        <For each={fonts()}>
+                            {(entry) => (
+                                <div class="flex flex-row items-center gap-3 p-2 rounded bg-gray-50 dark:bg-gray-800">
+                                    <span class="text-sm font-medium">{entry.name}</span>
+                                    <span class="text-xs text-gray-500">
+                                        {entry.fileName} / {entry.size} 字节
+                                    </span>
+                                </div>
+                            )}
+                        </For>
+                    </div>
+                </Show>
+                <Show when={fonts().length === 0}>
+                    <p class="text-sm text-gray-500">暂无已上传字体</p>
+                </Show>
             </section>
         </div>
     );

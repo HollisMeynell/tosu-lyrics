@@ -1,15 +1,15 @@
-use crate::service::font_service::FontInfo;
+use crate::service::font_service::FontEntry;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FontInfoResponse {
-    pub items: Vec<FontInfo>,
+pub struct FontListResponse {
+    pub items: Vec<FontEntry>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadFontResponse {
     pub ok: bool,
-    pub font: FontInfo,
+    pub font: FontEntry,
 }

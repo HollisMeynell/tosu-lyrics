@@ -1,15 +1,10 @@
 // 功能: 面板-文字样式（主 / 副歌词字体选择）
-import { Show } from "solid-js";
+import { Show, onMount } from "solid-js";
 import { FontPicker } from "@/components/ui";
 import { fontMode } from "@/stores/fontModeStore";
 import { font, secondFont } from "@/stores/settingsStore";
 import type { SettingsPatch } from "@/types/globalTypes";
-import {
-    FONT_CODE_DEFAULT,
-    FONT_CODE_UPLOADED,
-    fontInfos,
-    normalizeFontCode,
-} from "@/utils/fonts";
+import { fontEntries, fetchFontList } from "@/utils/fonts";
 
 interface FontProps {
     update: (patch: SettingsPatch) => Promise<boolean>;
@@ -28,42 +23,34 @@ const SYSTEM_FONTS = [
     { code: "arial", name: "Arial" },
 ];
 
-/**
- * 归一化**历史存储值**：早期版本的字体选择码曾是文件名（`LRC.otf` / `tLRC.otf`）或空串，
- * 归一化到 `FONT_CODE_DEFAULT` 后，选择框才会显示「默认字体」而不是文件名。
- *
- * 实现已收敛到 `utils/fonts.ts` 的 `normalizeFontCode()` —— **渲染层用的是同一个函数**
- * （`resolveFamily` 内部也会先归一化），所以不会再出现"界面显示默认字体、
- * 实际渲染成上传字体"的分歧。
- */
 export default function Controller(props: FontProps) {
     const shared = () => fontMode() === "shared";
 
+    // 首次挂载时加载字体列表
+    onMount(() => {
+        void fetchFontList();
+    });
+
     /**
-     * 选项列表 = 默认 `LRC.otf` + 当前上传的主/副字体 + 系统字体。
+     * 选项列表 = 默认字体 + 字体库中所有字体 + 系统字体。
      *
-     * 默认字体**永远存在**，上传了自定义字体也不会把它顶掉；上传字体的显示名用
-     * 后端解析出的 `displayName`（字体文件内部名称），与 FontFace family 分离。
-     * 这份数据来自 `fontInfos()`，与字体资源区共用同一次 `/api/font/info` 请求。
+     * 默认字体永远是第一个选项（空串表示使用系统默认）。
+     * 字体库中的字体按名称显示。
      */
-    const optionsFor = (kind: "main" | "sub") => {
-        const options = [{ code: FONT_CODE_DEFAULT, name: "默认字体" }];
-        const uploaded = fontInfos().find((item) => item.kind === kind);
-        // 上传字体槽位**始终存在**：未上传时显示「上传字体」，上传成功后显示后端解析出的真实字体名。
-        // 选中它但实际没有上传字体时，`resolveFamily()` 会安全回落内置字体。
-        options.push({
-            code: FONT_CODE_UPLOADED,
-            name: uploaded?.exists
-                ? uploaded.displayName || "上传字体"
-                : "上传字体",
-        });
-        return [...options, ...SYSTEM_FONTS];
+    const options = () => {
+        const opts = [{ code: "", name: "默认字体" }];
+        // 添加字体库中的字体
+        for (const entry of fontEntries()) {
+            opts.push({ code: entry.name, name: entry.name });
+        }
+        // 添加系统字体
+        return [...opts, ...SYSTEM_FONTS];
     };
 
     // SettingsPatch 里 font 必须是完整的一对，所以每次都带上另一侧的原值。
     const applyMain = (value: string) => {
         void props.update({
-            // 共用模式下改主字体要同时写两侧，否则会出现"UI 共用、渲染却不共用"
+            // 共用模式下改主字体要同时写两侧
             font: { first: value, second: shared() ? value : secondFont() },
         });
     };
@@ -78,8 +65,8 @@ export default function Controller(props: FontProps) {
                 <h2 class="text-xl font-normal">主歌词字体</h2>
                 <FontPicker
                     class="w-56"
-                    options={optionsFor("main")}
-                    value={normalizeFontCode(font())}
+                    options={options()}
+                    value={font()}
                     disabled={props.disabled}
                     onChange={applyMain}
                 />
@@ -100,8 +87,8 @@ export default function Controller(props: FontProps) {
                     <h2 class="text-xl font-normal">副歌词字体</h2>
                     <FontPicker
                         class="w-56"
-                        options={optionsFor("sub")}
-                        value={normalizeFontCode(secondFont())}
+                        options={options()}
+                        value={secondFont()}
                         disabled={props.disabled}
                         onChange={applySub}
                     />

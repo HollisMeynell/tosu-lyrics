@@ -21,12 +21,8 @@ default:
 @build-frontend:
     pnpm build --outDir dist-new --emptyOutDir
     rm -rf ./dist/assets ./dist/index.html
-    cp -r ./dist-new/assets ./dist-new/index.html ./dist-new/LRC.otf ./dist-new/osu.svg ./dist/
+    cp -r ./dist-new/assets ./dist-new/index.html ./dist-new/osu.svg ./dist/
     rm -rf ./dist-new
-    # 随包默认字体：独立放在 static/ 下（静态服务优先查 ./static），
-    # 这样"默认字体"与"上传覆盖到工作目录的 LRC.otf / tLRC.otf"是两个文件
-    mkdir -p ./dist/static
-    cp ./static/LRC.otf ./static/tLRC.otf ./dist/static/
 
 @build: build-frontend build-backend copy-backend
 
@@ -35,12 +31,11 @@ assemble-embed:
     #!/usr/bin/env bash
     set -euo pipefail
     rm -rf ./embed
-    mkdir -p ./embed
+    mkdir -p ./embed/lyrics
     pnpm exec vite build --outDir tosu-proxy/target/dist-package --emptyOutDir
-    cp ./tosu-proxy/target/dist-package/index.html ./embed/
-    cp -r ./tosu-proxy/target/dist-package/assets ./embed/
-    [ -f ./tosu-proxy/target/dist-package/osu.svg ] && cp ./tosu-proxy/target/dist-package/osu.svg ./embed/ || true
-    cp ./static/LRC.otf ./static/tLRC.otf ./embed/
+    cp ./tosu-proxy/target/dist-package/index.html ./embed/lyrics/
+    cp -r ./tosu-proxy/target/dist-package/assets ./embed/lyrics/
+    [ -f ./tosu-proxy/target/dist-package/osu.svg ] && cp ./tosu-proxy/target/dist-package/osu.svg ./embed/lyrics/ || true
     [ -f ./tosu-proxy/lib/ffprobe.exe ] && cp ./tosu-proxy/lib/ffprobe.exe ./embed/ffprobe || true
     echo "embed/ 文件数: $(find ./embed -type f | wc -l)"
 

@@ -599,9 +599,10 @@ impl LyricService {
 
         if let Some(lyric) = lyric {
             if let Some(save_key) = self.now_save_cache.as_ref()
-                && let Err(err) = Self::save_lyric(save_key, &lyric).await {
-                    error!("存储缓存异常: {err}");
-                }
+                && let Err(err) = Self::save_lyric(save_key, &lyric).await
+            {
+                error!("存储缓存异常: {err}");
+            }
             self.now_lyric = Some(Arc::new(lyric));
             self.push_now(self.now_time).await;
         } else {
