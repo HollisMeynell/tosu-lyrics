@@ -81,28 +81,32 @@ pub async fn start_server() {
 pub(crate) struct Assets;
 
 // 配置、数据库和上传文件仍使用磁盘目录；前端资源由 Assets 直接提供。
-pub fn ensure_runtime_dir() {
+pub fn ensure_runtime_dir() -> Vec<String> {
+    let mut warn_message = vec![];
+
     let Ok(exe) = std::env::current_exe() else {
-        warn!("无法确定程序路径，跳过运行目录初始化");
-        return;
+        warn_message.push("无法确定程序路径，跳过运行目录初始化".to_string());
+        return warn_message;
     };
+
     let Some(base) = exe.parent() else {
-        warn!("无法确定程序目录，跳过运行目录初始化");
-        return;
+        warn_message.push("无法确定程序目录，跳过运行目录初始化".to_string());
+        return warn_message;
     };
+
     let dir = base.join("lyrics");
     if let Err(err) = std::fs::create_dir_all(&dir) {
-        warn!("无法创建 {}: {err}", dir.display());
-        return;
+        warn_message.push(format!("无法创建 {}: {err}", dir.display()));
+        return warn_message;
     }
-
-    crate::service::font_service::migrate_uploaded_to_font(&dir);
 
     if let Err(err) = std::env::set_current_dir(&dir) {
-        warn!("无法切换到运行目录 {}: {err}", dir.display());
+        warn_message.push(format!("无法切换到运行目录 {}: {err}", dir.display()));
     } else {
-        info!("运行目录: {}", dir.display());
+        warn_message.push(format!("运行目录: {}", dir.display()));
     }
+
+    warn_message
 }
 
 fn tosu_already_running(port: u16) -> bool {
@@ -119,9 +123,6 @@ fn tosu_already_running(port: u16) -> bool {
 }
 fn tosu_port(url: &str) -> Option<u16> {
     let url = Url::parse(url).ok()?;
-    if !matches!(url.scheme(), "ws" | "wss") {
-        return None;
-    }
     url.port_or_known_default().filter(|port| *port != 0)
 }
 
@@ -152,16 +153,11 @@ fn spawn_tosu_linked() {
 
     let tosu = dir.join(tosu_exe);
     if !tosu.is_file() {
-        info!("同目录未找到 tosu.exe，按独立模式运行");
+        info!("同目录未找到 tosu，按独立模式运行");
         return;
     }
 
     let mut cmd = std::process::Command::new(&tosu);
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    }
 
     match cmd
         .current_dir(dir)
@@ -171,7 +167,7 @@ fn spawn_tosu_linked() {
         .spawn()
     {
         Ok(mut child) => {
-            info!("已启动同目录 tosu.exe（工作目录 {}）", dir.display());
+            info!("已启动同目录 tosu: {}）", dir.display());
             if let Some(out) = child.stdout.take() {
                 std::thread::spawn(move || forward_output(out, "tosu"));
             }
@@ -180,10 +176,10 @@ fn spawn_tosu_linked() {
             }
             std::thread::spawn(move || {
                 let _ = child.wait();
-                info!("tosu 已退出（不影响主程序运行）");
+                info!("tosu 已退出");
             });
         }
-        Err(err) => warn!("启动 tosu.exe 失败（不影响主程序）: {err}"),
+        Err(err) => warn!("启动 tosu 失败: {err}"),
     }
 }
 
@@ -223,6 +219,10 @@ fn open_controller_page() {
         "http://127.0.0.1:{}/lyrics/controller/content",
         GLOBAL_CONFIG.port
     );
+    #[cfg(target_os = "linux")]
+    let _ = open_in_browser(&url);
+
+    #[cfg(not(target_os = "linux"))]
     match open_in_browser(&url) {
         Ok(()) => info!("已用默认浏览器打开 {url}"),
         Err(err) => warn!("无法自动打开浏览器({url}): {err}"),
@@ -244,14 +244,18 @@ fn open_in_browser(url: &str) -> std::io::Result<()> {
 fn open_in_browser(url: &str) -> std::io::Result<()> {
     std::process::Command::new("open")
         .arg(url)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .spawn()
         .map(|_| ())
 }
 
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(target_os = "linux")]
 fn open_in_browser(url: &str) -> std::io::Result<()> {
     std::process::Command::new("xdg-open")
         .arg(url)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .spawn()
         .map(|_| ())
 }

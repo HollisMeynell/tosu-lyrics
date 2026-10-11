@@ -9,10 +9,15 @@ use std::str::FromStr;
 use std::sync::{LazyLock, OnceLock};
 use std::time::Instant;
 use tracing::field::{Field, Visit};
-use tracing::{Event, Level, Subscriber, error, info};
+use tracing::{Event, Level, Subscriber, error, info, warn};
+use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::fmt::format::Writer;
+use tracing_subscriber::fmt::time::ChronoLocal;
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
+use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::registry::LookupSpan;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{Layer, fmt};
 
 pub static CONFIG_ENDPOINT_WEBSOCKET: &str = "ws";
 pub static CONFIG_ENDPOINT_WEBSOCKET_NO_LYRIC_POINT: &str = "setter";
@@ -83,15 +88,70 @@ const TOSU_COLOR: Color = Color::Fixed(12);
 const TIME_COLOR: Color = Color::Rgb(170, 170, 170);
 
 impl Config {
-    pub fn init_logger(&self) {
+    pub async fn init_logger(&self, mut warn_message: Vec<String>) {
         LOG_START.get_or_init(Instant::now);
 
-        let _ = tracing_subscriber::fmt()
+        let level = self
+            .log_level
+            .as_ref()
+            .map(|s| match s.trim().to_lowercase().as_str() {
+                "" => LevelFilter::OFF,
+                "off" => LevelFilter::OFF,
+                "error" => LevelFilter::ERROR,
+                "warn" => LevelFilter::WARN,
+                "info" => LevelFilter::INFO,
+                "debug" => LevelFilter::DEBUG,
+                "trace" => LevelFilter::TRACE,
+                _ => {
+                    warn_message.push(format!(
+                        "未知日志级别 '{}', 仅支持 error, warn, info, debug, trace, off",
+                        s
+                    ));
+                    warn_message.push("默认控制台级别为 warn".to_string());
+                    LevelFilter::WARN
+                }
+            });
+
+        let log_dir = Path::new("logs");
+        if !log_dir.exists() && tokio::fs::create_dir_all(log_dir).await.is_err() {
+            warn_message.push("无法创建日志目录 'logs'".to_string());
+        }
+
+        let file_layer = if !log_dir.is_dir() {
+            warn_message.push("日志目录 'logs' 无法使用, 关闭文件输出".to_string());
+            None
+        } else {
+            let file_appender = tracing_appender::rolling::daily(log_dir, "lyric.app.log");
+            let (file_writer, _guard) = tracing_appender::non_blocking(file_appender);
+            std::mem::forget(_guard);
+
+            let file_layer = fmt::layer()
+                .with_timer(ChronoLocal::new("%Y-%m-%d %H:%M:%S%.3f".to_string()))
+                .with_target(false)
+                .with_thread_ids(true)
+                .with_file(true)
+                .with_line_number(true)
+                .with_ansi(false)
+                .with_writer(file_writer)
+                .with_filter(level.unwrap_or(LevelFilter::WARN));
+            Some(file_layer)
+        };
+
+        let console_layer = fmt::layer()
             .event_format(SourceFormat {
                 ansi: ansi_enabled(),
             })
             .with_writer(stdout)
-            .try_init();
+            .with_filter(level.unwrap_or(LevelFilter::INFO));
+
+        tracing_subscriber::registry()
+            .with(console_layer)
+            .with(file_layer)
+            .init();
+
+        for i in warn_message {
+            warn!("{i}");
+        }
     }
 }
 
@@ -216,7 +276,7 @@ fn ansi_enabled() -> bool {
 
 struct TimeFormat;
 
-impl tracing_subscriber::fmt::time::FormatTime for TimeFormat {
+impl fmt::time::FormatTime for TimeFormat {
     fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
         let now = chrono::Utc::now();
         now.format("%y-%m-%d %H:%M:%S").write_to(w)?;

@@ -41,5 +41,6 @@ sea-schema = { version = "0.16.2", features = ["writer"] }
 tokio-tungstenite = "0.29.0"
 nu-ansi-term = "0.46.0"
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono"] }
+tracing-appender = "0.2"
 tungstenite = "0.29.0"

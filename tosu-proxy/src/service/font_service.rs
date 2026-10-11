@@ -201,31 +201,6 @@ pub async fn save(bytes: &[u8]) -> Result<FontEntry> {
     })
 }
 
-pub fn migrate_uploaded_to_font(work_dir: &Path) {
-    let old_dir = work_dir.join("uploaded");
-    let new_dir = work_dir.join(FONT_DIR);
-    if !old_dir.is_dir() {
-        return;
-    }
-    let _ = std::fs::create_dir_all(&new_dir);
-    if let Ok(read_dir) = std::fs::read_dir(&old_dir) {
-        for entry in read_dir.flatten() {
-            let path = entry.path();
-            if !path.is_file() {
-                continue;
-            }
-            let Some(name) = path.file_name() else {
-                continue;
-            };
-            let target = new_dir.join(name);
-            if !target.exists() {
-                let _ = std::fs::copy(&path, &target);
-            }
-        }
-    }
-    let _ = std::fs::remove_dir_all(&old_dir);
-}
-
 fn looks_like_font(bytes: &[u8]) -> bool {
     if bytes.len() < 4 {
         return false;
