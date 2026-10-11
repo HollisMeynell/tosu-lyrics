@@ -7,7 +7,7 @@ mod parse {
     use std::sync::LazyLock;
 
     static REG_LYRIC_LINE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"\[(\d+):(\d+\.\d+)](.+)").unwrap());
+        LazyLock::new(|| Regex::new(r"\[(\d+):(\d+[.:]\d+)](.+)").unwrap());
 
     pub(super) struct LyricRawLine {
         /// 秒
@@ -23,7 +23,8 @@ mod parse {
 
     fn parse_lyric_line(captures: &regex::Captures) -> LyricRawLine {
         let minutes: f32 = captures[1].parse().unwrap_or(0.0);
-        let seconds: f32 = captures[2].parse().unwrap_or(0.0);
+        // 网易云部分歌词使用冒号分隔小数秒，如 00:27:76 表示 27.76 秒。
+        let seconds: f32 = captures[2].replace(':', ".").parse().unwrap_or(0.0);
         let line = captures[3].trim().to_string();
         let time = minutes * 60.0 + seconds;
         LyricRawLine { time, line }
@@ -257,4 +258,35 @@ impl Lyric {
 #[inline]
 fn eq_f32(a: f32, b: f32) -> bool {
     (a - b).abs() < 1e-4
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_mixed_netease_timestamps_and_translations() {
+        let origin = "[00:00.00]作词信息\n[00:01.00]作曲信息\n[00:02.00]编曲信息\n[00:27:76]歌词一\n[01:01:54]歌词二\n[03:54:05]歌词三\n";
+        let translation = "[by:字幕组]\n[00:27:76]翻译一\n[01:01.54]翻译二\n[03:54:05]翻译三\n";
+        let lyric = Lyric::parse(origin, Some(translation), Some("歌曲标题")).unwrap();
+        let lines = lyric.get_lyrics();
+        assert_eq!(lines.len(), 6);
+        for (line, time, origin, translation) in [
+            (&lines[3], 27.76, "歌词一", "翻译一"),
+            (&lines[4], 61.54, "歌词二", "翻译二"),
+            (&lines[5], 234.05, "歌词三", "翻译三"),
+        ] {
+            assert!(eq_f32(line.time, time));
+            assert_eq!(line.origin.as_deref(), Some(origin));
+            assert_eq!(line.translation.as_deref(), Some(translation));
+        }
+        assert!(eq_f32(lyric.end_time, 234.05));
+    }
+
+    #[test]
+    fn parses_fractional_seconds_with_different_precision() {
+        let lyric = Lyric::parse("[00:01.5]一\n[00:02:05]二\n[00:03:005]三", None, None).unwrap();
+        let times: Vec<_> = lyric.get_lyrics().iter().map(|line| line.time).collect();
+        assert_eq!(times, vec![1.5, 2.05, 3.005]);
+    }
 }
