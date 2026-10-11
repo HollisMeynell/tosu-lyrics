@@ -58,24 +58,24 @@ dist/、release/          构建/发布产物
 
 ## 关键配置与工具对应
 
-| 文件                                                                      | 工具/作用                                         | 修改约定                                                   |
-| ------------------------------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------- |
-| `package.json` / `pnpm-lock.yaml`                                         | pnpm 脚本、依赖与解析版本                         | 使用 pnpm 更新；不混入 npm/yarn 锁文件                     |
-| `pnpm-workspace.yaml`                                                     | pnpm 依赖构建许可                                 | 与 `package.json` 内 `pnpm.onlyBuiltDependencies` 一并核对 |
-| `.prettierrc`                                                             | Prettier 格式规则                                 | 风格变更需说明影响，不顺带全仓格式化                       |
-| `eslint.config.js`                                                        | ESLint flat config、TS 推荐规则                   | 调整规则需说明原因，避免整体关闭检查                       |
-| `tsconfig.json`                                                           | TS 严格检查、Solid JSX、路径别名                  | 与 Vite 的别名及 JSX 编译配置保持一致                      |
-| `vite.config.ts`                                                          | Solid/Tailwind 插件、基础路径、开发代理、构建分析 | 路径/端口变化需联动前后端                                  |
-| `tosu-proxy/Cargo.toml` / `tosu-proxy/Cargo.lock`                         | Cargo 主 crate 依赖、二进制入口、发布优化         | 默认编译 `src/main.rs`，二进制名统一为 `tosu-lyrics`       |
-| `tosu-proxy/lyric-macro/Cargo.toml` / `tosu-proxy/lyric-macro/Cargo.lock` | 本地过程宏 crate 的依赖                           | 修改宏依赖时核对独立 crate 与主 crate 构建                 |
-| `tosu-proxy/default.config.json5`                                         | 后端配置示例                                      | 与 `tosu-proxy/src/config.rs` 的字段和默认值同步           |
-| 运行目录 `config.json5`                                                   | 后端实例运行配置                                  | 属于实例数据，勿用构建产物覆盖                             |
-| `justfile`                                                                | 格式化、检查、构建、资源组装、打包                | 核对删除范围、资源路径和发布文件名                         |
-| `.github/workflows/release.yaml`                                          | `v*` 标签触发 Linux/Windows 发布                  | 与 `just package` 的产物命名保持一致                       |
-| `.github/workflows/release-test.yml`                                      | 手动测试发布                                      | 使用 `just package ./release`，与正式发布统一打包入口      |
-| `.github/dependabot.yml`                                                  | npm/Cargo 每日依赖更新                            | 升级后仍需本地检查与兼容验证                               |
-| `.vscode/settings.json`                                                   | cSpell 自定义词表                                 | 当前未配置自动格式化                                       |
-| `.gitignore` / `.gitattributes`                                           | 产物忽略/文件属性                                 | 不将运行库、个人配置或生成产物纳入源码                     |
+| 文件                                                                      | 工具/作用                                          | 修改约定                                                   |
+| ------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------- |
+| `package.json` / `pnpm-lock.yaml`                                         | pnpm 脚本、依赖与解析版本                          | 使用 pnpm 更新；不混入 npm/yarn 锁文件                     |
+| `pnpm-workspace.yaml`                                                     | pnpm 依赖构建许可                                  | 与 `package.json` 内 `pnpm.onlyBuiltDependencies` 一并核对 |
+| `.prettierrc`                                                             | Prettier 格式规则                                  | 风格变更需说明影响，不顺带全仓格式化                       |
+| `eslint.config.js`                                                        | ESLint flat config、TS 推荐规则                    | 调整规则需说明原因，避免整体关闭检查                       |
+| `tsconfig.json`                                                           | TS 严格检查、Solid JSX、路径别名                   | 与 Vite 的别名及 JSX 编译配置保持一致                      |
+| `vite.config.ts`                                                          | Solid/Tailwind 插件、基础路径、开发代理、构建分析  | 路径/端口变化需联动前后端                                  |
+| `tosu-proxy/Cargo.toml` / `tosu-proxy/Cargo.lock`                         | Cargo 主 crate 依赖、二进制入口、发布优化          | 默认编译 `src/main.rs`，二进制名统一为 `tosu-lyrics`       |
+| `tosu-proxy/lyric-macro/Cargo.toml` / `tosu-proxy/lyric-macro/Cargo.lock` | 本地过程宏 crate 的依赖                            | 修改宏依赖时核对独立 crate 与主 crate 构建                 |
+| `tosu-proxy/default.config.json5`                                         | 后端配置示例                                       | 与 `tosu-proxy/src/config.rs` 的字段和默认值同步           |
+| 运行目录 `config.json5`                                                   | 后端实例运行配置                                   | 属于实例数据，勿用构建产物覆盖                             |
+| `justfile`                                                                | 格式化、检查、构建、资源组装、打包                 | 核对删除范围、资源路径和发布文件名                         |
+| `.github/workflows/release.yaml`                                          | `master` 构建预热缓存，`v*` 标签发布 Linux/Windows | 分支构建只打包，标签构建才创建 Release                     |
+| `.github/workflows/release-test.yml`                                      | 手动测试发布                                       | 使用 `just package ./release`，与正式发布统一打包入口      |
+| `.github/dependabot.yml`                                                  | npm/Cargo 每日依赖更新                             | 升级后仍需本地检查与兼容验证                               |
+| `.vscode/settings.json`                                                   | cSpell 自定义词表                                  | 当前未配置自动格式化                                       |
+| `.gitignore` / `.gitattributes`                                           | 产物忽略/文件属性                                  | 不将运行库、个人配置或生成产物纳入源码                     |
 
 当前没有仓库级 `.editorconfig`、`rustfmt.toml` 或固定 Rust toolchain 文件。CI 使用 Node.js 22、pnpm 10 和 Rust stable；这属于当前 CI 配置，不是仓库已声明的最低版本。
 

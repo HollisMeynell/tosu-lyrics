@@ -9,8 +9,8 @@ default:
 [working-directory: './tosu-proxy']
 @build-backend:
     cargo fmt
-    cargo clippy
-    cargo build -r --bin tosu-lyrics
+    cargo clippy --locked
+    cargo build --locked -r --bin tosu-lyrics
 
 @copy-backend:
     cp ./tosu-proxy/target/release/{{bin_name}} ./dist/{{bin_name}}
