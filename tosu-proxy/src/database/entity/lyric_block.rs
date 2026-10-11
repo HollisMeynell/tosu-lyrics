@@ -3,8 +3,6 @@ use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{ActiveValue, ColumnTrait, QueryFilter, QueryOrder};
 
-// 注意: 不能 `use crate::error::Result` —— 会遮住 prelude 里 derive 宏依赖的
-// `Result` 别名, 因此这里全部用 `crate::error::Result` 全限定书写。
 type Res<T> = crate::error::Result<T>;
 
 pub const SCOPE_BID: &str = "bid";
@@ -22,12 +20,10 @@ pub struct Model {
     pub id: i32,
     #[sea_orm(indexed)]
     pub scope: String,
-    /// 作用域的取值：bid / sid 存数字字符串，title 存标题本身
     #[sea_orm(indexed)]
     pub value: String,
     #[sea_orm(default_value = "")]
     pub title: String,
-    /// 仅用于展示与旧 WS 协议兼容，不参与匹配
     #[sea_orm(default_value = 0)]
     pub sid: i32,
     #[sea_orm(default_value = "")]
@@ -49,12 +45,10 @@ impl Entity {
             .await?)
     }
 
-    /// 注意：不能叫 `find_by_id` —— 会盖住 `EntityTrait::find_by_id` 造成自递归
     pub async fn get_by_id(id: i32) -> Res<Option<Model>> {
         Ok(Self::find_by_id(id).one(database()).await?)
     }
 
-    /// 幂等新增：同一 (scope, value) 已存在时只更新标题，不报错也不重复插入
     pub async fn upsert(
         scope: &str,
         value: &str,
@@ -102,7 +96,6 @@ impl Entity {
             .ok_or(crate::error::Error::Impossible)
     }
 
-    /// 不改作用域与取值：规则身份不变，不需要重算当前歌曲是否被屏蔽。
     pub async fn update_meta(id: i32, title: Option<&str>, reason: Option<&str>) -> Res<bool> {
         let mut update = Self::update_many();
         if let Some(title) = title {
@@ -121,7 +114,6 @@ impl Entity {
         Ok(result.rows_affected > 0)
     }
 
-    /// 同上：避开 `EntityTrait::delete_by_id`
     pub async fn remove_by_id(id: i32) -> Res<bool> {
         let result = <Self as EntityTrait>::delete_by_id(id)
             .exec(database())
@@ -129,7 +121,6 @@ impl Entity {
         Ok(result.rows_affected > 0)
     }
 
-    /// 幂等删除，只影响这一个作用域
     pub async fn delete_by_scope_value(scope: &str, value: &str) -> Res<u64> {
         let result = Self::delete_many()
             .filter(Column::Scope.eq(scope))
@@ -148,16 +139,11 @@ impl Entity {
         Ok(Self::find().count(database()).await?)
     }
 
-    /// 判断某首歌是否被屏蔽。
-    ///
-    /// **不做跨作用域回退**：`bid` 命中就是命中，`title` 规则只在用户显式创建过
-    /// 同名标题规则时才生效，不会因为"标题恰好相同"而命中别的谱面。
     pub async fn is_blocked(bid: i64, sid: i64, title: &str) -> Res<Option<Model>> {
         let all = Self::list_all().await?;
         let bid_s = bid.to_string();
         let sid_s = sid.to_string();
 
-        // 优先级：bid > sid > title（仅用于返回哪条规则命中，不改变命中判定）
         if let Some(m) = all
             .iter()
             .find(|m| m.scope == SCOPE_BID && m.value == bid_s)

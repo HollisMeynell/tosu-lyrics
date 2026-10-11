@@ -12,9 +12,6 @@ pub async fn current_settings() -> LyricSettings {
     global_setting().await.read().await.clone()
 }
 
-/// 局部更新设置。
-///
-/// 返回 `(最终设置, 本次变化的设置项)`。失败时数据库与内存**都没有被改动**。
 pub async fn patch_settings(patch: LyricSettingsPatch) -> Result<(LyricSettings, Vec<SettingKey>)> {
     let mut guard = global_setting().await.write().await;
     let before = guard.clone();
@@ -24,7 +21,6 @@ pub async fn patch_settings(patch: LyricSettingsPatch) -> Result<(LyricSettings,
         return Ok((next, Vec::new()));
     }
 
-    // 先落库；写失败直接返回错误，不更新内存、不广播
     next.save().await?;
 
     *guard = next.clone();
@@ -74,7 +70,6 @@ mod test {
         assert_eq!(changed, vec![SettingKey::TextColor, SettingKey::SecondShow]);
         assert_eq!(changed[0].ws_key(), "setColor");
         assert_eq!(changed[1].ws_key(), "setSecondShow");
-        // 广播值形状必须与前端 handleSettingBroadcast 的期望一致
         assert_eq!(
             after.key_value(SettingKey::TextColor),
             serde_json::json!({"first":"#ff0000","second":"#00ff00"})
@@ -94,7 +89,6 @@ mod test {
         assert!(after.changed_keys(&before).is_empty());
     }
 
-    /// 旧 WS 命令可能只给一个标量，广播出去仍然要是 `{first, second}`
     #[test]
     fn alignment_broadcasts_as_pair() {
         let settings = LyricSettings::default();

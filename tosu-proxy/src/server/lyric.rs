@@ -47,7 +47,6 @@ fn parse_upload(bytes: &[u8]) -> Result<Lyric, (StatusCode, &'static str, String
         ));
     }
 
-    // 去 BOM：带 BOM 的 UTF-8 会让第一行的时间标签解析失败
     let bytes = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes);
     let text = std::str::from_utf8(bytes).map_err(|_| {
         (
@@ -65,7 +64,6 @@ fn parse_upload(bytes: &[u8]) -> Result<Lyric, (StatusCode, &'static str, String
         )
     })?;
 
-    // 解析成功但一行时间标签都没有 —— 多半不是 LRC，不能拿它覆盖旧歌词
     if lyric.get_lyrics().is_empty() {
         return Err((
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -89,7 +87,6 @@ pub async fn upload_lyric(req: &mut Request, res: &mut Response) {
         return;
     };
 
-    // 1) 校验期不持锁：解析是纯 CPU 操作，没必要占着服务锁
     let bytes = match read_payload(req).await {
         Ok(b) => b,
         Err((status, code, message)) => {
@@ -106,8 +103,6 @@ pub async fn upload_lyric(req: &mut Request, res: &mut Response) {
     };
     let line_count = lyric.get_lyrics().len();
 
-    // 2) 提交：换到服务锁后再校验一次代际与身份。
-    //    上传（尤其是大文件 / 慢网络）期间完全可能切歌，那时整份丢弃。
     let sid = ident.sid;
     match crate::service::LYRIC_SERVICE
         .call(move |service| {

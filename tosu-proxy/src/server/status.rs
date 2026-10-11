@@ -45,7 +45,6 @@ async fn get_status(res: &mut Response) {
         }),
         lyric,
         offset: service.get_offset(),
-        // 当前歌是否被黑名单命中。与"没有歌词"是两回事。
         blocked,
     }));
 }
@@ -87,7 +86,6 @@ async fn get_current_lyric(res: &mut Response) {
     }));
 }
 
-/// 持续清屏，直到切歌 / 换源 / 上传歌词才恢复。保留当前歌曲信息。
 #[handler]
 async fn clear_display(res: &mut Response) {
     LYRIC_SERVICE

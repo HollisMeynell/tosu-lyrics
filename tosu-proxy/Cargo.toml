@@ -10,9 +10,8 @@ strip = true
 codegen-units = 1
 
 [[bin]]
-name = "osu-lyric"
-path = "src/bin/new.rs"
-required-features = ["new"]
+name = "tosu-lyrics"
+path = "src/main.rs"
 
 [lints.rust]
 unused = "allow"
@@ -28,38 +27,19 @@ serde_path_to_error = "0.1.20"
 tokio = { version = "1.50.0", features = ["fs", "rt-multi-thread", "process", "sync", "macros"] }
 rust-embed = "8.6.0"
 
-async-trait = { version = "0.1.89", optional = true }
-bincode = { version = "2.0.1", optional = true }
-config = { version = "0.15.22", optional = true }
-futures = { version = "0.3.32", optional = true }
-futures-util = { version = "0.3.32", optional = true }
-paste = { version = "1.0.15", optional = true}
-regex = { version = "1.12.3", optional = true }
-salvo = { version = "0.89.3", features = ["default", "serve-static", "websocket"], optional = true }
-sea-orm = { version = "1.1.19", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"], optional = true }
-sea-orm-migration = { version = "1.1.19", features = ["sqlx-sqlite", "runtime-tokio-native-tls"], optional = true }
-sea-schema = { version = "0.16.2", features = ["writer"], optional = true }
-tokio-tungstenite = { version = "0.29.0", optional = true }
-tracing = { version = "0.1", optional = true }
-tracing-subscriber = { version = "0.3", optional = true }
-tungstenite = { version = "0.29.0", optional = true }
-
-[features]
-default = ["new"]
-new = [
-    "async-trait",
-    "bincode",
-    "config",
-    "regex",
-    "paste",
-    "salvo",
-    "tracing",
-    "tokio-tungstenite",
-    "tracing-subscriber",
-    "tungstenite",
-    "futures-util",
-    "futures",
-    "sea-orm",
-    "sea-orm-migration",
-    "sea-schema",
-]
+async-trait = "0.1.89"
+bincode = "2.0.1"
+config = "0.15.22"
+futures = "0.3.32"
+futures-util = "0.3.32"
+paste = "1.0.15"
+regex = "1.12.3"
+salvo = { version = "0.89.3", features = ["default", "serve-static", "websocket"] }
+sea-orm = { version = "1.1.19", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"] }
+sea-orm-migration = { version = "1.1.19", features = ["sqlx-sqlite", "runtime-tokio-native-tls"] }
+sea-schema = { version = "0.16.2", features = ["writer"] }
+tokio-tungstenite = "0.29.0"
+nu-ansi-term = "0.46.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tungstenite = "0.29.0"

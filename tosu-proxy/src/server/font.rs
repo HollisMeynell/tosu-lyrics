@@ -17,14 +17,12 @@ fn font_content_type(bytes: &[u8]) -> &'static str {
     }
 }
 
-/// GET /api/font/list — 返回所有可用字体（font/ 目录 + 内嵌默认字体）
 #[handler]
 async fn font_list(res: &mut Response) {
     let items = font_service::list_fonts();
     res.render(Json(FontListResponse { items }));
 }
 
-/// GET /api/font/:name — 按名称下载字体
 #[handler]
 async fn download_font(req: &mut Request, res: &mut Response) {
     let Some(name) = req.param::<String>("name") else {
@@ -59,7 +57,6 @@ async fn download_font(req: &mut Request, res: &mut Response) {
     res.body(bytes);
 }
 
-/// POST /api/font/upload — 上传字体到字体库
 #[handler]
 async fn upload_font(req: &mut Request, res: &mut Response) {
     let form = match req.form_data_max_size(MAX_UPLOAD_BODY).await {

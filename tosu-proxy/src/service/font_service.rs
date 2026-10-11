@@ -5,26 +5,20 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use tokio::io::AsyncWriteExt;
 
-/// 字体显示名缓存：路径 -> (版本, 解析出的 displayName)
 static DISPLAY_NAME_CACHE: OnceLock<Mutex<HashMap<PathBuf, (String, String)>>> = OnceLock::new();
 
-/// 字体存放目录（相对工作目录）。
 pub const FONT_DIR: &str = "font";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FontEntry {
-    /// 字体文件内部的真实名称（`name` 表 nameID 4 → 1）
     pub name: String,
-    /// 文件名（含扩展名）
     pub file_name: String,
     pub size: u64,
     pub version: String,
-    /// 下载 URL（带版本号）
     pub url: String,
 }
 
-/// 简单的 percent-encoding：只编码非 ASCII 和非字母数字字符。
 fn percent_encode(input: &str) -> String {
     let mut result = String::with_capacity(input.len() * 3);
     for byte in input.bytes() {
@@ -37,7 +31,6 @@ fn percent_encode(input: &str) -> String {
     result
 }
 
-/// mtime(ms) + size，覆盖写后必然变化，且跨重启稳定
 pub fn version_of(path: &Path) -> (String, u64) {
     let Ok(meta) = std::fs::metadata(path) else {
         return (String::new(), 0);
@@ -52,14 +45,12 @@ pub fn version_of(path: &Path) -> (String, u64) {
     (format!("{mtime}-{size}"), size)
 }
 
-/// 获取 `font/` 目录的绝对路径。
 fn font_dir() -> PathBuf {
     std::env::current_dir()
         .expect("cannot get current directory")
         .join(FONT_DIR)
 }
 
-/// 解析单个字体文件的显示名，带缓存。
 fn display_name_for(path: &Path) -> String {
     let fallback = path
         .file_stem()
@@ -88,7 +79,6 @@ fn display_name_for(path: &Path) -> String {
     name
 }
 
-/// 扫描 `font/` 目录，返回所有可用字体。
 pub fn list_fonts() -> Vec<FontEntry> {
     let mut entries = Vec::new();
     let dir = font_dir();
@@ -135,7 +125,6 @@ pub fn list_fonts() -> Vec<FontEntry> {
     entries
 }
 
-/// 按名称查找字体文件路径。
 pub fn find_font_path(name: &str) -> Option<PathBuf> {
     let dir = font_dir();
     if !dir.is_dir() {
@@ -155,13 +144,11 @@ pub fn find_font_path(name: &str) -> Option<PathBuf> {
     None
 }
 
-/// 加载字体文件内容。
 pub async fn load(name: &str) -> Option<Vec<u8>> {
     let path = find_font_path(name)?;
     tokio::fs::read(&path).await.ok()
 }
 
-/// 上传字体：解析名称，保存到 `font/` 目录，返回字体信息。
 pub async fn save(bytes: &[u8]) -> Result<FontEntry> {
     if bytes.is_empty() {
         return Err(Error::Runtime("invalid_param:字体文件为空".into()));
@@ -175,7 +162,6 @@ pub async fn save(bytes: &[u8]) -> Result<FontEntry> {
     let name = font_display_name(bytes)
         .ok_or_else(|| Error::Runtime("invalid_param:无法解析字体名称".into()))?;
 
-    // 确定扩展名
     let ext = match bytes.get(..4) {
         Some(b"wOFF") => "woff",
         Some(b"wOF2") => "woff2",
@@ -186,7 +172,6 @@ pub async fn save(bytes: &[u8]) -> Result<FontEntry> {
     let dir = font_dir();
     tokio::fs::create_dir_all(&dir).await?;
 
-    // 使用字体名作为文件名（sanitized）
     let safe_name: String = name
         .chars()
         .map(|c| {
@@ -216,7 +201,6 @@ pub async fn save(bytes: &[u8]) -> Result<FontEntry> {
     })
 }
 
-/// 迁移旧的 `uploaded/` 目录到 `font/`。
 pub fn migrate_uploaded_to_font(work_dir: &Path) {
     let old_dir = work_dir.join("uploaded");
     let new_dir = work_dir.join(FONT_DIR);
@@ -257,10 +241,6 @@ fn looks_like_font(bytes: &[u8]) -> bool {
     )
 }
 
-/// 从 OTF/TTF 的 `name` 表取字体内部名称。
-///
-/// 优先级：nameID **4（Full name）→ 1（Family）**；同一 nameID 内优先
-/// **platform 3（Windows，UTF-16BE）**，其次 platform 1/encoding 0（Mac Roman）。
 pub fn font_display_name(bytes: &[u8]) -> Option<String> {
     let num_tables = u16::from_be_bytes([*bytes.get(4)?, *bytes.get(5)?]) as usize;
 

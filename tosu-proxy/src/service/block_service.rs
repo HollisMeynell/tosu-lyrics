@@ -86,7 +86,6 @@ pub async fn count() -> Result<u64> {
     Ok(LyricBlockEntity::count().await?)
 }
 
-/// 幂等：同一 (scope, value) 重复添加只会更新标题
 pub async fn add(input: BlockRuleInput) -> Result<BlockRule> {
     validate(&input.scope, &input.value)?;
     let model = LyricBlockEntity::upsert(
@@ -119,7 +118,6 @@ pub async fn update(id: i32, patch: BlockRulePatch) -> Result<BlockRule> {
     }))
 }
 
-/// 幂等删除。规则不存在时返回 Ok(None)，由 HTTP 层决定是否 404。
 pub async fn delete(id: i32) -> Result<Option<BlockRule>> {
     let existing = LyricBlockEntity::get_by_id(id).await?;
     LyricBlockEntity::remove_by_id(id).await?;
@@ -162,15 +160,9 @@ fn validate(scope: &str, value: &str) -> Result<()> {
     Ok(())
 }
 
-/// 黑名单变化后，按"当前播放的歌现在应该是什么状态"同步展示端。
-///
-/// - 现在被屏蔽 -> 清屏
-/// - 现在未被屏蔽 -> 重新加载（等价于重新进入这首歌）
-///
-/// 不依赖调用方传参，直接读当前歌曲身份，因此对「清空黑名单」这类批量操作也成立。
 async fn apply_current_song_effects() {
     let Some(ident) = LyricService::now_ident().await else {
-        return; // 菜单 / 无歌, 无需处理
+        return;
     };
 
     let blocked = LyricBlockEntity::is_blocked(ident.bid as i64, ident.sid as i64, &ident.title)
@@ -193,7 +185,6 @@ async fn apply_current_song_effects() {
             })
             .await;
     } else {
-        // 解除屏蔽: 重新载入当前歌的歌词
         LyricService::reload_current().await;
     }
 }
@@ -227,7 +218,6 @@ mod test {
         assert_eq!(default_scope(None), SCOPE_BID);
         assert_eq!(default_scope(Some("sid")), SCOPE_SID);
         assert_eq!(default_scope(Some("title")), SCOPE_TITLE);
-        // 未知作用域不作为默认值透传
         assert_eq!(default_scope(Some("nonsense")), SCOPE_BID);
     }
 

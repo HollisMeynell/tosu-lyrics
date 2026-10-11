@@ -31,7 +31,6 @@ fn display_channel(channel: UnboundedSender<Message>) -> UnboundedSender<Message
     channel
 }
 
-/// key 是每次连接随机生成的会话标识；identity 是客户端通过 ?id= 自报的稳定身份。
 #[derive(Debug)]
 pub struct SessionEntry {
     channel: UnboundedSender<Message>,
@@ -143,7 +142,7 @@ impl WebsocketSession {
             })
             .collect();
 
-        drop(sessions); // 释放读锁
+        drop(sessions);
 
         for key in failed_keys {
             self.remove_client(&key).await;
@@ -203,7 +202,6 @@ impl WebsocketSession {
     }
 }
 
-/// WS 不再是管理通道：客户端发来的任何文本只记录，不做业务操作。
 async fn on_ws_message(key: &str, message: Message) {
     if message.is_ping() {
         ALL_SESSIONS.send_pong(&key, message).await;
@@ -259,7 +257,6 @@ async fn handle_ws(ws: WebSocket, key: String, mut rx: UnboundedReceiver<Message
 #[handler]
 async fn connect(req: &mut Request, res: &mut Response) -> Result<()> {
     use salvo::websocket::WebSocketUpgrade;
-    // ?setter=true 仍被接受但不再有一任何特权，仅为兼容旧客户端保留
     let _legacy_setter_param = req.query::<bool>(CONFIG_ENDPOINT_WEBSOCKET_NO_LYRIC_POINT);
     let identity = req
         .query::<String>("id")
@@ -276,7 +273,6 @@ async fn connect(req: &mut Request, res: &mut Response) -> Result<()> {
             let key = ALL_SESSIONS.add_client(tx, identity, user_agent).await;
             {
                 crate::service::send_settings_snapshot(&key).await;
-                // 无歌词时下发清屏，避免断线重连 / OBS 刷新后残留上一次歌词
                 match crate::service::LYRIC_SERVICE
                     .call(|svc| Box::pin(async move { svc.get_snapshot() }))
                     .await

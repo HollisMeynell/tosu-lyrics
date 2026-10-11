@@ -32,10 +32,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install just
+        uses: taiki-e/install-action@just
+
       - name: Build release
-        shell: pwsh
-        run: |
-          ./scripts/package-release.ps1 -FinalDir "$env:GITHUB_WORKSPACE\release"
+        run: just package ./release
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

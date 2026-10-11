@@ -3,7 +3,6 @@ pub use crate::model::shared::LyricLineData as LyricLinePayload;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-/// 表示歌词的序列方向。
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum SequenceType {
@@ -11,7 +10,6 @@ pub enum SequenceType {
     Down,
 }
 
-/// 表示包含歌词信息的消息负载。
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LyricPayload {

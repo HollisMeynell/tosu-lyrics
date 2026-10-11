@@ -14,22 +14,13 @@ use tracing::{debug, error, info, warn};
 
 type WebsocketRead = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
-/// Tosu WebSocket 客户端
-/// 用于连接 Tosu 并接收歌曲状态信息
 pub struct TosuWebsocketClient {
-    /// WebSocket 连接地址
     url: String,
-    /// 当前谱面 ID
     bid: AtomicI64,
-    /// 当前谱面集 ID
     sid: AtomicI64,
-    /// 当前音频文件
     audio_file: Mutex<String>,
-    /// 重连延迟（毫秒）
     reconnect_delay_ms: u64,
-    /// 连接超时（毫秒）
     connection_timeout_ms: u64,
-    /// 心跳超时（毫秒）
     heartbeat_timeout_ms: u64,
 }
 
@@ -38,7 +29,6 @@ impl OsuSource for TosuWebsocketClient {
         tokio::spawn(async move {
             loop {
                 self.connect_and_process().await;
-                // 连接断开后等待一段时间再重连
                 sleep(Duration::from_millis(self.reconnect_delay_ms)).await;
             }
         });
@@ -46,7 +36,6 @@ impl OsuSource for TosuWebsocketClient {
 }
 
 impl TosuWebsocketClient {
-    /// 创建新的 Tosu WebSocket 客户端
     pub fn new(url: &str) -> Self {
         Self {
             url: url.to_string(),
@@ -59,7 +48,6 @@ impl TosuWebsocketClient {
         }
     }
 
-    /// 使用自定义配置创建 Tosu WebSocket 客户端
     pub(super) fn with_config(
         url: &str,
         reconnect_delay_ms: u64,
@@ -77,18 +65,15 @@ impl TosuWebsocketClient {
         }
     }
 
-    /// 连接到 WebSocket 并处理消息
     async fn connect_and_process(&self) {
         debug!("正在连接到 Tosu WebSocket: {}", self.url);
 
-        // 尝试连接，带超时
         let connection_result = timeout(
             Duration::from_millis(self.connection_timeout_ms),
             connect_async(&self.url),
         )
         .await;
 
-        // 处理连接超时
         let ws_result = match connection_result {
             Ok(result) => result,
             Err(_) => {
@@ -97,38 +82,31 @@ impl TosuWebsocketClient {
             }
         };
 
-        // 处理连接错误
         if let Err(err) = ws_result {
             error!("连接到 Tosu 失败: {}", err);
             return;
         }
 
-        // 连接成功，设置流
         let (ws_stream, _) = ws_result.unwrap();
         info!("已成功连接到 Tosu");
 
         let (mut sender, receiver) = ws_stream.split();
 
-        // 设置心跳检测
         let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
         let (heartbeat_tx, mut heartbeat_rx) = watch::channel(false);
 
-        // 克隆心跳超时时间用于心跳任务
         let heartbeat_timeout_ms = self.heartbeat_timeout_ms;
 
-        // 启动心跳检测任务
         tokio::spawn(async move {
             loop {
                 sleep(Duration::from_millis(1000)).await;
 
-                // 发送心跳
                 if sender.send(Message::Ping(vec![].into())).await.is_err() {
                     warn!("无法发送心跳，连接可能已断开");
                     let _ = shutdown_tx.send(true);
                     break;
                 }
 
-                // 等待心跳响应
                 match timeout(
                     Duration::from_millis(heartbeat_timeout_ms),
                     heartbeat_rx.changed(),
@@ -148,7 +126,6 @@ impl TosuWebsocketClient {
             }
         });
 
-        // 处理主消息循环或关闭信号
         tokio::select! {
             _ = self.process_messages(receiver, heartbeat_tx) => {
                 debug!("消息处理循环已结束");
@@ -164,7 +141,6 @@ impl TosuWebsocketClient {
         );
     }
 
-    /// 处理 WebSocket 消息
     async fn process_messages(
         &self,
         mut receiver: WebsocketRead,
@@ -184,7 +160,6 @@ impl TosuWebsocketClient {
         }
     }
 
-    /// return 是否继续下次监听
     async fn on_message(&self, message: Message, heartbeat_tx: &watch::Sender<bool>) -> bool {
         match message {
             Message::Text(text) => {
@@ -211,11 +186,7 @@ impl TosuWebsocketClient {
         true
     }
 
-    /// 处理 Tosu 消息
     async fn handle_tosu_message(&self, tosu_data: TosuApi) {
-        // 2025-10-04 tosu 更新, 出现无歌曲的事件下发, 在这里过滤掉:
-        // 菜单/无歌曲状态仅触发一次清空, 并重置歌曲记录,
-        // 使下次进歌(即使与之前相同)也会重新走换歌流程
         let bid = tosu_data.beatmap.id;
         if bid == i64::default() {
             if self.bid.swap(i64::default(), Ordering::SeqCst) != i64::default() {
@@ -231,7 +202,6 @@ impl TosuWebsocketClient {
         let old_bid = self.bid.load(Ordering::SeqCst);
         let old_sid = self.sid.load(Ordering::SeqCst);
 
-        // 检查是否需要更新歌曲信息
         let update_song_info = {
             let current_audio = self.audio_file.lock().await;
             old_sid != sid || (old_bid != bid && *current_audio != tosu_data.files.audio)
@@ -240,24 +210,19 @@ impl TosuWebsocketClient {
         if update_song_info {
             self.update_song_info(tosu_data, bid, sid, now).await;
         } else {
-            // 仅更新时间
             self.on_osu_state_change(super::OsuState::Time(now)).await;
         }
     }
 
-    /// 更新歌曲信息
     async fn update_song_info(&self, mut tosu_data: TosuApi, bid: i64, sid: i64, now: i32) {
-        // 更新状态
         self.sid.store(sid, Ordering::SeqCst);
         self.bid.store(bid, Ordering::SeqCst);
 
-        // 更新音频文件
         {
             let mut audio_file = self.audio_file.lock().await;
             *audio_file = tosu_data.files.audio.clone();
         }
 
-        // 获取音频长度
         let length = crate::util::read_audio_length(tosu_data.audio_path())
             .await
             .unwrap_or_else(|e| {
@@ -265,7 +230,6 @@ impl TosuWebsocketClient {
                 -1
             });
 
-        // 创建歌曲信息并通知状态变化
         let info = super::OsuSongInfo {
             bid,
             sid,

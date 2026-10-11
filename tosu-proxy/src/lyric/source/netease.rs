@@ -8,7 +8,6 @@ const NETEASE_API_BASE: &str = "https://music.163.com/api";
 
 pub struct NeteaseLyricSource;
 
-// 歌曲搜索
 #[derive(Deserialize)]
 struct NeteaseResponse {
     code: i32,
@@ -34,7 +33,6 @@ struct NeteaseArtist {
     name: String,
 }
 
-// 歌词搜索
 #[derive(Deserialize)]
 struct NeteaseLyricResponse {
     #[serde(default)]
@@ -59,12 +57,10 @@ impl Default for NeteaseLyricSource {
 }
 
 impl NeteaseLyricSource {
-    /// 构建根据标题搜索歌曲的 URL。
     fn search_url(title: &str) -> String {
         format!("{}/search/get?s={}&type=1&limit=5", NETEASE_API_BASE, title)
     }
 
-    /// 构建根据歌曲 ID 获取歌词的 URL。
     fn lyric_url(song_id: &str) -> String {
         format!(
             "{}/song/lyric?id={}&lv=1&kv=1&tv=-1",
@@ -89,7 +85,6 @@ impl LyricSource for NeteaseLyricSource {
 
         let result: NeteaseResponse = response.json().await?;
 
-        // 处理错误代码
         if result.code != 200 {
             return Ok(vec![]);
         }
@@ -114,7 +109,6 @@ impl LyricSource for NeteaseLyricSource {
         Ok(song_list)
     }
 
-    /// 获取指定网易云歌曲 ID 的原文和翻译歌词。
     async fn fetch_lyrics(&self, song_id: &str) -> Result<LyricResult> {
         let url = Self::lyric_url(song_id);
         let response = match CLIENT.get(&url).send().await {

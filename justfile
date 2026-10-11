@@ -1,7 +1,4 @@
-
-
-bin_name := if os() == "windows" { "osu-lyric.exe" } else { "osu-lyric" }
-ext      := if os() == "windows" { ".exe" } else { "" }
+bin_name := if os() == "windows" { "tosu-lyrics.exe" } else { "tosu-lyrics" }
 
 default:
     @just --list
@@ -12,11 +9,11 @@ default:
 [working-directory: './tosu-proxy']
 @build-backend:
     cargo fmt
-    cargo clippy --features=new
-    cargo build -r --bin osu-lyric --features=new
+    cargo clippy
+    cargo build -r --bin tosu-lyrics
 
 @copy-backend:
-    cp ./tosu-proxy/target/release/{{bin_name}} ./dist/osu-lyric{{ext}}
+    cp ./tosu-proxy/target/release/{{bin_name}} ./dist/{{bin_name}}
 
 @build-frontend:
     pnpm build --outDir dist-new --emptyOutDir
@@ -42,5 +39,5 @@ assemble-embed:
 # 单文件发行：前端 → embed/ → cargo release build → 输出到目标目录
 @package final_dir="./release": assemble-embed build-backend
     mkdir -p {{final_dir}}
-    cp ./tosu-proxy/target/release/{{bin_name}} {{final_dir}}/tosu-lyrics{{ext}}
-    echo "输出: $(realpath {{final_dir}}/tosu-lyrics{{ext}}) ($(du -h {{final_dir}}/tosu-lyrics{{ext}} | cut -f1))"
+    cp ./tosu-proxy/target/release/{{bin_name}} {{final_dir}}/{{bin_name}}
+    echo "输出: $(realpath {{final_dir}}/{{bin_name}}) ($(du -h {{final_dir}}/{{bin_name}} | cut -f1))"

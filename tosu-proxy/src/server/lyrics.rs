@@ -20,7 +20,6 @@ use salvo::http::StatusCode;
 use salvo::prelude::*;
 use serde::Deserialize;
 
-/// 把服务层的错误映射到统一的错误码与状态码。
 fn render_content_error(res: &mut Response, err: Error) {
     let message = err.to_string();
     let (status, code, text) = if let Some(rest) = message.strip_prefix("no_song:") {

@@ -7,7 +7,6 @@ use tracing::warn;
 
 pub struct QQLyricSource;
 
-// 歌曲搜索
 #[derive(Deserialize)]
 struct QQResponse {
     code: i32,
@@ -37,7 +36,6 @@ struct Singer {
     name: String,
 }
 
-// 歌词搜索
 #[derive(Deserialize)]
 struct QQLyricResponse {
     code: i32,

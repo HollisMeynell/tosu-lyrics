@@ -69,7 +69,6 @@ async fn update_block(req: &mut Request, res: &mut Response) {
         );
         return;
     };
-    // PATCH 允许空 body，视为"不改任何字段"
     let patch = match parse_body::<BlockRulePatch>(req).await {
         Ok(patch) => patch,
         Err(_) => BlockRulePatch {

@@ -52,7 +52,6 @@ pub struct CachePage {
     pub ttl_ms: i64,
 }
 
-/// page 从 1 开始；size 会被夹到 1..=200
 pub async fn page(query: Option<&str>, page: u64, size: u64) -> Result<CachePage> {
     let page = page.max(1);
     let size = size.clamp(1, 200);
@@ -107,19 +106,15 @@ mod test {
 
     #[test]
     fn page_math_is_sane() {
-        // 100 条、每页 30 -> 4 页
         let total: u64 = 100;
         let size: u64 = 30;
         assert_eq!(total.div_ceil(size), 4);
-        // 整除时不多出一页
         assert_eq!(30u64.div_ceil(30), 1);
-        // 空集合没有页
         assert_eq!(0u64.div_ceil(30), 0);
     }
 
     #[test]
     fn size_is_clamped() {
-        // clamp 语义：0 -> 1，超大 -> 200
         assert_eq!(0u64.clamp(1, 200), 1);
         assert_eq!(9999u64.clamp(1, 200), 200);
     }

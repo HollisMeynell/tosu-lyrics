@@ -1,6 +1,5 @@
 use sea_orm_migration::prelude::*;
 
-/// 给 lyric_cache 加 updated_at 列并回填旧行
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
@@ -17,7 +16,6 @@ impl MigrationTrait for Migration {
             tracing::info!("lyric_cache 已补充 updated_at 列");
         }
 
-        // 回填仍然是 0 的历史行（幂等：只影响 updated_at = 0 的行）
         let now_ms = sea_orm::sqlx::types::chrono::Utc::now().timestamp_millis();
         let db = manager.get_connection();
         let backfilled = db
@@ -39,8 +37,8 @@ impl MigrationTrait for Migration {
         Ok(())
     }
 
+    // 兼容不支持 DROP COLUMN 的旧 SQLite，保留新增列。
     async fn down(&self, _manager: &SchemaManager) -> Result<(), DbErr> {
-        // SQLite 不支持 DROP COLUMN（< 3.35），此处不做回滚
         Ok(())
     }
 }

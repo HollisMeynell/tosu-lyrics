@@ -1,6 +1,5 @@
 use sea_orm_migration::prelude::*;
 
-/// 为 lyric_block(scope, value) 创建复合唯一索引
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 

@@ -13,9 +13,6 @@ pub use lyric_cache::Entity as LyricCacheEntity;
 pub use lyric_config::Entity as LyricConfigEntity;
 pub use setting::Entity as SettingEntity;
 
-/// 纯数据迁移：把旧 lyric_config.disable = true 的行迁成 bid 作用域的黑名单规则。
-/// 使用 entity API 做跨表数据搬运，不涉及 schema 变更，保留在启动时调用。
-/// 幂等，可重复执行。
 pub(super) async fn migrate_legacy_data() -> crate::error::Result<()> {
     let legacy = LyricConfigEntity::legacy_disabled().await?;
     if legacy.is_empty() {

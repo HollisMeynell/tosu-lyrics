@@ -11,7 +11,7 @@ pub struct Model {
     pub sid: i32,
     #[sea_orm(indexed)]
     pub title: String,
-    /// 仅保留以兼容旧库，迁移后恒为 false，不再参与任何判断
+    // 兼容旧库；黑名单迁移后不再参与匹配。
     pub disable: bool,
     pub offset: i32,
 }
@@ -22,7 +22,6 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Entity {
-    /// 严格按 bid 精确匹配，找不到就是 0
     pub async fn get_offset(bid: i32) -> crate::error::Result<i32> {
         Ok(Self::find_by_id(bid)
             .one(database())
@@ -31,8 +30,6 @@ impl Entity {
             .unwrap_or(0))
     }
 
-    /// offset == 0 视为"无自定义偏移"，直接删除该行。
-    /// 全程不触碰黑名单：黑名单在 lyric_block，两者互不影响。
     pub async fn save_offset(
         bid: i32,
         sid: i32,
@@ -76,7 +73,6 @@ impl Entity {
             .map(|m| m.offset))
     }
 
-    /// 取出所有 disable = true 的旧行（黑名单迁往 lyric_block）
     pub async fn legacy_disabled() -> crate::error::Result<Vec<(i32, i32, String)>> {
         use sea_orm::{ColumnTrait, QueryFilter};
         Ok(Self::find()
@@ -88,7 +84,6 @@ impl Entity {
             .collect())
     }
 
-    /// 清掉 disable 标志；若该行也没有偏移则整行删除
     pub async fn clear_legacy_disable(bid: i32) -> crate::error::Result<()> {
         use sea_orm::{ColumnTrait, QueryFilter};
         Self::update_many()

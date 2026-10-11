@@ -1,4 +1,4 @@
-# osu-lyric 后端
+# tosu-lyrics 后端
 
 Rust 后端：连接 tosu 获取 osu! 当前歌曲，匹配并解析歌词，通过 HTTP 与 WebSocket 对外提供服务。
 
@@ -177,9 +177,9 @@ TTL 默认 30 天，配置 `lyricCacheTtlHours` 可覆盖，`0` 表示不过期�
 ## 构建与运行
 
 ```bash
-cargo build -r --bin osu-lyric --features=new
-cargo test --features=new
-cargo clippy --features=new
+cargo build -r --bin tosu-lyrics
+cargo test
+cargo clippy
 ```
 
 运行目录需要 `config.json5` 与前端产物（`index.html` / `assets/`），

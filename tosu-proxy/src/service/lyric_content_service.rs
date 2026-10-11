@@ -6,7 +6,6 @@ use crate::service::lyric_service::{LyricService, STALE_REQUEST, SongIdent, lyri
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-/// 每一项都带自己的身份，前端必须按 (source, key) 去应用 / 预览
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Candidate {
@@ -47,13 +46,11 @@ fn to_candidate(
     }
 }
 
-/// 标题匹配优先，其次时长差的绝对值；不按来源分组
 fn sort_candidates(items: &mut [Candidate]) {
     items.sort_by(|a, b| {
         b.title_score
             .cmp(&a.title_score)
             .then_with(|| a.duration_delta.abs().cmp(&b.duration_delta.abs()))
-            // 完全并列时用来源 + key 定序，保证结果稳定可复现
             .then_with(|| a.source.cmp(&b.source))
             .then_with(|| a.key.cmp(&b.key))
     });
@@ -113,7 +110,6 @@ async fn current_length() -> i64 {
         .map_or(0, |song| song.length as i64)
 }
 
-/// title / artist 为空时使用当前播放歌曲；联网期间不持服务锁
 pub async fn search(title: Option<String>, artist: Option<String>) -> Result<Vec<Candidate>> {
     let (title, artist) = match (title, artist) {
         (Some(t), Some(a)) if !t.is_empty() && !a.is_empty() => (t, a),
@@ -202,21 +198,18 @@ async fn fetch(source: &str, key: &str) -> Result<Lyric> {
     Ok(lyric)
 }
 
-/// 绑定按 sid 归属：同谱面集的其它难度共享这份绑定
 pub async fn apply_source(source: &str, key: &str) -> Result<Candidate> {
     let (generation, ident) = LyricService::ticket().await;
     let Some(ident) = ident else {
         return Err(Error::Runtime("no_song:当前没有播放中的歌曲".into()));
     };
 
-    // 联网取词期间不持锁
     let lyric = fetch(source, key).await?;
 
     let (title, artist, length) = find_candidate_meta(source, key)
         .await
         .unwrap_or_else(|| (ident.title.clone(), String::new(), 0));
 
-    // 先落绑定再提交歌词：即使代际失效没提交，下次进入同 sid 也会按这份绑定取词
     LyricBindingEntity::upsert(ident.sid, source, key, &title, &artist, ident.bid).await?;
 
     let sid = ident.sid;
@@ -252,7 +245,6 @@ async fn find_candidate_meta(source: &str, key: &str) -> Option<(String, String,
         .map(|(_, song)| (song.title, song.artist, song.length))
 }
 
-/// 没有播放中的歌曲时也能清除绑定（绑定是持久化数据）
 pub async fn clear_source() -> Result<bool> {
     let Some(ident) = LyricService::now_ident().await else {
         return Ok(false);
@@ -335,7 +327,6 @@ mod test {
         }
     }
 
-    /// 候选必须带上**自己的**身份，而不是共享一份
     #[test]
     fn candidates_keep_their_own_identity() {
         let a = to_candidate("QQ", &song("k1", "Lemon", "米津玄師"), None, None);
@@ -347,7 +338,6 @@ mod test {
         assert_eq!(b.title, "アイネクライネ");
     }
 
-    /// active 只对 (source, key) 都一致的那一项为真
     #[test]
     fn active_marks_only_the_bound_candidate() {
         let binding = ("QQ".to_string(), "k2".to_string());
@@ -376,7 +366,6 @@ mod test {
     }
 }
 
-/// 结果来自真实取词，不是猜测；并发受限避免把上游打满
 pub async fn check_translations(items: Vec<(String, String)>) -> Vec<(String, String, bool)> {
     use futures_util::stream::{self, StreamExt};
 

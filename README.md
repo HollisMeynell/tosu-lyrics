@@ -6,15 +6,15 @@
 
 > **安全声明**：本项目所有代码均已开源。如对安全性有疑虑，可自行查看代码并编译。
 
-详细文档见 [`docs/`](docs/) 目录：[架构](docs/architecture.md) · [接口](docs/api.md) · [数据表](docs/data.md)
+详细文档见 [`docs/`](docs/) 目录：[开发规范](docs/README.md) · [架构](docs/architecture.md) · [接口](docs/api.md) · [数据表](docs/data.md)
 
 ---
 
 ## 运行
 
 1. 下载 [tosu](https://github.com/tosuapp/tosu/releases) 并解压到任意目录（**无需运行 `tosu.exe`**）。
-2. 把 `osu-lyric.exe`（后端）放到 tosu 同目录。
-3. 运行 `osu-lyric.exe`，首次运行会自动生成 `config.json5` 与 `lyric.db`。
+2. 把 `tosu-lyrics.exe`（后端）放到 tosu 同目录。
+3. 运行 `tosu-lyrics.exe`，首次运行会自动生成 `config.json5` 与 `lyric.db`。
 4. 打开 `http://127.0.0.1:41280/lyrics` 即为展示页；控制台在同源的 `/lyrics/controller/*`。
 
 ## 配置 `config.json5`

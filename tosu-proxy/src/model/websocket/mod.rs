@@ -11,7 +11,6 @@ use setting::*;
 use std::fmt::{Display, Formatter};
 use tracing::error;
 
-/// 表示 WebSocket 消息的类型。
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum MessageType {
@@ -79,7 +78,6 @@ mod test {
 
     #[test]
     fn test_serialize_setting() -> Result<()> {
-        // setting
         let setting_str = r#"{"type":"setting","id":"123","key":"k","echo":"ok"}"#;
         let mut setting = crate::util::to_json::<WebSocketMessage>(setting_str)?;
         let s = setting.get_mut_setting()?;

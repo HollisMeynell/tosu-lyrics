@@ -26,10 +26,6 @@ pub fn render_error(
     res.render(Json(error_body(code, message)));
 }
 
-/// 按 `Error` 的类型挑选合适的错误码与状态码。
-///
-/// 目前约定：校验类错误（我们自己抛的 `Runtime`）算参数非法，
-/// 数据库 / IO 失败算写入失败（5xx），其余一律 500。
 pub fn render_service_error(res: &mut Response, err: Error) {
     let (status, code) = match &err {
         Error::Database(_) | Error::Io(_) => (StatusCode::INTERNAL_SERVER_ERROR, CODE_WRITE_FAILED),

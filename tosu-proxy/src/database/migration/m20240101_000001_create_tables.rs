@@ -1,6 +1,5 @@
 use sea_orm_migration::prelude::*;
 
-/// 初始建表：为所有 5 个 entity 建表（IF NOT EXISTS，幂等）
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
@@ -9,7 +8,6 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
 
-        // lyric_block
         create_table_if_not_exists(
             manager,
             "lyric_block",
@@ -25,7 +23,6 @@ impl MigrationTrait for Migration {
         )
         .await?;
 
-        // lyric_cache
         create_table_if_not_exists(
             manager,
             "lyric_cache",
@@ -40,7 +37,6 @@ impl MigrationTrait for Migration {
         )
         .await?;
 
-        // lyric_config
         create_table_if_not_exists(
             manager,
             "lyric_config",
@@ -54,7 +50,6 @@ impl MigrationTrait for Migration {
         )
         .await?;
 
-        // config (setting)
         create_table_if_not_exists(
             manager,
             "config",
@@ -65,7 +60,6 @@ impl MigrationTrait for Migration {
         )
         .await?;
 
-        // lyric_binding
         create_table_if_not_exists(
             manager,
             "lyric_binding",
@@ -103,7 +97,6 @@ impl MigrationTrait for Migration {
     }
 }
 
-/// 检查表是否存在，不存在则用 raw SQL 建表
 async fn create_table_if_not_exists(
     manager: &SchemaManager<'_>,
     table: &str,

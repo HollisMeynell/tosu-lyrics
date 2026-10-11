@@ -6,12 +6,11 @@ mod parse {
     use regex::Regex;
     use std::sync::LazyLock;
 
-    /// parse time regex
     static REG_LYRIC_LINE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"\[(\d+):(\d+\.\d+)](.+)").unwrap());
 
     pub(super) struct LyricRawLine {
-        // 秒
+        /// 秒
         pub(super) time: f32,
         pub(super) line: String,
     }
@@ -30,7 +29,6 @@ mod parse {
         LyricRawLine { time, line }
     }
     pub fn parse_lyric_text_raw(lyric_text: &str) -> Vec<LyricRawLine> {
-        // tnnd rust 正则不支持回溯
         let mut line_buffer = String::new();
         let mut result = vec![];
         fn parse_line(text: &str, data: &mut Vec<LyricRawLine>) {
@@ -61,7 +59,7 @@ mod parse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LyricLine {
-    // 秒
+    /// 秒
     pub time: f32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub origin: Option<String>,
@@ -72,7 +70,7 @@ pub struct LyricLine {
 #[derive(Debug)]
 pub struct Lyric {
     lyrics: Vec<LyricLine>,
-    // 秒
+    /// 秒
     end_time: f32,
     cursor: usize,
 }
@@ -116,7 +114,6 @@ impl Lyric {
         if lyric.trim().is_empty() {
             return Err(Error::LyricParse("empty lyric"));
         }
-        // parse origin lyric
         let mut lyric_lines = parse_lyric_text_raw(lyric);
         if lyric_lines.is_empty() {
             return Err(Error::LyricParse("lyric is empty"));

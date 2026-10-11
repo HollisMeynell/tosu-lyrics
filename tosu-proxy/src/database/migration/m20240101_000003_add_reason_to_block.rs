@@ -1,6 +1,5 @@
 use sea_orm_migration::prelude::*;
 
-/// 给 lyric_block 加 reason 列
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 

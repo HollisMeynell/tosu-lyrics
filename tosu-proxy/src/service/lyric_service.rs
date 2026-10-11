@@ -24,7 +24,6 @@ use tracing::{debug, error};
 
 type ServiceJob = Box<dyn for<'a> FnOnce(&'a mut LyricService) -> BoxFuture<'a, ()> + Send>;
 
-/// 状态由单任务独占，有界邮箱提供背压。
 pub struct LyricServiceHandle {
     sender: mpsc::Sender<ServiceJob>,
 }
@@ -41,8 +40,6 @@ impl LyricServiceHandle {
         Self { sender }
     }
 
-    /// 未开始的取消请求跳过；已开始的提交完整执行，避免半写入。
-    /// 闭包内禁止再次请求本服务，否则会等待自己的邮箱。
     pub(crate) async fn call<R, F>(&self, operation: F) -> R
     where
         R: Send + 'static,
@@ -68,7 +65,6 @@ impl LyricServiceHandle {
 
 pub static LYRIC_SERVICE: LazyLock<LyricServiceHandle> = LazyLock::new(LyricServiceHandle::start);
 
-/// 一致的只读快照；歌词共享不可变所有权，不复制全文。
 pub struct LyricSnapshot {
     song: Option<OsuSongInfo>,
     lyric: Option<Arc<Lyric>>,
@@ -112,7 +108,6 @@ pub async fn lyric_candidates() -> Vec<(&'static str, SongInfo)> {
         .await
 }
 
-/// 判定"同一首歌"只认 bid；title 仅用于展示与标题级黑名单，绝不用于判等
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SongIdent {
     pub bid: i32,
@@ -130,10 +125,8 @@ impl SongIdent {
     }
 }
 
-/// HTTP 层据此返回 409 `song_changed`；用独立常量避免解析错误文本判断类型
 pub const STALE_REQUEST: &str = "stale_request";
 
-/// "首行之前"这一特殊窗口的左端点, 小于任何合法播放进度
 const BEFORE_FIRST_LINE: i32 = i32::MIN;
 
 #[inline]
@@ -145,10 +138,8 @@ fn to_ms(seconds: f32) -> i32 {
 pub struct FrameTime {
     pub current: i32,
     pub next_time: i32,
-    /// 半开区间 `[window_start, window_end)`，time_next 据此判断是否需要重新计算
     window_start: i32,
     window_end: i32,
-    /// false 表示"首行之前"，不锁定下标，播放头进入首行时仍会推送正确帧
     in_line: bool,
 }
 
@@ -163,20 +154,12 @@ pub struct LyricService {
     music_cache: HashMap<&'static str, Vec<SongInfo>>,
     is_song_changed: bool,
 
-    /// 歌曲代际（B-00 契约）。
-    ///
-    /// 每次换歌 / 回菜单 / 清空展示都自增。所有异步结果（搜索、取词、上传、
-    /// 换源）在**提交前**必须比对代际：不相等就丢弃。
-    ///
-    /// 这是正确性保证，不是优化 —— `abort` 只是尽力而为，任务可能在
-    /// abort 生效前就已经算完并在等锁。
     generation: u64,
 
     now_ident: Option<SongIdent>,
     pending_song: Option<tokio::task::AbortHandle>,
 }
 
-/// 显式携带而不是回头读全局状态，让"提交时的世界"和"发起时的世界"可以直接比对
 struct SearchPlan {
     ident: SongIdent,
     artist: String,
@@ -213,11 +196,6 @@ impl LyricService {
         self.generation == generation
     }
 
-    /// 立即作废所有在途异步操作。
-    ///
-    /// **必须在"观察到歌曲变化"的那一刻调用**，而不是等防抖结束、
-    /// `song_change` 真正开始时才换代。否则中间这 100ms 里，
-    /// 一个已经发出的搜索/取词仍然会拿旧代际通过校验并写入新歌状态。
     pub fn invalidate_async(&mut self) {
         self.generation = self.generation.wrapping_add(1);
     }
@@ -287,7 +265,6 @@ impl LyricService {
             .await
     }
 
-    /// 邮箱负责状态提交，搜索和取词在调用任务中执行。
     pub async fn song_change(song: OsuSongInfo) -> Result<()> {
         let plan = LYRIC_SERVICE
             .call(move |svc| Box::pin(async move { svc.begin_song(song).await }))
@@ -295,33 +272,12 @@ impl LyricService {
         Self::load_plan(plan).await
     }
 
-    /// 搜索并提交, 结束时统一清掉"加载中"状态。
-    ///
-    /// 命中缓存 / 命中黑名单 / 取词失败 / 没有歌词都会走到这里, 所以把
-    /// `broadcast_loading(false)` 放在最外层: 任何一种结束方式都不该让展示端的
-    /// 加载提示一直转下去。
     async fn load_plan(plan: Option<SearchPlan>) -> Result<()> {
         let result: Result<()> = async {
             let Some(plan) = plan else {
-                return Ok(()); // 命中黑名单 / 命中缓存, 阶段 1 内已完成
+                return Ok(());
             };
 
-            // ---------------- NetEase-first pipeline ----------------
-            //
-            // 两个源各自独立并发搜索（`spawn_sources`：真并发 + 单源 panic 隔离），
-            // 区别在于**谁先回来就先走谁的取词**。
-            //
-            // 原先必须等两个源都完成才进入取词阶段，而实测 NetEase 搜索 P50 ≈ 200ms、
-            // QQ ≈ 3s，于是"NetEase 立刻就能命中"的歌也被 QQ 白白拖到 3 秒。
-            //
-            // 现在：NetEase 搜索结果一到手就立刻发布候选并走它自己的
-            // "排序 → 准入 → 取词"；**命中就直接提交，不再等 QQ**。
-            // NetEase 搜索失败 / 候选不合法 / 取词未命中时，才继续等 QQ 并走 QQ 取词，
-            // 召回能力与原先完全一致（QQ fallback 完整保留）。
-            //
-            // generation / bid / 取消语义没有任何新增旁路：
-            //   * 提交仍然只经由 `commit_search`（内部做代际 + 身份双重校验）；
-            //   * 本函数被 drop（切歌 abort）时 `JoinSet` 一并 drop，未完成的源被取消。
             let search_start = std::time::Instant::now();
             let mut results: HashMap<&'static str, Vec<SongInfo>> = HashMap::with_capacity(2);
             let mut tasks = Self::spawn_sources(&plan.ident.title, &plan.artist);
@@ -338,8 +294,6 @@ impl LyricService {
                     }
                 };
                 results.insert(name, songs);
-                // 任一源结果到位即发布候选：让前端尽早看到候选列表（语义与原先一致）。
-                // clone 一次只为把数据 move 进服务任务（几十条以内，可忽略）。
                 Self::publish_candidates(&plan, results.clone()).await?;
 
                 if name == NETEASE_LYRIC_SOURCE.name() && !netease_fetch_done {
@@ -357,8 +311,6 @@ impl LyricService {
                         );
                         if let Some(l) = hit {
                             lyric = Some(l.try_into()?);
-                            // NetEase 命中: 不再等 QQ。`tasks` 随本函数 drop ⇒
-                            // 未完成的 QQ 搜索任务被取消, 也不会再产生任何提交。
                             break;
                         }
                     }
@@ -376,7 +328,6 @@ impl LyricService {
 
             let fetch_start = std::time::Instant::now();
             if lyric.is_none() {
-                // NetEase 未命中（搜索失败 / 无候选 / 取词失败）: 等剩余源, 再走 QQ 兜底取词。
                 while let Some(joined) = tasks.join_next().await {
                     let (name, songs) = match joined {
                         Ok(Some(v)) => v,
@@ -459,14 +410,12 @@ impl LyricService {
     }
 
     async fn begin_song(&mut self, song: OsuSongInfo) -> Result<Option<SearchPlan>> {
-        // 换代：此后所有更早发出的异步结果都会在提交时被判为过期
         self.generation = self.generation.wrapping_add(1);
         let generation = self.generation;
 
         self.clear_state();
         Self::broadcast_clear().await;
         self.clear_cache();
-        // 以 tosu 上报的新歌进度为准, 搜索期间由后续时间事件继续刷新
         self.now_time = song.now.max(0);
 
         let ident = SongIdent::from_song(&song);
@@ -481,8 +430,6 @@ impl LyricService {
 
         self.offset = LyricConfigEntity::get_offset(bid).await?;
 
-        // 黑名单**现查**而不是缓存：规则可能在歌曲播放中途被增删，
-        // 缓存一个 is_blocked 字段就会在那种时刻变成过期真相。
         let blocked = crate::service::block_service::blocked_rule(bid, sid, title)
             .await
             .map_err(|err| Error::Runtime(err.to_string()))?
@@ -503,12 +450,10 @@ impl LyricService {
                 Ok(lyric) => {
                     self.now_lyric = Some(Arc::new(lyric));
                     debug!("通过缓存加载 {title}");
-                    // 用最新进度而不是进歌消息里的位置, 查询缓存期间播放头可能已前进
                     self.push_now(self.now_time).await;
                     return Ok(None);
                 }
                 Err(err) => {
-                    // R9：这里原本构造了 delete 却没 await，失效条目永远不会被清掉
                     let removed = LyricCacheEntity::delete_by_bid(cache.bid).await;
                     error!(
                         "缓存失效(已移除 bid={}): {} ({:?})",
@@ -530,15 +475,6 @@ impl LyricService {
         Self::search_raw(&plan.ident.title, &plan.artist).await
     }
 
-    /// 搜索结果一到位就写入共享候选缓存 `music_cache`。
-    ///
-    /// 原先这一步在 `commit_search()` 内、排在 `fetch_search_lyric()` 之后，
-    /// 于是"候选列表必须等主歌词流程结束才可见"。前移到搜索完成处后：
-    /// 候选与主歌词彻底解耦 —— 搜索完成即可被 `/api/lyrics/search-results` 读到，
-    /// 且主歌词匹配失败不会影响候选。
-    ///
-    /// 两道校验与原先完全一致（代次 + 当前歌曲身份），
-    /// 保证 A→B→C 快速切歌时旧搜索结果不会污染新歌。
     async fn publish_candidates(
         plan: &SearchPlan,
         results: HashMap<&'static str, Vec<SongInfo>>,
@@ -588,7 +524,6 @@ impl LyricService {
             );
             return Ok(());
         }
-        // 双重校验：代际相同但身份不同（理论上不该发生）同样丢弃
         match &self.now_ident {
             Some(ident) if ident == &plan.ident => {}
             _ => {
@@ -611,7 +546,6 @@ impl LyricService {
         Ok(())
     }
 
-    /// 归属用 sid 而不是 bid：同谱面集的其它难度可以共享这份手工歌词
     pub async fn apply_uploaded_lyric(&mut self, expect_sid: i32, lyric: Lyric) -> Result<()> {
         match self.now_ident.as_ref() {
             Some(ident) if ident.sid == expect_sid => {}
@@ -626,14 +560,12 @@ impl LyricService {
         }
 
         self.now_lyric = Some(Arc::new(lyric));
-        // 按当前播放位置立即下发，而不是回到第 0 行
         let now = self.now_time;
         self.push_now(now).await;
         Ok(())
     }
 
     pub async fn reload_current() {
-        // 读取歌曲与开始重载在同一条消息内完成，避免旧歌覆盖新歌。
         let plan = LYRIC_SERVICE
             .call(|svc| {
                 Box::pin(async move {
@@ -683,7 +615,6 @@ impl LyricService {
             }
         }
 
-        // 立即下发首帧; 搜索耗时期间播放头已经前进, 因此用最新进度而不是搜索开始时的位置
         self.push_now(self.now_time).await;
         Ok(true)
     }
@@ -710,19 +641,16 @@ impl LyricService {
         self.now_save_cache.as_ref()
     }
 
-    /// 保留当前歌曲信息，语义为"持续清屏"直到切歌 / 换源 / 上传
     pub async fn clear_display(&mut self) {
         self.cancel_pending_song();
         self.generation = self.generation.wrapping_add(1);
         self.clear_state();
         Self::broadcast_clear().await;
-        // 主动清屏 = 本次加载被取消, 立刻结束展示端的加载提示
         Self::broadcast_loading(false).await;
     }
 
     pub async fn song_clean(&mut self) {
         self.cancel_pending_song();
-        // 换代：在途的搜索结果不能再落到"已经是菜单"的状态上
         self.generation = self.generation.wrapping_add(1);
         self.clear_state();
         self.now_save_cache = None;
@@ -738,10 +666,6 @@ impl LyricService {
             .await;
     }
 
-    /// 通知展示端"歌词加载中 / 加载结束", 供展示端显示 `.` 增长的加载提示。
-    ///
-    /// 与 `broadcast_clear` 同级: 只往 WS 播一条设置消息, **不参与搜索时序,
-    /// 也不改变任何请求并发**。展示端收到歌词或收到 `false` 都会清掉提示。
     pub async fn broadcast_loading(loading: bool) {
         let mut message = SettingPayload::new("setLyricLoading".to_string());
         message.value = Some(Value::Bool(loading));
@@ -776,9 +700,6 @@ impl LyricService {
                 }
             }
             None => {
-                // 在首行之前: 展示第 0 行, next_time 为距离首行的剩余毫秒。
-                // `in_line = false` 表示不锁定下标, 播放头进入首行时会重新推送
-                // 一帧带正确 next_time 的帧。
                 let first_start = lyric
                     .get_line_by_index(0)
                     .map(|l| to_ms(l.time))
@@ -805,7 +726,6 @@ impl LyricService {
         self.is_song_changed = false;
     }
 
-    /// now_ms 为不含偏移的播放进度，内部统一加偏移
     async fn push_now(&mut self, now_ms: i32) {
         let Some(lyric) = self.now_lyric.as_ref() else {
             return;
@@ -862,7 +782,6 @@ impl LyricService {
     }
 
     pub async fn time_next(&mut self, t: i32) -> Result<()> {
-        // 记录最近进度: 换源 / 上传歌词 / 重连快照都按这个位置刷新
         self.now_time = t.max(0);
 
         let Some(lyric) = self.now_lyric.as_ref() else {
@@ -871,8 +790,6 @@ impl LyricService {
 
         let t = self.now_time.saturating_add(self.offset);
 
-        // 右端取开区间, 保证播放头到达下一行起点时一定重新计算, 也保证
-        // "首行之前"的窗口在到达首行时能正常结束。
         if t >= self.current_lyric_start_time && t < self.current_lyric_end_time {
             return Ok(());
         }
@@ -986,7 +903,6 @@ impl LyricService {
         };
         let lyric = source.fetch_lyrics(key_info.key.as_ref()).await?;
         let lyric = TryInto::<Lyric>::try_into(lyric)?;
-        // 缓存写入失败不应阻止换源生效
         if let Some(save_key) = &self.now_save_cache {
             Self::save_lyric(save_key, &lyric)
                 .await
@@ -1011,7 +927,6 @@ impl LyricService {
             .ok();
 
         self.now_lyric = Some(Arc::new(lyric));
-        // 按当前播放位置立即下发完整帧, 不等下一次时间事件
         self.push_now(self.now_time).await;
         Ok(())
     }
@@ -1020,7 +935,6 @@ impl LyricService {
         self.now_lyric.as_ref().map(|lyric| lyric.get_lyrics())
     }
 
-    /// 调用方持有服务锁，解除后由调用方释放锁再调用 reload_current()
     pub async fn set_block(&mut self, block: bool) -> Result<()> {
         let Some(key) = self.now_save_cache.as_ref() else {
             return Err("no save cache is set".into());
@@ -1031,11 +945,9 @@ impl LyricService {
 
         if block {
             LyricBlockEntity::upsert(SCOPE_BID, &bid.to_string(), title, sid, "").await?;
-            // 同步清空展示, 避免拉黑后旧歌词残留在所有展示端
             self.clear_state();
             Self::broadcast_clear().await;
         } else {
-            // 只删 bid 作用域的规则；sid/title 规则是用户显式声明的更大范围，不动
             LyricBlockEntity::delete_by_scope_value(SCOPE_BID, &bid.to_string()).await?;
         }
         Ok(())
@@ -1043,8 +955,6 @@ impl LyricService {
 
     pub async fn set_offset(&mut self, offset: i32) {
         self.offset = offset;
-        // 重置当前时间窗口，强制 time_next 重新计算
-        // 防止 offset 变化后用旧的时间窗口判断导致错误跳行
         self.current_lyric_start_time = -1;
         self.current_lyric_end_time = -1;
 
@@ -1065,12 +975,6 @@ impl LyricService {
         self.offset
     }
 
-    /// 写入歌词缓存。标题记**原文**(`title_unicode`)，而不是 tosu 上报的
-    /// ascii / 罗马字标题(`title`)：缓存页直接展示这个字段，而搜索与黑名单
-    /// 本来就用原文标题，记 ascii 会让同一首歌在两处显示成不同名字。
-    ///
-    /// 只改写入值：不新增字段、不改表结构；`save` 的 upsert 会一并更新
-    /// `title`，所以已缓存的歌在下次播放重新缓存时也会自动变为原文标题。
     async fn save_lyric(this: &OsuSongInfo, lyric: &Lyric) -> Result<()> {
         LyricCacheEntity::save(
             this.sid as i32,
@@ -1082,7 +986,6 @@ impl LyricService {
         .await
     }
 
-    /// R6 回归：按作用域显式映射，不再依赖元组顺序（旧实现 bid/sid 互换过）
     pub async fn get_all_block_list(&self) -> Result<Vec<BlockItem>> {
         Ok(LyricBlockEntity::list_all()
             .await?
@@ -1092,7 +995,6 @@ impl LyricService {
                 let (bid, sid) = match rule.scope.as_str() {
                     SCOPE_BID => (numeric, rule.sid.max(0) as u32),
                     SCOPE_SID => (0, numeric),
-                    // title 规则没有数字身份，用 0 表示"非数字作用域"
                     _ => (0, 0),
                 };
                 BlockItem {
@@ -1104,7 +1006,6 @@ impl LyricService {
             .collect())
     }
 
-    /// 异步操作发起时取一份，提交前比对；不一致就丢弃
     pub async fn ticket() -> (u64, Option<SongIdent>) {
         LYRIC_SERVICE
             .call(|svc| Box::pin(async move { (svc.generation, svc.now_ident.clone()) }))
@@ -1152,16 +1053,6 @@ impl LyricService {
             .await
     }
 
-    /// 为两个源各 spawn 一个**独立的 tokio 任务**（真并发 + 单源 panic 隔离），
-    /// 返回 `JoinSet` 交给调用方自行 join。
-    ///
-    /// 单独拆出来是为了 NetEase-first：调用方需要"谁先回来就先处理谁"，
-    /// 而不是等两个源都完成（见 `load_plan`）。`tokio::join!` 做不到这点 ——
-    /// 它只能在同一个任务里轮流推进，会把两个源的 JSON 解析、正则评分等 CPU 工作
-    /// 串行化，且任意一侧的同步工作都会拖住另一侧。
-    ///
-    /// 单源 panic 由 `catch_unwind` 捕获，不影响另一个源；
-    /// 调用方被取消（future 被 drop）时 `JoinSet` 随之 drop，子任务一并取消。
     fn spawn_sources(title: &str, artist: &str) -> JoinSet<Option<(&'static str, Vec<SongInfo>)>> {
         let mut tasks: JoinSet<Option<(&'static str, Vec<SongInfo>)>> = JoinSet::new();
 
@@ -1234,11 +1125,6 @@ impl LyricService {
         tasks
     }
 
-    /// 返回结果但不写任何共享状态。
-    ///
-    /// 会等**两个源都完成**后一次性返回（`search_now` 这类"按需搜索"入口使用）。
-    /// 主歌词链路不走这里 —— 它走 `load_plan` 里的 NetEase-first 流式处理，
-    /// 以便 NetEase 先回来时不必等 QQ。
     async fn search_raw(title: &str, artist: &str) -> HashMap<&'static str, Vec<SongInfo>> {
         let mut tasks = Self::spawn_sources(title, artist);
         let mut out = HashMap::with_capacity(2);
@@ -1254,7 +1140,6 @@ impl LyricService {
         out
     }
 
-    /// 三重校验：代际没变、当前歌仍在、sid 仍是同一个
     pub async fn apply_source_lyric(
         &mut self,
         generation: u64,
@@ -1281,11 +1166,7 @@ impl LyricService {
         Ok(())
     }
 
-    /// 换代 + 清空展示，但**不建立清屏抑制**。
-    ///
-    /// 供"换源 / 恢复自动匹配"这类**马上要重新加载**的场景使用。
-    /// 不能用 `clear_display()` —— 那会记住当前歌并抑制它，
-    /// 紧接着的重新加载就会被自己挡住（这确实发生过一次）。
+    // 换源会立即重载，不能设置持续清屏抑制。
     pub async fn clear_display_bump(&mut self) {
         self.generation = self.generation.wrapping_add(1);
         self.clear_state();
@@ -1362,12 +1243,10 @@ mod test {
         }
     }
 
-    /// 三行歌词: 1s / 3s / 5s
     fn lyric_3() -> Lyric {
         Lyric::parse("[00:01.00]a\n[00:03.00]b\n[00:05.00]c", None, None).expect("测试歌词应能解析")
     }
 
-    /// `time_next` 使用的窗口判断: 左闭右开
     fn in_window(frame: &FrameTime, t: i32) -> bool {
         t >= frame.window_start && t < frame.window_end
     }
@@ -1391,8 +1270,6 @@ mod test {
         assert_eq!(f.window_end, 1000);
     }
 
-    /// R1/R5 回归: 首行之前的窗口必须在首行起点处结束,
-    /// 否则 `time_next` 会因"仍在窗口内"提前返回, 首行永远拿不到正确的 next_time
     #[test]
     fn before_first_line_window_does_not_swallow_first_line() {
         let lyric = lyric_3();
@@ -1404,7 +1281,6 @@ mod test {
         );
     }
 
-    /// R1 回归: 首行之前不锁定下标, 进入首行时必须被识别为状态变化
     #[test]
     fn entering_first_line_counts_as_change() {
         let lyric = lyric_3();
@@ -1432,7 +1308,6 @@ mod test {
         );
     }
 
-    /// R5: next_time 是"剩余毫秒", 行中进入不是整行时长
     #[test]
     fn next_time_is_remaining_ms() {
         let lyric = lyric_3();
@@ -1445,7 +1320,6 @@ mod test {
         assert_eq!(mid_line.next_time, 800, "行中应返回剩余时长");
     }
 
-    /// R5: 行边界是左闭右开, t == 下一行起点必须落到下一行
     #[test]
     fn window_boundary_is_half_open() {
         let lyric = lyric_3();
@@ -1460,17 +1334,14 @@ mod test {
         assert_eq!(at_boundary.current, 1);
     }
 
-    /// 跳转: 前向 / 反向 / 末行
     #[test]
     fn seek_forward_backward_and_last_line() {
         let lyric = lyric_3();
 
-        // 反向跳回第一行
         let back = LyricService::frame_at(&lyric, 1500);
         assert_eq!(back.current, 0);
         assert_eq!(back.next_time, 1500);
 
-        // 跳到末行: 没有下一行
         let last = LyricService::frame_at(&lyric, 6000);
         assert_eq!(last.current, 2);
         assert_eq!(last.next_time, -1);
@@ -1478,7 +1349,6 @@ mod test {
         assert!(in_window(&last, 6000));
     }
 
-    /// 清空后窗口必须失效, 保证新歌第一帧不被旧窗口挡住
     #[test]
     fn clear_state_invalidates_window() {
         let mut service = LyricService::new();
@@ -1506,17 +1376,13 @@ mod test {
         );
     }
 
-    /// 修正 `now_time` 语义: 换源 / 上传按最近进度刷新, 而不是固定 0
     #[test]
     fn refresh_uses_latest_progress() {
         let lyric = lyric_3();
-        // now_time = 3.2s 时刷新, 应落在第二行而不是第一行
         let f = LyricService::frame_at(&lyric, 3200);
         assert_eq!(f.current, 1);
         assert_eq!(f.next_time, 1800);
     }
-
-    // ---------- B-00: 歌曲身份与代际 ----------
 
     fn song(bid: i64, sid: i64, title: &str) -> OsuSongInfo {
         OsuSongInfo {
@@ -1531,7 +1397,6 @@ mod test {
         }
     }
 
-    /// 身份判定只看 bid: 标题相同但 bid 不同 = 两首歌
     #[test]
     fn identity_is_bid_not_title() {
         let a = SongIdent::from_song(&song(1, 100, "Lemon"));
@@ -1542,7 +1407,6 @@ mod test {
         assert_eq!(a, a2, "bid 相同即同一首歌");
     }
 
-    /// 同一首歌换了标题(例如 Unicod/ASCII 变化)仍视为同一首
     #[test]
     fn identity_ignores_artist_and_length() {
         let mut other = song(1, 100, "Lemon");
@@ -1554,7 +1418,6 @@ mod test {
         );
     }
 
-    /// 换歌必须换代; 回菜单 / 清屏同样换代
     #[test]
     fn generation_advances_on_every_state_change() {
         let mut service = LyricService::new();
@@ -1571,19 +1434,17 @@ mod test {
         );
     }
 
-    /// 过期代际的提交必须被丢弃
     #[test]
     fn stale_generation_is_rejected() {
         let mut service = LyricService::new();
         service.clear_display_sync();
         let stale = service.generation();
-        service.clear_display_sync(); // 又换了一代
+        service.clear_display_sync();
 
         assert_ne!(stale, service.generation());
         assert!(!service.generation_matches(stale), "旧代际必须被判为过期");
     }
 
-    /// 幂等: 同一首歌重复进入不应破坏代际单调性
     #[test]
     fn generation_is_monotonic() {
         let mut service = LyricService::new();

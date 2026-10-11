@@ -14,7 +14,6 @@ const FFP_BLOB: &[u8] = include_bytes!("../lib/ffprobe.exe");
 #[cfg(target_os = "linux")]
 const FFP_BLOB: &[u8] = include_bytes!("../lib/ffprobe");
 
-/// 返回毫秒数
 pub(crate) async fn read_audio_length<P: AsRef<Path>>(file_path: P) -> Result<i32> {
     use tokio::fs::File;
     use tokio::io::AsyncWriteExt;
@@ -94,9 +93,7 @@ mod test {
         match read_audio_length(test_path).await {
             Ok(len) => println!("音频长度: {}ms", len),
             Err(e) => {
-                // 打印完整错误链
                 println!("错误详情: {:#}", e);
-                // ai 生成的最好检查一下, 不存在 FFPROBE_PATH
             }
         }
     }

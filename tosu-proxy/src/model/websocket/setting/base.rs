@@ -1,5 +1,3 @@
-// 直接一个 type alias
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

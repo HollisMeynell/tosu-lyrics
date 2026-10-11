@@ -70,7 +70,6 @@ async fn blink_client(req: &mut Request, res: &mut Response) {
     }));
 }
 
-/// 只推给目标展示端，不落库。重连后回到全局设置。
 #[handler]
 async fn apply_client_settings(req: &mut Request, res: &mut Response) {
     let Some(target) = req.param::<String>("id") else {

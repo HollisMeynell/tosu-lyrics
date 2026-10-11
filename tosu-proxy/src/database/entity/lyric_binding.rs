@@ -16,8 +16,8 @@ pub struct Model {
     pub title: String,
     #[sea_orm(default_value = "")]
     pub artist: String,
-    /// 绑定时的谱面 id，仅用于排查，不参与匹配
     #[sea_orm(default_value = 0)]
+    // 仅用于排查，绑定身份以 sid 为准。
     pub bid: i32,
     #[sea_orm(default_value = 0)]
     pub created_at: i64,
@@ -33,7 +33,6 @@ impl Entity {
         Ok(Self::find_by_id(sid).one(database()).await?)
     }
 
-    /// 幂等写入：同一 sid 重复绑定只覆盖为最新选择
     pub async fn upsert(
         sid: i32,
         source_type: &str,
@@ -73,7 +72,6 @@ impl Entity {
             .ok_or(crate::error::Error::Impossible)
     }
 
-    /// 幂等删除，返回是否真的删掉了一行
     pub async fn remove(sid: i32) -> Res<bool> {
         let result = <Self as EntityTrait>::delete_by_id(sid)
             .exec(database())

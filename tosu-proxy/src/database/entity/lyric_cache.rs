@@ -10,9 +10,6 @@ pub fn now_ms() -> i64 {
     sea_orm::sqlx::types::chrono::Utc::now().timestamp_millis()
 }
 
-/// 条目是否仍在 TTL 内。`ttl_ms <= 0` 表示不启用 TTL。
-///
-/// 迁移前写入的旧行 `updated_at == 0`，迁移时会回填，因此这里不做特判。
 pub fn is_fresh(model: &Model, ttl_ms: i64) -> bool {
     ttl_ms <= 0 || now_ms().saturating_sub(model.updated_at) < ttl_ms
 }
@@ -27,7 +24,6 @@ pub struct Model {
     pub cache: Vec<u8>,
     pub title: String,
     pub audio_length: i32,
-    /// 用于 TTL 过期判定；旧库没有这一列，迁移时补上并回填
     #[sea_orm(default_value = 0)]
     pub updated_at: i64,
 }
@@ -38,7 +34,6 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Entity {
-    /// 按 bid 精确命中，**且未过期**。`ttl_ms <= 0` 表示不启用 TTL。
     pub async fn find_by_bid(bid: i32, ttl_ms: i64) -> crate::error::Result<Option<Model>> {
         Ok(Self::find_by_id(bid)
             .one(database())
@@ -46,7 +41,6 @@ impl Entity {
             .filter(|m| is_fresh(m, ttl_ms)))
     }
 
-    /// 按 sid 回退命中（歌曲级归属），**且未过期**。
     pub async fn find_by_sid(sid: i32, ttl_ms: i64) -> crate::error::Result<Option<Model>> {
         Ok(Self::find()
             .filter(Column::Sid.eq(sid))
@@ -93,7 +87,6 @@ impl Entity {
         Ok(Self::find().count(database()).await?)
     }
 
-    /// 删除单条。**必须 await** —— R9 的原缺陷就是构造了 statement 却没执行。
     pub async fn delete_by_bid(bid: i32) -> crate::error::Result<u64> {
         let result = <Self as EntityTrait>::delete_by_id(bid)
             .exec(database())
@@ -114,7 +107,6 @@ impl Entity {
         Ok(result.rows_affected)
     }
 
-    /// 清理过期条目，返回删除条数。`ttl_ms <= 0` 时什么都不做。
     pub async fn purge_expired(ttl_ms: i64) -> crate::error::Result<u64> {
         if ttl_ms <= 0 {
             return Ok(0);
