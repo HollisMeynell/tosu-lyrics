@@ -44,3 +44,6 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono"] }
 tracing-appender = "0.2"
 tungstenite = "0.29.0"
+webbrowser = { version = "1.2.4", default-features = false }
+percent-encoding = { version = "2.3.2", default-features = false }
+ttf-parser = { version = "0.25.1", default-features = false, features = ["std"] }

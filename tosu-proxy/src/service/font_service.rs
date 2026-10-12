@@ -19,16 +19,14 @@ pub struct FontEntry {
     pub url: String,
 }
 
+const FONT_NAME_ENCODE_SET: &percent_encoding::AsciiSet = &percent_encoding::NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'.')
+    .remove(b'_')
+    .remove(b'~');
+
 fn percent_encode(input: &str) -> String {
-    let mut result = String::with_capacity(input.len() * 3);
-    for byte in input.bytes() {
-        if byte.is_ascii_alphanumeric() || b"-._~".contains(&byte) {
-            result.push(byte as char);
-        } else {
-            result.push_str(&format!("%{byte:02X}"));
-        }
-    }
-    result
+    percent_encoding::utf8_percent_encode(input, FONT_NAME_ENCODE_SET).to_string()
 }
 
 pub fn version_of(path: &Path) -> (String, u64) {
@@ -155,12 +153,13 @@ pub async fn save(bytes: &[u8]) -> Result<FontEntry> {
     }
     if !looks_like_font(bytes) {
         return Err(Error::Runtime(
-            "invalid_param:不是可识别的字体文件（支持 ttf / otf / woff / woff2）".into(),
+            "invalid_param:不是可识别的字体文件（支持 ttf / otf）".into(),
         ));
     }
 
-    let name = font_display_name(bytes)
-        .ok_or_else(|| Error::Runtime("invalid_param:无法解析字体名称".into()))?;
+    let name = font_display_name(bytes).ok_or_else(|| {
+        Error::Runtime("invalid_param:无法解析字体名称（上传暂支持 ttf / otf）".into())
+    })?;
 
     let ext = match bytes.get(..4) {
         Some(b"wOFF") => "woff",
@@ -217,77 +216,32 @@ fn looks_like_font(bytes: &[u8]) -> bool {
 }
 
 pub fn font_display_name(bytes: &[u8]) -> Option<String> {
-    let num_tables = u16::from_be_bytes([*bytes.get(4)?, *bytes.get(5)?]) as usize;
-
-    let mut name_table: Option<&[u8]> = None;
-    for i in 0..num_tables {
-        let rec = 12 + i * 16;
-        if bytes.get(rec..rec + 4)? != b"name" {
-            continue;
-        }
-        let offset = u32::from_be_bytes(bytes.get(rec + 8..rec + 12)?.try_into().ok()?) as usize;
-        let length = u32::from_be_bytes(bytes.get(rec + 12..rec + 16)?.try_into().ok()?) as usize;
-        name_table = bytes.get(offset..offset.checked_add(length)?);
-        break;
-    }
-    let table = name_table?;
-
-    let count = u16::from_be_bytes([*table.get(2)?, *table.get(3)?]) as usize;
-    let storage = u16::from_be_bytes([*table.get(4)?, *table.get(5)?]) as usize;
-
-    for want_id in [4u16, 1u16] {
-        let mut mac_fallback: Option<String> = None;
-        for i in 0..count {
-            let rec = 6 + i * 12;
-            let platform = u16::from_be_bytes([*table.get(rec)?, *table.get(rec + 1)?]);
-            let encoding = u16::from_be_bytes([*table.get(rec + 2)?, *table.get(rec + 3)?]);
-            let name_id = u16::from_be_bytes([*table.get(rec + 6)?, *table.get(rec + 7)?]);
-            if name_id != want_id {
+    let face = ttf_parser::RawFace::parse(bytes, 0).ok()?;
+    let table = ttf_parser::name::Table::parse(face.table(ttf_parser::Tag::from_bytes(b"name"))?)?;
+    for want_id in [ttf_parser::name_id::FULL_NAME, ttf_parser::name_id::FAMILY] {
+        for name in table.names {
+            if name.name_id != want_id {
                 continue;
             }
-            let length = u16::from_be_bytes([*table.get(rec + 8)?, *table.get(rec + 9)?]) as usize;
-            let offset =
-                u16::from_be_bytes([*table.get(rec + 10)?, *table.get(rec + 11)?]) as usize;
-            let start = storage.checked_add(offset)?;
-            let Some(raw) = table.get(start..start.checked_add(length)?) else {
-                continue;
-            };
-            let decoded = match (platform, encoding) {
-                (3, _) => decode_utf16_be(raw),
-                (1, 0) => Some(raw.iter().map(|b| *b as char).collect()),
-                _ => None,
-            };
-            let Some(text) = decoded else { continue };
+            let text = name.to_string().or_else(|| {
+                if name.platform_id == ttf_parser::PlatformId::Macintosh
+                    && name.encoding_id == 0
+                    && name.name.is_ascii()
+                {
+                    std::str::from_utf8(name.name).ok().map(str::to_owned)
+                } else {
+                    None
+                }
+            });
+            let Some(text) = text else { continue };
+            let text = text.replace('\0', "");
             let text = text.trim();
-            if text.is_empty() {
-                continue;
+            if !text.is_empty() {
+                return Some(text.to_owned());
             }
-            if platform == 3 {
-                return Some(text.to_string());
-            }
-            if mac_fallback.is_none() {
-                mac_fallback = Some(text.to_string());
-            }
-        }
-        if mac_fallback.is_some() {
-            return mac_fallback;
         }
     }
     None
-}
-
-fn decode_utf16_be(raw: &[u8]) -> Option<String> {
-    if !raw.len().is_multiple_of(2) {
-        return None;
-    }
-    let units: Vec<u16> = raw
-        .as_chunks::<2>()
-        .0
-        .iter()
-        .map(|c| u16::from_be_bytes([c[0], c[1]]))
-        .collect();
-    let text = String::from_utf16(&units).ok()?;
-    Some(text.replace('\0', ""))
 }
 
 #[cfg(test)]

@@ -219,45 +219,10 @@ fn open_controller_page() {
         "http://127.0.0.1:{}/lyrics/controller/content",
         GLOBAL_CONFIG.port
     );
-    #[cfg(target_os = "linux")]
-    let _ = open_in_browser(&url);
-
-    #[cfg(not(target_os = "linux"))]
-    match open_in_browser(&url) {
+    match webbrowser::open(&url) {
         Ok(()) => info!("已用默认浏览器打开 {url}"),
         Err(err) => warn!("无法自动打开浏览器({url}): {err}"),
     }
-}
-
-#[cfg(target_os = "windows")]
-fn open_in_browser(url: &str) -> std::io::Result<()> {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    std::process::Command::new("cmd")
-        .args(["/C", "start", "", url])
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn()
-        .map(|_| ())
-}
-
-#[cfg(target_os = "macos")]
-fn open_in_browser(url: &str) -> std::io::Result<()> {
-    std::process::Command::new("open")
-        .arg(url)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
-}
-
-#[cfg(target_os = "linux")]
-fn open_in_browser(url: &str) -> std::io::Result<()> {
-    std::process::Command::new("xdg-open")
-        .arg(url)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
 }
 
 #[cfg(test)]
