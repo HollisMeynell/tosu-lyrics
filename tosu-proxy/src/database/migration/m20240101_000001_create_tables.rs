@@ -87,7 +87,7 @@ impl MigrationTrait for Migration {
             "lyric_cache",
             "lyric_block",
         ] {
-            db.execute(sea_orm::Statement::from_string(
+            db.execute_raw(sea_orm::Statement::from_string(
                 sea_orm::DatabaseBackend::Sqlite,
                 format!("DROP TABLE IF EXISTS \"{}\"", table),
             ))
@@ -105,7 +105,7 @@ async fn create_table_if_not_exists(
     if !manager.has_table(table).await? {
         manager
             .get_connection()
-            .execute(sea_orm::Statement::from_string(
+            .execute_raw(sea_orm::Statement::from_string(
                 sea_orm::DatabaseBackend::Sqlite,
                 sql.to_string(),
             ))

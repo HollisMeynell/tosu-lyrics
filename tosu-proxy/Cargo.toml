@@ -18,32 +18,30 @@ unused = "allow"
 
 [dependencies]
 lyric-macro = { version = "0.0.1", path = "lyric-macro" }
-reqwest = { version = "0.13.2", features = ["charset", "json"] }
-rand = "0.10.0"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-thiserror = "2.0.18"
+reqwest = { version = "0.13.5", features = ["charset", "json"] }
+rand = "0.10.3"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+thiserror = "2.0.21"
 serde_path_to_error = "0.1.20"
-tokio = { version = "1.50.0", features = ["fs", "rt-multi-thread", "process", "sync", "macros"] }
-rust-embed = "8.6.0"
+tokio = { version = "1.53.2", features = ["fs", "rt-multi-thread", "process", "sync", "macros"] }
+rust-embed = "8.13.0"
 
-async-trait = "0.1.89"
-bincode = "2.0.1"
-config = "0.15.22"
-futures = "0.3.32"
-futures-util = "0.3.32"
-paste = "1.0.15"
-regex = "1.12.3"
-salvo = { version = "0.89.3", features = ["default", "serve-static", "websocket"] }
-sea-orm = { version = "1.1.19", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"] }
-sea-orm-migration = { version = "1.1.19", features = ["sqlx-sqlite", "runtime-tokio-native-tls"] }
-sea-schema = { version = "0.16.2", features = ["writer"] }
-tokio-tungstenite = "0.29.0"
-nu-ansi-term = "0.46.0"
+async-trait = "0.1.92"
+config = "0.15.27"
+futures = "0.3.34"
+futures-util = "0.3.34"
+regex = "1.13.1"
+salvo = { version = "1.0.1", features = ["default", "serve-static", "websocket"] }
+sea-orm = { version = "2.0.4", features = ["sqlx-sqlite", "sqlx-mysql", "sqlx-postgres", "runtime-tokio-native-tls", "debug-print", "macros"] }
+sea-orm-migration = { version = "2.0.4", features = ["sqlx-sqlite", "runtime-tokio-native-tls"] }
+sea-schema = { version = "0.18.1", features = ["writer"] }
+tokio-tungstenite = "0.30.0"
+nu-ansi-term = "0.50.3"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "chrono"] }
 tracing-appender = "0.2"
-tungstenite = "0.29.0"
+tungstenite = "0.30.0"
 webbrowser = { version = "1.2.4", default-features = false }
 percent-encoding = { version = "2.3.2", default-features = false }
 ttf-parser = { version = "0.25.1", default-features = false, features = ["std"] }
