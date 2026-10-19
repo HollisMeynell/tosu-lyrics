@@ -21,7 +21,11 @@ export default function Upload() {
     const refreshSong = async () => {
         try {
             const status = await fetchStatus();
-            setSongTitle(status.song ? `${status.song.title} — ${status.song.artist}` : null);
+            setSongTitle(
+                status.song
+                    ? `${status.song.title} — ${status.song.artist}`
+                    : null
+            );
         } catch {
             setSongTitle(null);
         }
@@ -44,7 +48,9 @@ export default function Upload() {
             const message = await fn();
             setNotice(message);
         } catch (err) {
-            setError(`${failLabel}：${err instanceof ApiError ? err.message : String(err)}`);
+            setError(
+                `${failLabel}：${err instanceof ApiError ? err.message : String(err)}`
+            );
         } finally {
             setBusy(false);
         }
@@ -80,13 +86,12 @@ export default function Upload() {
         if (file) void uploadFont(file);
     };
 
-    const dropHandler =
-        (onFile: (f: File) => void) => (e: DragEvent) => {
-            e.preventDefault();
-            setDragOver(null);
-            const file = e.dataTransfer?.files?.[0];
-            if (file) onFile(file);
-        };
+    const dropHandler = (onFile: (f: File) => void) => (e: DragEvent) => {
+        e.preventDefault();
+        setDragOver(null);
+        const file = e.dataTransfer?.files?.[0];
+        if (file) onFile(file);
+    };
 
     const [dragOver, setDragOver] = createSignal<string | null>(null);
 
@@ -125,7 +130,7 @@ export default function Upload() {
                     </span>
                 </div>
                 <div
-                    class={`flex flex-row items-center gap-3 p-3 rounded-md border-2 border-dashed transition-colors ${
+                    class={`flex flex-row flex-wrap items-center gap-3 p-3 rounded-md border-2 border-dashed transition-colors ${
                         dragOver() === "lrc"
                             ? "border-[#ec4899] bg-pink-50 dark:bg-pink-900/20"
                             : "border-gray-300 dark:border-gray-600"
@@ -137,7 +142,9 @@ export default function Upload() {
                     onDragLeave={() => setDragOver(null)}
                     onDrop={dropHandler((f) => void uploadLrcFile(f))}
                 >
-                    <span class="text-sm text-gray-500">把 .lrc 拖到这里，或</span>
+                    <span class="text-sm text-gray-500">
+                        把 .lrc 拖到这里，或
+                    </span>
                     <input
                         type="file"
                         accept=".lrc,.txt,text/plain"
@@ -173,7 +180,7 @@ export default function Upload() {
 
                 {/* 上传区域 */}
                 <div
-                    class={`flex flex-row items-center gap-3 p-3 rounded-md border-2 border-dashed transition-colors ${
+                    class={`flex flex-row flex-wrap items-center gap-3 p-3 rounded-md border-2 border-dashed transition-colors ${
                         dragOver() === "font"
                             ? "border-[#ec4899] bg-pink-50 dark:bg-pink-900/20"
                             : "border-gray-300 dark:border-gray-600"
@@ -185,7 +192,9 @@ export default function Upload() {
                     onDragLeave={() => setDragOver(null)}
                     onDrop={dropHandler((f) => void uploadFont(f))}
                 >
-                    <span class="text-sm text-gray-500">把字体文件拖到这里，或</span>
+                    <span class="text-sm text-gray-500">
+                        把字体文件拖到这里，或
+                    </span>
                     <input
                         type="file"
                         accept=".ttf,.otf,.woff,.woff2"
@@ -207,7 +216,9 @@ export default function Upload() {
                         <For each={fonts()}>
                             {(entry) => (
                                 <div class="flex flex-row items-center gap-3 p-2 rounded bg-gray-50 dark:bg-gray-800">
-                                    <span class="text-sm font-medium">{entry.name}</span>
+                                    <span class="text-sm font-medium">
+                                        {entry.name}
+                                    </span>
                                     <span class="text-xs text-gray-500">
                                         {entry.fileName} / {entry.size} 字节
                                     </span>

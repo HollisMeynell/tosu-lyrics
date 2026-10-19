@@ -159,7 +159,7 @@ export default function ClientList() {
                         <For each={clients()}>
                             {(client) => (
                                 <button
-                                    class={`flex flex-row items-center gap-3 p-3 rounded-md border text-left transition-colors ${
+                                    class={`flex flex-row flex-wrap items-center gap-3 p-3 rounded-md border text-left transition-colors ${
                                         selected() === client.id
                                             ? "border-[#ec4899] bg-pink-50 dark:bg-pink-900/20"
                                             : "border-gray-200 dark:border-gray-700"

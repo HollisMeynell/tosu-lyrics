@@ -86,7 +86,9 @@ const BlacklistComponent: Component<{
                 <div class="flex flex-col gap-4">
                     <p class="text-xs text-gray-500">
                         新增项使用页面当前作用域：
-                        <span class="font-medium">{scopeLabel(props.scope())}</span>
+                        <span class="font-medium">
+                            {scopeLabel(props.scope())}
+                        </span>
                     </p>
                     <div class="form-group">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -103,7 +105,9 @@ const BlacklistComponent: Component<{
                             }
                             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                             placeholder={
-                                props.scope() === "title" ? "输入标题" : "输入ID"
+                                props.scope() === "title"
+                                    ? "输入标题"
+                                    : "输入ID"
                             }
                         />
                     </div>
@@ -181,7 +185,7 @@ const BlacklistComponent: Component<{
                         type="text"
                         value={editingTitle()}
                         onInput={(e) => setEditingTitle(e.currentTarget.value)}
-                        class="w-full px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     />
                 </td>
                 <td class="py-3 px-4">
@@ -189,7 +193,7 @@ const BlacklistComponent: Component<{
                         type="text"
                         value={editingReason()}
                         onInput={(e) => setEditingReason(e.currentTarget.value)}
-                        class="w-full px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     />
                 </td>
                 <CustomTd>{scopeLabel(rule.scope)}</CustomTd>
@@ -199,14 +203,14 @@ const BlacklistComponent: Component<{
                         <button
                             onClick={handleSaveEdit}
                             disabled={c.saving()}
-                            class="px-3 py-1 border border-green-500 text-white rounded-md hover:bg-green-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                            class="px-3 py-2 select-none border border-green-500 text-white rounded-md hover:bg-green-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500/50"
                         >
                             <Save class="mr-2 w-4 h-4 inline cursor-pointer select-none active:scale-90" />
                             保存
                         </button>
                         <button
                             onClick={() => setEditingId(null)}
-                            class="px-3 py-1 border border-gray-500 text-white rounded-md hover:bg-gray-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500/50"
+                            class="px-3 py-2 select-none border border-gray-500 text-white rounded-md hover:bg-gray-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500/50"
                         >
                             <Cancel class="mr-2 w-4 h-4 inline cursor-pointer select-none active:scale-90" />
                             取消
@@ -229,7 +233,7 @@ const BlacklistComponent: Component<{
                     <div class="flex space-x-2">
                         <button
                             onClick={() => startEdit(rule)}
-                            class="px-3 py-1 border border-blue-500 text-white rounded-md hover:bg-blue-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                            class="px-3 py-2 select-none border border-blue-500 text-white rounded-md hover:bg-blue-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                         >
                             <Edit class="mr-2 w-4 h-4 inline cursor-pointer select-none active:scale-90" />
                             编辑
@@ -237,7 +241,7 @@ const BlacklistComponent: Component<{
                         <button
                             onClick={() => handleRemove(rule)}
                             disabled={c.saving()}
-                            class="px-2 pb-0.5 border border-red-500 text-white rounded-md hover:bg-red-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                            class="px-3 py-2 select-none border border-red-500 text-white rounded-md hover:bg-red-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
                         >
                             <Delete class="mr-2 w-4 h-4 inline cursor-pointer select-none active:scale-90 mb-0.5" />
                             删除

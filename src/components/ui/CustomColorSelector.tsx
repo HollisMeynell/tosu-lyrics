@@ -21,7 +21,7 @@ const customColorSelector: Component<customColorSelectorProps> = (props) => {
         <div class={`w-6 h-6 relative ${props.class ?? ""}`}>
             <input
                 type="color"
-                class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
+                class="absolute -inset-2 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
                 value={shown()}
                 disabled={props.disabled}
                 onInput={(e) => setPreview(e.currentTarget.value)}

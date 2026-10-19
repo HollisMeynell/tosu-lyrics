@@ -87,7 +87,7 @@ export default function Select(props: SelectProps) {
                 <button
                     onClick={clearSelection}
                     disabled={props.disabled}
-                    class="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                    class="absolute right-0 top-1/2 transform -translate-y-1/2 p-2 cursor-pointer select-none"
                 >
                     <span class="text-xl font-[100] text-[#94a3b8] leading-none">
                         ×

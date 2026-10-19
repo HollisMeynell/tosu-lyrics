@@ -8,6 +8,11 @@ body,
     height: 100%;
 }
 
+/* 触控适配：禁用双击缩放与点按延迟（保留双指缩放），避免移动端误触放大 */
+html {
+    touch-action: manipulation;
+}
+
 .scrollbar-hide {
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE and Edge */

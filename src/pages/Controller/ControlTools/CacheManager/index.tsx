@@ -25,11 +25,9 @@ function CacheItem({
     busy: boolean;
 }) {
     return (
-        <div class="max-w-200 p-2 bg-fuchsia-100 dark:bg-[#364153] dark:hover:bg-gray-600 transition-colors duration-200 ease-in-out rounded-lg flex flex-row items-center justify-between gap-4 overflow-hidden">
-            <div class="flex flex-row items-center gap-2 min-w-0">
-                <span
-                    class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-lg text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-500/30 dark:text-white shrink-0"
-                >
+        <div class="max-w-200 p-2 bg-fuchsia-100 dark:bg-[#364153] dark:hover:bg-gray-600 transition-colors duration-200 ease-in-out rounded-lg flex flex-row flex-wrap items-center justify-between gap-4 overflow-hidden">
+            <div class="flex flex-row flex-wrap items-center gap-2 min-w-0">
+                <span class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-lg text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-500/30 dark:text-white shrink-0">
                     {ms2str(item.audioLength)}
                 </span>
                 <Show when={item.expired}>
@@ -38,7 +36,7 @@ function CacheItem({
                     </span>
                 </Show>
                 <span class="max-w-130 truncate">{item.title}</span>
-                <span class="text-xs text-gray-500 shrink-0">
+                <span class="text-xs text-gray-500">
                     bid {item.bid} / sid {item.sid} /{" "}
                     {new Date(item.updatedAt).toLocaleDateString()}
                 </span>
@@ -84,7 +82,11 @@ export default function CacheManager() {
             setPages(data.pages);
 
             // 删除最后一页最后一条后页码越界，自动回退到最后一页
-            if (data.items.length === 0 && data.total > 0 && target > data.pages) {
+            if (
+                data.items.length === 0 &&
+                data.total > 0 &&
+                target > data.pages
+            ) {
                 setPage(data.pages);
                 return load(data.pages);
             }
@@ -130,7 +132,7 @@ export default function CacheManager() {
             <div class="flex flex-row items-center gap-3 flex-wrap">
                 <input
                     type="text"
-                    class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                    class="px-3 py-1 min-h-11 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
                     placeholder="按标题筛选"
                     value={query()}
                     onInput={(e) => setQuery(e.currentTarget.value)}
@@ -138,7 +140,11 @@ export default function CacheManager() {
                         if (e.key === "Enter") load(1);
                     }}
                 />
-                <Button class="w-fit" onClick={() => load(1)} disabled={loading()}>
+                <Button
+                    class="w-fit"
+                    onClick={() => load(1)}
+                    disabled={loading()}
+                >
                     搜索
                 </Button>
                 <Button

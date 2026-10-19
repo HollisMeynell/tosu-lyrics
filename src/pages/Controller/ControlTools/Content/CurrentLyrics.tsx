@@ -1,4 +1,11 @@
-import { For, Show, Component, createSignal, createMemo, onCleanup } from "solid-js";
+import {
+    For,
+    Show,
+    Component,
+    createSignal,
+    createMemo,
+    onCleanup,
+} from "solid-js";
 import { Copy } from "@/assets/Icons";
 import { Button } from "@/components/ui";
 import { createLyricsContentController } from "@/hooks/useLyricsContent";
@@ -7,7 +14,8 @@ import { LyricLineDto } from "@/services/lyricsContentService";
 
 const stateHint = (state: string | undefined, blocked: boolean) => {
     if (blocked || state === "blocked") return "这首歌已被拉黑，不会显示歌词";
-    if (state === "none") return "暂时没有歌词（可能正在搜索，或该来源没有这首歌）";
+    if (state === "none")
+        return "暂时没有歌词（可能正在搜索，或该来源没有这首歌）";
     return "暂无歌词";
 };
 
@@ -120,7 +128,9 @@ const CurrentLyrics: Component<{
         const target = e.currentTarget as HTMLElement;
         try {
             target.releasePointerCapture(e.pointerId);
-        } catch { /* 指针已释放 */ }
+        } catch {
+            /* 指针已释放 */
+        }
         const pending = draggingMs();
         setDraggingMs(null);
         if (pending === null) return;
@@ -198,7 +208,10 @@ const CurrentLyrics: Component<{
             <div class="flex flex-row items-center flex-wrap gap-3">
                 <Show when={lines().length > 0}>
                     <Button class="px-4 py-1" onClick={copyAll}>
-                        <Copy stroke="currentColor" class="mr-2 w-4 h-4 inline" />
+                        <Copy
+                            stroke="currentColor"
+                            class="mr-2 w-4 h-4 inline"
+                        />
                         {copied() ? "已复制" : "复制原文"}
                     </Button>
                 </Show>
@@ -223,23 +236,22 @@ const CurrentLyrics: Component<{
                     <span class="px-2 py-1 text-sm rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
                         正在预览搜索结果（不影响展示端与缓存）
                     </span>
-                    <Button
-                        class="px-3 py-1"
-                        onClick={() => c.clearPreview()}
-                    >
+                    <Button class="px-3 py-1" onClick={() => c.clearPreview()}>
                         关闭预览
                     </Button>
                 </Show>
 
                 <Show when={c.current()}>
                     {(cur) => (
-                        <div class="flex flex-row items-center gap-2 text-sm">
+                        <div class="flex flex-row flex-wrap items-center gap-2 text-sm">
                             <label>偏移(ms)：</label>
                             <input
                                 type="number"
-                                class="w-24 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                                class="w-24 px-2 py-1 min-h-11 text-base border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
                                 value={offsetShown()}
-                                onChange={(e) => applyOffset(e.currentTarget.value)}
+                                onChange={(e) =>
+                                    applyOffset(e.currentTarget.value)
+                                }
                                 disabled={c.saving()}
                             />
                             <Button
@@ -250,7 +262,8 @@ const CurrentLyrics: Component<{
                                 归零
                             </Button>
                             <span class="text-gray-500">
-                                当前行 {cur().current} / 剩余 {cur().nextTime} ms
+                                当前行 {cur().current} / 剩余 {cur().nextTime}{" "}
+                                ms
                             </span>
                         </div>
                     )}
@@ -259,9 +272,10 @@ const CurrentLyrics: Component<{
 
             <Show when={c.current()?.source}>
                 {(binding) => (
-                    <div class="flex flex-row items-center gap-3 text-sm">
+                    <div class="flex flex-row flex-wrap items-center gap-3 text-sm">
                         <span class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">
-                            已绑定来源：{binding().source} / {binding().key}（sid {binding().sid}）
+                            已绑定来源：{binding().source} / {binding().key}
+                            （sid {binding().sid}）
                         </span>
                         <Button
                             class="px-3 py-1"
@@ -282,7 +296,10 @@ const CurrentLyrics: Component<{
             {/* 非预览、且当前确实没有歌词时，才提示当前歌的状态 */}
             <Show when={!isPreviewing() && lines().length === 0}>
                 <p class="text-sm text-gray-500">
-                    {stateHint(c.current()?.lyricState, c.current()?.blocked ?? false)}
+                    {stateHint(
+                        c.current()?.lyricState,
+                        c.current()?.blocked ?? false
+                    )}
                 </p>
             </Show>
 
@@ -290,7 +307,7 @@ const CurrentLyrics: Component<{
                 <div class="flex flex-row items-center gap-3 text-xs text-gray-500">
                     <Show when={!isPreviewing()}>
                         <span
-                            class="cursor-ns-resize select-none px-6 py-3 text-base rounded-lg border-2 border-dashed border-gray-400 hover:border-[#ec4899] hover:text-[#ec4899] transition-colors"
+                            class="cursor-ns-resize select-none touch-none px-6 py-3 text-base rounded-lg border-2 border-dashed border-gray-400 hover:border-[#ec4899] hover:text-[#ec4899] transition-colors"
                             onPointerDown={onDragStart}
                             onPointerMove={onDragMove}
                             onPointerUp={onDragEnd}

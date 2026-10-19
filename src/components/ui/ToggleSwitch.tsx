@@ -18,7 +18,7 @@ const ToggleSwitch: Component<ToggleSwitchProps> = (props) => {
     return (
         <div
             class={[
-                "relative w-[2.4rem] h-[1.45rem] rounded-full transition-colors duration-200 cursor-pointer flex items-center",
+                "relative w-[2.4rem] h-[1.45rem] rounded-full transition-colors duration-200 cursor-pointer flex items-center select-none before:absolute before:-inset-2 before:content-['']",
                 props.modelValue
                     ? "bg-[#ec4899] hover:bg-[#db2777]"
                     : "bg-[#cbd5e1] hover:bg-[#94a3b8] dark:bg-[#21314d] dark:hover:bg-[#3b4a63]",

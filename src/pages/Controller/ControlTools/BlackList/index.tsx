@@ -56,9 +56,9 @@ const BlackListLyrics: Component = () => {
             ...defaultBlockInput(current),
             scope: scope(),
             value:
-                scope() === "title" ? current.title : String(
-                    scope() === "sid" ? current.sid : current.bid
-                ),
+                scope() === "title"
+                    ? current.title
+                    : String(scope() === "sid" ? current.sid : current.bid),
         });
         if (ok) setNotice(`已屏蔽：${current.title}（作用域 ${scope()}）`);
     };
@@ -113,7 +113,7 @@ const BlackListLyrics: Component = () => {
                 </button>
             </div>
 
-            <div class="flex flex-row items-center gap-3 text-sm">
+            <div class="flex flex-row flex-wrap items-center gap-3 text-sm">
                 <span>作用域：</span>
                 <Select
                     class="min-w-0 w-44 py-1"

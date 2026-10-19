@@ -77,10 +77,15 @@ const RoutesRoot: Component<RouteSectionProps<unknown>> = (props) => {
  *
  * 控制台整页背景跟随暗色模式（亮白 / 纯黑），只作用在这个布局上；
  * `/lyrics` 作为 OBS 浏览器源必须保持透明背景，不能把背景放到 body 或 LyricsBox。
+ *
+ * 移动端窄屏时预览区整体用 `zoom` 缩小（布局高度按比例变矮，跑马灯测宽
+ * 数学不受影响）；`zoom` 只作用在预览上，`/lyrics` 展示页不受影响。
  */
 const ControllerLayout: Component<RouteSectionProps<unknown>> = (props) => (
     <div class="h-full flex flex-col justify-center bg-white dark:bg-black">
-        <LyricsBox viewportLines={CONTROLLER_VIEWPORT_LINES} />
+        <div class="max-md:[zoom:0.7]">
+            <LyricsBox viewportLines={CONTROLLER_VIEWPORT_LINES} />
+        </div>
         <Controller children={props.children} />
     </div>
 );

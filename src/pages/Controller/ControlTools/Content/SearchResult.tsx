@@ -7,13 +7,19 @@ const deltaView = (deltaMs: number) => {
     const seconds = Math.round(deltaMs / 1000);
     if (seconds === 0) return { text: "0s", cls: "text-gray-500" };
     if (seconds > 0)
-        return { text: `+${seconds}s`, cls: "text-blue-600 dark:text-blue-400" };
+        return {
+            text: `+${seconds}s`,
+            cls: "text-blue-600 dark:text-blue-400",
+        };
     return { text: `${seconds}s`, cls: "text-red-600 dark:text-red-400" };
 };
 
 const translationBadge = (has: boolean | undefined) => {
     if (has === undefined)
-        return { text: "需加载", cls: "bg-gray-100 dark:bg-gray-800 text-gray-500" };
+        return {
+            text: "需加载",
+            cls: "bg-gray-100 dark:bg-gray-800 text-gray-500",
+        };
     if (has)
         return {
             text: "有翻译",
@@ -67,7 +73,7 @@ const SearchResult: Component<{
                 <h3 class="text-xl font-normal">搜索结果</h3>
                 <input
                     type="text"
-                    class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white min-w-64"
+                    class="px-3 py-1 min-h-11 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white min-w-40 md:min-w-64"
                     placeholder="歌曲标题/艺术家"
                     value={keyword()}
                     onInput={(e) => setKeyword(e.currentTarget.value)}
@@ -96,7 +102,13 @@ const SearchResult: Component<{
                 <p class="text-sm text-gray-500">
                     {c.manualSearch()
                         ? "没有找到匹配的候选，换个关键词试试。"
-                        : c.candidateState() === "error" ? "候选读取失败：切歌会自动重新读取后端候选。" : c.candidateState() === "loading" ? "正在加载候选…" : c.candidateState() === "loaded" ? "当前歌曲暂无候选。也可在上方输入「歌曲标题/艺术家」后点击搜索。" : "需加载：尚未从后端读取到当前歌曲的候选。"}
+                        : c.candidateState() === "error"
+                          ? "候选读取失败：切歌会自动重新读取后端候选。"
+                          : c.candidateState() === "loading"
+                            ? "正在加载候选…"
+                            : c.candidateState() === "loaded"
+                              ? "当前歌曲暂无候选。也可在上方输入「歌曲标题/艺术家」后点击搜索。"
+                              : "需加载：尚未从后端读取到当前歌曲的候选。"}
                 </p>
             </Show>
 
@@ -108,7 +120,11 @@ const SearchResult: Component<{
                                 <span
                                     class={`px-2 py-0.5 text-xs rounded shrink-0 ${translationBadge(translationOf(candidate)).cls}`}
                                 >
-                                    {translationBadge(translationOf(candidate)).text}
+                                    {
+                                        translationBadge(
+                                            translationOf(candidate)
+                                        ).text
+                                    }
                                 </span>
                                 <span class="px-2 py-0.5 text-xs rounded bg-gray-100 dark:bg-gray-800">
                                     {candidate.source}
