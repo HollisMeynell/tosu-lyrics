@@ -32,7 +32,9 @@ async function toApiError(res: Response): Promise<ApiError> {
             code = body.error.code;
             message = body.error.message ?? message;
         }
-    } catch {}
+    } catch {
+        /* 响应体不是 JSON 时保留默认的状态码提示 */
+    }
     return new ApiError(code, message, res.status);
 }
 

@@ -66,7 +66,9 @@ async function toApiError(res: Response): Promise<ApiError> {
             code = body.error.code;
             message = body.error.message ?? message;
         }
-    } catch {}
+    } catch {
+        /* 响应体不是 JSON 时保留默认的状态码提示 */
+    }
     return new ApiError(code, message, res.status);
 }
 
@@ -108,10 +110,7 @@ export async function previewCandidate(
     );
 }
 
-export async function applySource(
-    source: string,
-    key: string
-): Promise<void> {
+export async function applySource(source: string, key: string): Promise<void> {
     await jsonOrThrow(
         await fetch(`${LYRICS_URL}/source`, {
             method: "PUT",
@@ -122,7 +121,9 @@ export async function applySource(
 }
 
 export async function clearSource(): Promise<void> {
-    await jsonOrThrow(await fetch(`${LYRICS_URL}/source`, { method: "DELETE" }));
+    await jsonOrThrow(
+        await fetch(`${LYRICS_URL}/source`, { method: "DELETE" })
+    );
 }
 
 export async function setOffset(offset: number): Promise<number> {

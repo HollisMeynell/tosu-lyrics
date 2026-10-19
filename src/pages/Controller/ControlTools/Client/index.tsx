@@ -3,7 +3,6 @@ import { Button } from "@/components/ui";
 import { ApiError } from "@/services/settingsService";
 import {
     DisplayClient,
-    applyClientSettings,
     blinkAll,
     blinkClient,
     clientLabel,
@@ -22,13 +21,6 @@ export default function ClientList() {
     const [busy, setBusy] = createSignal(false);
     const [error, setError] = createSignal<string | null>(null);
     const [notice, setNotice] = createSignal<string | null>(null);
-
-    const [draft, setDraft] = createSignal({
-        first: "#ffffff",
-        second: "#e0e0e0",
-        sizeFirst: 3,
-        sizeSecond: 2,
-    });
 
     const isGlobal = () => selected() === "";
 
@@ -55,15 +47,6 @@ export default function ClientList() {
         setNotice(null);
         if (id === selected()) return;
         setSelected(id);
-        const s = settings.settings();
-        if (s) {
-            setDraft({
-                first: s.textColor.first,
-                second: s.textColor.second,
-                sizeFirst: s.fontSize.first,
-                sizeSecond: s.fontSize.second,
-            });
-        }
     };
 
     const run = async (fn: () => Promise<string>, failLabel: string) => {
@@ -95,22 +78,6 @@ export default function ClientList() {
             }
             return `已让「${labelOf(target)}」闪烁`;
         }, "测试失败");
-
-    const applyStyle = (patch: {
-        textColor?: { first: string; second: string };
-        fontSize?: { first: number; second: number };
-    }) =>
-        run(async () => {
-            if (isGlobal()) {
-                const ok = await settings.update(patch);
-                if (!ok) throw new Error(settings.error() ?? "保存失败");
-                return "已应用到全部展示端（全局设置）";
-            }
-            const target = selected();
-            const result = await applyClientSettings(target, patch);
-            if (result.keys.length === 0) return "没有变化";
-            return `已只应用到「${labelOf(target)}」：${result.keys.join(", ")}`;
-        }, "应用样式失败");
 
     const labelOf = (id: string) => {
         const found = clients().find((c) => c.id === id);
