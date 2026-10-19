@@ -31,6 +31,7 @@
 | GET | `/api/font/list` | 字体库列表 |
 | POST | `/api/font/upload` | 上传字体（multipart） |
 | GET | `/api/font/{name}` | 按名称下载字体 |
+| GET | `/api/server/addresses` | 本机可访问地址列表（`host` / `port` / `addresses`，首位 `preferred` 为推荐局域网地址） |
 
 ---
 

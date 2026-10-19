@@ -3,6 +3,7 @@ pub mod cache_service;
 pub mod font_service;
 pub mod lyric_content_service;
 mod lyric_service;
+pub mod network_service;
 mod setting_service;
 mod song_source_service;
 

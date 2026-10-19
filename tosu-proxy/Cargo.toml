@@ -44,5 +44,6 @@ tracing-appender = "0.2"
 tungstenite = "0.30.0"
 webbrowser = { version = "1.2.4", default-features = false }
 percent-encoding = { version = "2.3.2", default-features = false }
+local-ip-address = "0.6"
 ttf-parser = { version = "0.25.1", default-features = false, features = ["std"] }
 symphonia = { version = "0.6.1", features = ["all"] }

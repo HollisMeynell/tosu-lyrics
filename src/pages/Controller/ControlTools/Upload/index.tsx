@@ -215,7 +215,7 @@ export default function Upload() {
                         </h4>
                         <For each={fonts()}>
                             {(entry) => (
-                                <div class="flex flex-row items-center gap-3 p-2 rounded bg-gray-50 dark:bg-gray-800">
+                                <div class="flex flex-row flex-wrap items-center gap-3 p-2 rounded bg-gray-50 dark:bg-gray-800">
                                     <span class="text-sm font-medium">
                                         {entry.name}
                                     </span>

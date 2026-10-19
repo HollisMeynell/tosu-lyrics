@@ -6,6 +6,7 @@ mod file;
 mod font;
 mod lyric;
 mod lyrics;
+mod network;
 pub mod response;
 mod settings;
 mod status;
@@ -21,6 +22,7 @@ use crate::server::file::get_file_route;
 use crate::server::font::get_font_route;
 use crate::server::lyric::get_lyric_route;
 use crate::server::lyrics::get_lyrics_route as get_content_lyrics_route;
+use crate::server::network::get_network_route;
 use crate::server::settings::get_settings_route;
 use crate::server::status::{get_display_route, get_status_route};
 use crate::server::websocket::get_ws_route;
@@ -56,7 +58,8 @@ pub async fn start_server() {
         .push(get_settings_route())
         .push(get_blocks_route())
         .push(get_cache_route())
-        .push(get_clients_route());
+        .push(get_clients_route())
+        .push(get_network_route());
     let router = Router::new()
         .get(root_redirect)
         .push(get_ws_route())
@@ -123,6 +126,9 @@ fn tosu_already_running(port: u16) -> bool {
 }
 fn tosu_port(url: &str) -> Option<u16> {
     let url = Url::parse(url).ok()?;
+    if !matches!(url.scheme(), "ws" | "wss") {
+        return None;
+    }
     url.port_or_known_default().filter(|port| *port != 0)
 }
 

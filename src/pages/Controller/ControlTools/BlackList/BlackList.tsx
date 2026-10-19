@@ -1,13 +1,24 @@
-import { Component, For, Show, createSignal } from "solid-js";
+import { Component, For, JSX, Show, createSignal } from "solid-js";
 import { BlockRule, BlockScope } from "@/services/blocksService";
 import { createBlocksController } from "@/hooks/useBlocks";
 import { Button } from "@/components/ui";
 import { Delete, Save, Cancel, Edit } from "@/assets/Icons";
 
-const CustomTd = (props: { children: string }) => {
+// 窄屏下表格行折叠成卡片：label 只在移动端显示，桌面仍用表头
+const CustomTd = (props: { label?: string; children: JSX.Element }) => {
     return (
-        <td class="py-3 px-4 text-sm text-gray-700 dark:text-gray-300">
-            {props.children}
+        <td
+            class="py-3 px-4 text-sm text-gray-700 dark:text-gray-300
+            max-md:flex max-md:items-start max-md:gap-2 max-md:px-0 max-md:py-1"
+        >
+            <Show when={props.label}>
+                <span class="hidden max-md:inline shrink-0 w-10 text-xs text-gray-400 pt-0.5">
+                    {props.label}
+                </span>
+            </Show>
+            <span class="max-md:grow max-md:min-w-0 max-md:break-all">
+                {props.children}
+            </span>
         </td>
     );
 };
@@ -179,9 +190,18 @@ const BlacklistComponent: Component<{
 
     const trItem = (rule: BlockRule) => {
         return (
-            <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                <CustomTd>{rule.value}</CustomTd>
-                <td class="py-3 px-4">
+            <tr
+                class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors
+                max-md:flex max-md:flex-col max-md:gap-1 max-md:py-3"
+            >
+                <CustomTd label="内容">{rule.value}</CustomTd>
+                <td
+                    class="py-3 px-4
+                    max-md:flex max-md:items-start max-md:gap-2 max-md:px-0 max-md:py-1"
+                >
+                    <span class="hidden max-md:inline shrink-0 w-10 text-xs text-gray-400 pt-2">
+                        名称
+                    </span>
                     <input
                         type="text"
                         value={editingTitle()}
@@ -189,7 +209,13 @@ const BlacklistComponent: Component<{
                         class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     />
                 </td>
-                <td class="py-3 px-4">
+                <td
+                    class="py-3 px-4
+                    max-md:flex max-md:items-start max-md:gap-2 max-md:px-0 max-md:py-1"
+                >
+                    <span class="hidden max-md:inline shrink-0 w-10 text-xs text-gray-400 pt-2">
+                        备注
+                    </span>
                     <input
                         type="text"
                         value={editingReason()}
@@ -197,21 +223,21 @@ const BlacklistComponent: Component<{
                         class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     />
                 </td>
-                <CustomTd>{scopeLabel(rule.scope)}</CustomTd>
-                <CustomTd>{`${new Date(rule.createdAt).toLocaleString()}`}</CustomTd>
-                <td class="py-3 px-4">
-                    <div class="flex space-x-2">
+                <CustomTd label="范围">{scopeLabel(rule.scope)}</CustomTd>
+                <CustomTd label="时间">{`${new Date(rule.createdAt).toLocaleString()}`}</CustomTd>
+                <td class="py-3 px-4 max-md:px-0 max-md:pt-2">
+                    <div class="flex flex-wrap gap-2">
                         <button
                             onClick={handleSaveEdit}
                             disabled={c.saving()}
-                            class="px-3 py-2 select-none border border-green-500 text-white rounded-md hover:bg-green-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                            class="px-3 py-2 min-h-11 select-none border border-green-500 text-white rounded-md hover:bg-green-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500/50"
                         >
                             <Save class="mr-2 w-4 h-4 inline cursor-pointer select-none active:scale-90" />
                             保存
                         </button>
                         <button
                             onClick={() => setEditingId(null)}
-                            class="px-3 py-2 select-none border border-gray-500 text-white rounded-md hover:bg-gray-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500/50"
+                            class="px-3 py-2 min-h-11 select-none border border-gray-500 text-white rounded-md hover:bg-gray-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500/50"
                         >
                             <Cancel class="mr-2 w-4 h-4 inline cursor-pointer select-none active:scale-90" />
                             取消
@@ -224,17 +250,20 @@ const BlacklistComponent: Component<{
 
     const trFallback = (rule: BlockRule) => {
         return (
-            <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                <CustomTd>{rule.value}</CustomTd>
-                <CustomTd>{rule.title}</CustomTd>
-                <CustomTd>{rule.reason}</CustomTd>
-                <CustomTd>{scopeLabel(rule.scope)}</CustomTd>
-                <CustomTd>{`${new Date(rule.createdAt).toLocaleString()}`}</CustomTd>
-                <td class="py-3 pl-4">
-                    <div class="flex space-x-2">
+            <tr
+                class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors
+                max-md:flex max-md:flex-col max-md:gap-1 max-md:py-3"
+            >
+                <CustomTd label="内容">{rule.value}</CustomTd>
+                <CustomTd label="名称">{rule.title}</CustomTd>
+                <CustomTd label="备注">{rule.reason}</CustomTd>
+                <CustomTd label="范围">{scopeLabel(rule.scope)}</CustomTd>
+                <CustomTd label="时间">{`${new Date(rule.createdAt).toLocaleString()}`}</CustomTd>
+                <td class="py-3 pl-4 max-md:px-0 max-md:pt-2">
+                    <div class="flex flex-wrap gap-2">
                         <button
                             onClick={() => startEdit(rule)}
-                            class="px-3 py-2 select-none border border-blue-500 text-white rounded-md hover:bg-blue-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                            class="px-3 py-2 min-h-11 select-none border border-blue-500 text-white rounded-md hover:bg-blue-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                         >
                             <Edit class="mr-2 w-4 h-4 inline cursor-pointer select-none active:scale-90" />
                             编辑
@@ -242,7 +271,7 @@ const BlacklistComponent: Component<{
                         <button
                             onClick={() => handleRemove(rule)}
                             disabled={c.saving()}
-                            class="px-3 py-2 select-none border border-red-500 text-white rounded-md hover:bg-red-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                            class="px-3 py-2 min-h-11 select-none border border-red-500 text-white rounded-md hover:bg-red-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
                         >
                             <Delete class="mr-2 w-4 h-4 inline cursor-pointer select-none active:scale-90 mb-0.5" />
                             删除
@@ -254,7 +283,7 @@ const BlacklistComponent: Component<{
     };
 
     return (
-        <div class="flex flex-col lg:flex-row gap-6 p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
+        <div class="flex flex-col lg:flex-row gap-4 p-4 md:p-6 md:gap-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
             {addItemForm()}
 
             <div class="blacklist-items flex-1 flex flex-col gap-4">
@@ -275,7 +304,7 @@ const BlacklistComponent: Component<{
 
                 <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
                     <table class="w-full border-collapse">
-                        <thead class="bg-gray-100 dark:bg-gray-800">
+                        <thead class="bg-gray-100 dark:bg-gray-800 max-md:hidden">
                             <tr>
                                 <CustomTh>内容</CustomTh>
                                 <CustomTh>名称</CustomTh>

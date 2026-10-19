@@ -23,6 +23,7 @@ const TextStyle = lazy(
 const CacheManager = lazy(
     () => import("@/pages/Controller/ControlTools/CacheManager")
 );
+const QrCode = lazy(() => import("@/pages/Controller/ControlTools/QrCode"));
 
 const RoutesRoot: Component<RouteSectionProps<unknown>> = (props) => {
     const navigate = useNavigate();
@@ -90,11 +91,30 @@ const ControllerLayout: Component<RouteSectionProps<unknown>> = (props) => (
     </div>
 );
 
+/**
+ * `/lyrics` 展示页。
+ *
+ * OBS 浏览器源是细指针（`pointer: fine`），保持原有顶对齐 + 透明背景；
+ * 触屏设备（手机 / 平板，`pointer: coarse`）竖直居中、避开刘海安全区，
+ * 并铺深色底 —— 默认歌词是浅色，透明背景在手机浏览器里会白底白字。
+ */
+const LyricsDisplay = () => (
+    <div
+        class="h-full flex flex-col justify-start
+        [@media(pointer:coarse)]:justify-center
+        [@media(pointer:coarse)]:bg-[#141414]
+        [@media(pointer:coarse)]:pt-[env(safe-area-inset-top)]
+        [@media(pointer:coarse)]:pb-[env(safe-area-inset-bottom)]"
+    >
+        <LyricsBox />
+    </div>
+);
+
 export default function AppRoutes() {
     return (
         <Route path="/lyrics" component={(props) => <RoutesRoot {...props} />}>
-            <Route path="/" component={() => <LyricsBox />} />
-            <Route path="/lyric" component={() => <LyricsBox />} />
+            <Route path="/" component={LyricsDisplay} />
+            <Route path="/lyric" component={LyricsDisplay} />
             <Route path="/controller" component={ControllerLayout}>
                 <Route path="/" component={Content} />
                 <Route path="/blackList" component={BlackListLyrics} />
@@ -102,6 +122,7 @@ export default function AppRoutes() {
                 <Route path="/content" component={Content} />
                 <Route path="/textstyle" component={TextStyle} />
                 <Route path="/cacheManager" component={CacheManager} />
+                <Route path="/qrcode" component={QrCode} />
             </Route>
         </Route>
     );

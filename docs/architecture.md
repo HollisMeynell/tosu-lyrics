@@ -44,6 +44,7 @@ WS **不是**管理通道 —— 客户端通过 WS 发送的任何内容都不�
 | `/lyrics/controller/shadow`       | 阴影（主 / 副独立）                                       |
 | `/lyrics/controller/blackList`    | 黑名单                                                    |
 | `/lyrics/controller/cacheManager` | 歌词缓存                                                  |
+| `/lyrics/controller/qrcode`       | 连接二维码（IP 选择 + 扫码打开控制台）                    |
 | `/lyrics/controller/upload`       | LRC 上传与字体资源                                        |
 
 > 访问 `/` 会永久重定向到 `/lyrics`。

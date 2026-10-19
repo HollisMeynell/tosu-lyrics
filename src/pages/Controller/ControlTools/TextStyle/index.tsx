@@ -48,7 +48,7 @@ export default function TextStyle() {
                 </p>
             </Show>
 
-            <div class="flex flex-row items-center gap-3">
+            <div class="flex flex-row items-center gap-3 flex-wrap">
                 <Button
                     class="px-4 py-1"
                     onClick={() => {

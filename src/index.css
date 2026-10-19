@@ -41,6 +41,19 @@ html {
     .animate-scroll {
         animation: scroll var(--time) linear infinite;
     }
+
+    @keyframes drawer-in {
+        from {
+            transform: translateX(-100%);
+        }
+        to {
+            transform: translateX(0);
+        }
+    }
+
+    .animate-drawer-in {
+        animation: drawer-in 0.2s ease-out;
+    }
 }
 
 /*
