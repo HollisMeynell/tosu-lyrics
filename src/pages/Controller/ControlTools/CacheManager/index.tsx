@@ -37,8 +37,7 @@ function CacheItem({
                 </Show>
                 <span class="max-w-130 truncate">{item.title}</span>
                 <span class="text-xs text-gray-500">
-                    bid {item.bid} / sid {item.sid} /{" "}
-                    {new Date(item.updatedAt).toLocaleDateString()}
+                    更新于 {new Date(item.updatedAt).toLocaleDateString()}
                 </span>
             </div>
             <div class="flex flex-row gap-3 items-center shrink-0">
@@ -54,7 +53,7 @@ function CacheItem({
                     onClick={() => onRemoveTitle(item.title)}
                     disabled={busy}
                 >
-                    删除标题匹配
+                    删除全部同名
                 </Button>
             </div>
         </div>
@@ -124,7 +123,7 @@ export default function CacheManager() {
             <div class="header space-x-4">
                 <h2 class="text-xl font-medium inline">歌词缓存</h2>
                 <p class="text-sm inline text-gray-500">
-                    缓存只是缓存 —— 删除它不会影响来源绑定、偏移或黑名单
+                    可以放心清理：删除缓存不会影响你绑定的歌词、偏移设置和黑名单
                 </p>
             </div>
             <hr class="w-30 border-gray-400 dark:border-gray-600" />
@@ -196,7 +195,7 @@ export default function CacheManager() {
                             onRemoveTitle={(title) =>
                                 mutate(
                                     () => deleteCacheByTitle(title),
-                                    "删除标题匹配"
+                                    "删除全部同名"
                                 )
                             }
                         />

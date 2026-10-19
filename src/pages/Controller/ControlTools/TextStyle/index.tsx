@@ -61,7 +61,7 @@ export default function TextStyle() {
                     恢复默认样式
                 </Button>
                 <span class="text-xs text-gray-500">
-                    还原为原项目默认（颜色 / 字号 / 字体 / 歌词行数 / 对齐 / 翻译优先 / 副歌词 / 阴影）
+                    一键把颜色、字号、字体、行数、对齐、阴影等全部恢复为初始设置
                 </span>
             </div>
 
@@ -95,7 +95,7 @@ export default function TextStyle() {
                                     }
                                 />
                             </div>
-        <Shadow />
+                            <Shadow />
                             {/* 共用 / 分开字体：放在歌词字体设置上方 */}
                             <FontModeToggle />
                             <Font

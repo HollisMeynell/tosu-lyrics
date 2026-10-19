@@ -59,7 +59,9 @@ export async function uploadFont(file: File): Promise<FontEntry> {
     });
     const body = await res.json().catch(() => null);
     if (!res.ok) {
-        throw new Error(body?.error?.message ?? `HTTP ${res.status}`);
+        throw new Error(
+            body?.error?.message ?? `服务器返回错误（编号 ${res.status}）`
+        );
     }
     return body.font as FontEntry;
 }

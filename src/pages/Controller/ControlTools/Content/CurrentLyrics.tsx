@@ -85,14 +85,14 @@ const CurrentLyrics: Component<{
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
         } catch {
-            c.setError("复制失败：浏览器拒绝了剪贴板访问");
+            c.setError("复制失败：浏览器不允许使用剪贴板");
         }
     };
 
     const applyOffset = async (value: string) => {
         const parsed = Number.parseInt(value, 10);
         if (Number.isNaN(parsed)) {
-            c.setError("偏移必须是整数毫秒");
+            c.setError("偏移请填整数（单位毫秒）");
             return;
         }
         await c.updateOffset(parsed);
@@ -244,7 +244,7 @@ const CurrentLyrics: Component<{
                 <Show when={c.current()}>
                     {(cur) => (
                         <div class="flex flex-row flex-wrap items-center gap-2 text-sm">
-                            <label>偏移(ms)：</label>
+                            <label>偏移（毫秒）：</label>
                             <input
                                 type="number"
                                 class="w-24 px-2 py-1 min-h-11 text-base border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
@@ -262,8 +262,8 @@ const CurrentLyrics: Component<{
                                 归零
                             </Button>
                             <span class="text-gray-500">
-                                当前行 {cur().current} / 剩余 {cur().nextTime}{" "}
-                                ms
+                                当前第 {cur().current} 行 · 距下一行{" "}
+                                {cur().nextTime} 毫秒
                             </span>
                         </div>
                     )}
@@ -274,8 +274,7 @@ const CurrentLyrics: Component<{
                 {(binding) => (
                     <div class="flex flex-row flex-wrap items-center gap-3 text-sm">
                         <span class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">
-                            已绑定来源：{binding().source} / {binding().key}
-                            （sid {binding().sid}）
+                            歌词来源：{binding().source}（已手动绑定）
                         </span>
                         <Button
                             class="px-3 py-1"
@@ -318,12 +317,12 @@ const CurrentLyrics: Component<{
                         </span>
                         <Show when={draggingMs() !== null}>
                             <span class="text-[#ec4899]">
-                                拖动中：{offsetShown()} ms（松手后生效）
+                                拖动中：{offsetShown()} 毫秒（松手后生效）
                             </span>
                         </Show>
                     </Show>
                     <span>
-                        共 {lines().length} 行 · 左列为该行开始时间（mm:ss）
+                        共 {lines().length} 行 · 每行左侧是开始时间（分:秒）
                     </span>
                 </div>
             </Show>

@@ -20,13 +20,13 @@ const CustomTh = (props: { children: string }) => {
     );
 };
 
-const SCOPE_LABEL: Record<BlockScope, string> = {
-    bid: "单谱面 (bid)",
-    sid: "谱面集 (sid)",
+export const SCOPE_LABEL: Record<BlockScope, string> = {
+    bid: "单谱面",
+    sid: "谱面集",
     title: "标题",
 };
 
-const scopeLabel = (scope: BlockScope) => SCOPE_LABEL[scope] ?? scope;
+export const scopeLabel = (scope: BlockScope) => SCOPE_LABEL[scope] ?? scope;
 
 const BlacklistComponent: Component<{
     controller: ReturnType<typeof createBlocksController>;
@@ -85,10 +85,11 @@ const BlacklistComponent: Component<{
                 </h3>
                 <div class="flex flex-col gap-4">
                     <p class="text-xs text-gray-500">
-                        新增项使用页面当前作用域：
+                        新条目将按
                         <span class="font-medium">
                             {scopeLabel(props.scope())}
                         </span>
+                        范围生效
                     </p>
                     <div class="form-group">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -276,10 +277,10 @@ const BlacklistComponent: Component<{
                     <table class="w-full border-collapse">
                         <thead class="bg-gray-100 dark:bg-gray-800">
                             <tr>
-                                <CustomTh>ID</CustomTh>
+                                <CustomTh>内容</CustomTh>
                                 <CustomTh>名称</CustomTh>
                                 <CustomTh>备注</CustomTh>
-                                <CustomTh>作用域</CustomTh>
+                                <CustomTh>范围</CustomTh>
                                 <CustomTh>时间</CustomTh>
                                 <CustomTh>操作</CustomTh>
                             </tr>

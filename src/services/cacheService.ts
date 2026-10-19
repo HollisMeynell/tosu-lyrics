@@ -24,7 +24,7 @@ const CACHE_URL = `${BACKEND_API_BASE}/cache`;
 
 async function toApiError(res: Response): Promise<ApiError> {
     let code = "unknown";
-    let message = `HTTP ${res.status}`;
+    let message = `服务器返回错误（编号 ${res.status}）`;
     try {
         const body = await res.json();
         if (body?.error?.code) {

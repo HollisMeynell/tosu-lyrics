@@ -67,7 +67,6 @@ export default function Content() {
                     {(cur) => (
                         <p class="text-sm inline text-gray-500">
                             当前歌曲: {cur().song.title} — {cur().song.artist}
-                            （bid {cur().song.bid} / sid {cur().song.sid}）
                         </p>
                     )}
                 </Show>

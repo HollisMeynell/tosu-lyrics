@@ -96,7 +96,7 @@ export default function ClientList() {
             <div class="header space-x-4">
                 <h2 class="text-xl inline">在线展示端</h2>
                 <p class="text-sm inline text-gray-500">
-                    默认全局；选中某个端后可只对它调整与测试
+                    不选时对所有展示端生效；点选某个展示端后只对它操作
                 </p>
             </div>
             <hr class="w-24 border-gray-400 dark:border-gray-600" />
@@ -171,7 +171,8 @@ export default function ClientList() {
                                     </span>
                                     <Show when={client.identity === null}>
                                         <span class="text-xs text-gray-500">
-                                            未自报身份（可用 ?id=xxx 指定）
+                                            未命名的展示端（在歌词页网址后加
+                                            ?id=名称 可以命名）
                                         </span>
                                     </Show>
                                     <span class="text-xs text-gray-500 ml-auto">

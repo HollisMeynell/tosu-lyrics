@@ -66,7 +66,9 @@ export function createLyricsContentController() {
      */
     let candidatesGeneration = 0;
     /** 预览结果按 `source|key` 缓存，保证每行显示的是**它自己**的预览 */
-    const [previews, setPreviews] = createSignal<Record<string, PreviewDto>>({});
+    const [previews, setPreviews] = createSignal<Record<string, PreviewDto>>(
+        {}
+    );
     const [previewing, setPreviewing] = createSignal<string | null>(null);
     /** 「加载列表歌词」批量加载状态 */
     const [listLoading, setListLoading] = createSignal(false);
@@ -78,7 +80,9 @@ export function createLyricsContentController() {
     const [error, setError] = createSignal<string | null>(null);
     const [notice, setNotice] = createSignal<string | null>(null);
     /** `source|key` -> 是否有翻译；未知的键不在表里（显示"读取中"） */
-    const [translations, setTranslations] = createSignal<Record<string, boolean>>({});
+    const [translations, setTranslations] = createSignal<
+        Record<string, boolean>
+    >({});
 
     const candidateId = (c: { source: string; key: string }) =>
         `${c.source}|${c.key}`;
@@ -169,7 +173,7 @@ export function createLyricsContentController() {
             void loadStoredCandidates().then(() => {
                 if (token !== candidateReadToken) return;
                 if (songCandidates().length > 0) return; // 已读到候选 → 停止
-                if (attempt >= 60) return;               // 安全上限（≈30s）
+                if (attempt >= 60) return; // 安全上限（≈30s）
                 window.setTimeout(() => tick(attempt + 1), 500);
             });
         };
@@ -251,7 +255,8 @@ export function createLyricsContentController() {
             );
             setTranslations((prev) => {
                 const next = { ...prev };
-                for (const r of results) next[`${r.source}|${r.key}`] = r.hasTranslation;
+                for (const r of results)
+                    next[`${r.source}|${r.key}`] = r.hasTranslation;
                 return next;
             });
         } catch {
@@ -306,7 +311,9 @@ export function createLyricsContentController() {
      */
     const loadAllCandidateLyrics = async () => {
         if (listLoading()) return;
-        const pending = candidates().filter((item) => !previews()[candidateId(item)]);
+        const pending = candidates().filter(
+            (item) => !previews()[candidateId(item)]
+        );
         if (pending.length === 0) return;
         setListLoading(true);
         const queue = [...pending];
@@ -332,7 +339,10 @@ export function createLyricsContentController() {
         setPreviewing(id);
         setError(null);
         try {
-            const result = await previewCandidate(candidate.source, candidate.key);
+            const result = await previewCandidate(
+                candidate.source,
+                candidate.key
+            );
             setPreviews((prev) => ({ ...prev, [id]: result }));
             // 预览顺带拿到了真实数据，可以顺手确定"有没有翻译"
             setTranslations((prev) => ({
@@ -433,8 +443,10 @@ export function createLyricsContentController() {
         setError(null);
         try {
             const effective = await setOffsetApi(offset);
-            setCurrent((prev) => (prev ? { ...prev, offset: effective } : prev));
-            setNotice(`偏移已设为 ${effective} ms`);
+            setCurrent((prev) =>
+                prev ? { ...prev, offset: effective } : prev
+            );
+            setNotice(`偏移已设为 ${effective} 毫秒`);
             return true;
         } catch (err) {
             setError(message(err));

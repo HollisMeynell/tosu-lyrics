@@ -17,7 +17,7 @@ const deltaView = (deltaMs: number) => {
 const translationBadge = (has: boolean | undefined) => {
     if (has === undefined)
         return {
-            text: "需加载",
+            text: "待查询",
             cls: "bg-gray-100 dark:bg-gray-800 text-gray-500",
         };
     if (has)
@@ -103,12 +103,12 @@ const SearchResult: Component<{
                     {c.manualSearch()
                         ? "没有找到匹配的候选，换个关键词试试。"
                         : c.candidateState() === "error"
-                          ? "候选读取失败：切歌会自动重新读取后端候选。"
+                          ? "读取失败：切一首歌或点「搜索」就会重新获取。"
                           : c.candidateState() === "loading"
-                            ? "正在加载候选…"
+                            ? "正在查找可以使用的歌词…"
                             : c.candidateState() === "loaded"
                               ? "当前歌曲暂无候选。也可在上方输入「歌曲标题/艺术家」后点击搜索。"
-                              : "需加载：尚未从后端读取到当前歌曲的候选。"}
+                              : "还没有候选歌词，稍等一下或点「搜索」获取。"}
                 </p>
             </Show>
 
@@ -144,9 +144,6 @@ const SearchResult: Component<{
                                     }
                                 >
                                     {deltaView(candidate.durationDelta).text}
-                                </span>
-                                <span class="text-xs text-gray-400">
-                                    key {candidate.key}
                                 </span>
                                 <Show when={candidate.active}>
                                     <span class="px-2 py-0.5 text-xs rounded bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">

@@ -69,7 +69,7 @@ export default function Upload() {
             await refreshFonts();
             // 让新字体立刻生效：重新注册 FontFace
             await loadFont();
-            return `字体已上传：${entry.name}（${entry.fileName}，${entry.size} 字节）`;
+            return `字体已上传：${entry.name}（${entry.fileName}，${Math.round(entry.size / 1024)} KB）`;
         }, "字体上传失败");
 
     const onLrc = (e: Event) => {
@@ -105,7 +105,7 @@ export default function Upload() {
             <div class="header space-x-4">
                 <h2 class="text-xl font-medium inline">上传字体或歌词文件</h2>
                 <p class="text-sm inline text-gray-500">
-                    LRC 绑定到当前歌曲；字体上传后按名称加载，无需手工放文件
+                    上传的歌词会用在当前歌曲上；上传的字体可在「文字样式」里直接选用
                 </p>
             </div>
             <hr class="w-30 border-gray-400 dark:border-gray-600" />
@@ -161,7 +161,7 @@ export default function Upload() {
                     </Button>
                 </div>
                 <p class="text-xs text-gray-500">
-                    非法文件不会替换当前歌词；上传成功后展示端按当前播放进度立即刷新。
+                    不支持的文件不会替换当前歌词；上传成功后展示端立即生效。
                 </p>
             </section>
 
@@ -204,7 +204,7 @@ export default function Upload() {
                     />
                 </div>
                 <p class="text-xs text-gray-500">
-                    上传后自动解析字体名称，保存到字体库。在"文字样式"页面可选择使用。
+                    上传后会自动识别字体名称并保存，可在「文字样式」里选用。
                 </p>
 
                 {/* 已上传字体列表 */}
@@ -220,7 +220,8 @@ export default function Upload() {
                                         {entry.name}
                                     </span>
                                     <span class="text-xs text-gray-500">
-                                        {entry.fileName} / {entry.size} 字节
+                                        {entry.fileName} ·{" "}
+                                        {Math.round(entry.size / 1024)} KB
                                     </span>
                                 </div>
                             )}

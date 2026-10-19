@@ -1,5 +1,5 @@
 import { Component, createSignal, onMount, Show } from "solid-js";
-import BlacklistComponent from "./BlackList";
+import BlacklistComponent, { scopeLabel } from "./BlackList";
 import { Button } from "@/components/ui";
 import { Refresh } from "@/assets/Icons";
 import { createBlocksController, defaultBlockInput } from "@/hooks/useBlocks";
@@ -60,7 +60,10 @@ const BlackListLyrics: Component = () => {
                     ? current.title
                     : String(scope() === "sid" ? current.sid : current.bid),
         });
-        if (ok) setNotice(`已屏蔽：${current.title}（作用域 ${scope()}）`);
+        if (ok)
+            setNotice(
+                `已加入黑名单：${current.title}（${scopeLabel(scope())}）`
+            );
     };
 
     onMount(() => {
@@ -106,7 +109,6 @@ const BlackListLyrics: Component = () => {
                         {(current) => (
                             <span>
                                 当前播放: {current().title} — {current().artist}
-                                （bid {current().bid} / sid {current().sid}）
                             </span>
                         )}
                     </Show>
@@ -114,20 +116,20 @@ const BlackListLyrics: Component = () => {
             </div>
 
             <div class="flex flex-row flex-wrap items-center gap-3 text-sm">
-                <span>作用域：</span>
+                <span>拉黑范围：</span>
                 <Select
                     class="min-w-0 w-44 py-1"
                     clearable={false}
                     value={scope()}
                     onChange={(v) => setScope(v as BlockScope)}
                     options={[
-                        { code: "sid", name: "谱面集 (sid) · 默认" },
-                        { code: "bid", name: "单谱面 (bid)" },
+                        { code: "sid", name: "谱面集 · 默认" },
+                        { code: "bid", name: "单谱面" },
                         { code: "title", name: "标题" },
                     ]}
                 />
                 <span class="text-xs text-gray-500">
-                    用于本页的新增与"添加到黑名单"；已有条目的作用域不受影响
+                    决定拉黑整首歌还是单个谱面；已添加的条目不受影响
                 </span>
             </div>
 
