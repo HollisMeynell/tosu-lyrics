@@ -126,7 +126,20 @@ impl LyricSource for QQLyricSource {
             warn!("qq 歌词请求失败: {status}, {e}");
             return Ok(LyricResult::new());
         }
-        let result: QQLyricResponse = match response.json().await {
+        let result: serde_json::Value = match response.json().await {
+            Ok(result) => result,
+            Err(err) => {
+                warn!("qq 歌词响应解析失败, 非 json 响应: {}", err);
+                return Ok(LyricResult::new());
+            }
+        };
+        if let Some(code) = result.get("code").and_then(serde_json::Value::as_i64)
+            && code != 0
+        {
+            warn!("qq 歌词请求失败: code={code}");
+            return Ok(LyricResult::new());
+        }
+        let result: QQLyricResponse = match serde_json::from_value(result) {
             Ok(result) => result,
             Err(err) => {
                 warn!("qq 歌词响应解析失败: {}", err);
