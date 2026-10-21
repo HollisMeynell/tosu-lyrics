@@ -77,6 +77,11 @@ const SearchResult: Component<{
                     placeholder="歌曲标题/艺术家"
                     value={keyword()}
                     onInput={(e) => setKeyword(e.currentTarget.value)}
+                    onKeyDown={(e) => {
+                        if (e.isComposing || e.key !== "Enter") return;
+                        if (!keyword().trim() || c.searching()) return;
+                        void doSearch();
+                    }}
                 />
                 <span class="text-sm text-gray-500">留空则为当前歌曲</span>
                 <Button
