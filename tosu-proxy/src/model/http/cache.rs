@@ -18,3 +18,9 @@ pub struct CleanupResponse {
     pub removed: u64,
     pub ttl_ms: i64,
 }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TtlResponse {
+    pub ttl_ms: i64,
+}

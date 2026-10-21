@@ -101,3 +101,18 @@ export async function cleanupCache(): Promise<number> {
     );
     return body.removed;
 }
+
+/**
+ * 设置缓存过期时间（小时），0 = 永不过期。
+ * 返回服务端确认后的 `ttlMs`；调小立即让旧缓存过期，调大可让未清理的过期缓存重新生效。
+ */
+export async function setCacheTtl(ttlHours: number): Promise<number> {
+    const body = await jsonOrThrow<{ ttlMs: number }>(
+        await fetch(`${CACHE_URL}/ttl`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ttlHours }),
+        })
+    );
+    return body.ttlMs;
+}

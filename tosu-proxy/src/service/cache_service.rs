@@ -1,16 +1,50 @@
 use crate::database::LyricCacheEntity;
+use crate::database::SettingEntity;
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicI64, Ordering};
 
 pub const DEFAULT_TTL_MS: i64 = 30 * 24 * 60 * 60 * 1000;
+/// 过期时间的持久化键（config 表）；为 None 时回落 config.json5 的初值
+pub const CACHE_TTL_DB_KEY: &str = "cache_ttl_hours";
+pub const MAX_TTL_HOURS: i64 = 24 * 365;
+
+/// 过期时间（毫秒）：0 表示永不过期
+static TTL_MS: AtomicI64 = AtomicI64::new(DEFAULT_TTL_MS);
+
+fn ttl_ms_from_hours(hours: Option<i64>) -> i64 {
+    match hours {
+        Some(0) => 0,
+        Some(hours) if hours > 0 => hours.saturating_mul(60 * 60 * 1000),
+        _ => DEFAULT_TTL_MS,
+    }
+}
 
 /// <= 0 表示不启用
 pub fn ttl_ms() -> i64 {
-    match crate::config::GLOBAL_CONFIG.lyric_cache_ttl_hours {
-        Some(0) => 0,
-        Some(hours) => hours.saturating_mul(60 * 60 * 1000),
-        None => DEFAULT_TTL_MS,
-    }
+    TTL_MS.load(Ordering::Relaxed)
+}
+
+/// 启动时恢复过期时间：优先用数据库里设置过的值，否则用 config.json5 的初值
+pub async fn init() {
+    let stored = SettingEntity::get_config(CACHE_TTL_DB_KEY)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|raw| raw.trim().parse::<i64>().ok());
+    let hours = stored.or(crate::config::GLOBAL_CONFIG.lyric_cache_ttl_hours);
+    TTL_MS.store(ttl_ms_from_hours(hours), Ordering::Relaxed);
+}
+
+/// 设置过期时间（小时），0 = 永不过期；写库后立即生效。
+///
+/// TTL 在每次读取时判定（见 `is_fresh`）：调小后旧缓存立即视为过期，
+/// 调大后尚未被「清理过期」删除的条目会重新生效。
+pub async fn set_ttl_hours(hours: i64) -> Result<i64> {
+    SettingEntity::save_config(CACHE_TTL_DB_KEY.to_string(), hours.to_string()).await?;
+    let ms = ttl_ms_from_hours(Some(hours));
+    TTL_MS.store(ms, Ordering::Relaxed);
+    Ok(ms)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,6 +142,14 @@ mod test {
     fn ttl_default_when_unset() {
         // 未配置时用默认 30 天
         assert_eq!(DEFAULT_TTL_MS, 30 * 24 * 60 * 60 * 1000);
+    }
+
+    #[test]
+    fn ttl_hours_semantics() {
+        assert_eq!(ttl_ms_from_hours(None), DEFAULT_TTL_MS);
+        assert_eq!(ttl_ms_from_hours(Some(0)), 0);
+        assert_eq!(ttl_ms_from_hours(Some(24)), 24 * 60 * 60 * 1000);
+        assert_eq!(ttl_ms_from_hours(Some(-1)), DEFAULT_TTL_MS);
     }
 
     #[test]

@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui";
+import { Button, Select } from "@/components/ui";
 import { createSignal, For, onMount, Show } from "solid-js";
 import {
     CacheEntry,
@@ -7,11 +7,22 @@ import {
     deleteCacheByTitle,
     deleteCacheItem,
     fetchCachePage,
+    setCacheTtl,
 } from "@/services/cacheService";
 import { ApiError } from "@/services/settingsService";
 import { ms2str } from "@/utils/helpers";
 
 const PAGE_SIZE = 20;
+
+const TTL_OPTIONS = [
+    { code: "168", name: "7 天" },
+    { code: "720", name: "30 天（默认）" },
+    { code: "2160", name: "90 天" },
+    { code: "4320", name: "180 天" },
+    { code: "0", name: "永不过期" },
+];
+
+const hoursFromMs = (ms: number) => (ms <= 0 ? 0 : Math.round(ms / 3_600_000));
 
 function CacheItem({
     item,
@@ -70,6 +81,8 @@ export default function CacheManager() {
     const [query, setQuery] = createSignal("");
     const [error, setError] = createSignal<string | null>(null);
     const [notice, setNotice] = createSignal<string | null>(null);
+    /** 当前过期时间（小时）；0 = 永不过期，null = 尚未加载 */
+    const [ttlHours, setTtlHours] = createSignal<number | null>(null);
 
     const load = async (target = page()) => {
         setLoading(true);
@@ -79,6 +92,7 @@ export default function CacheManager() {
             setItems(data.items);
             setTotal(data.total);
             setPages(data.pages);
+            setTtlHours(hoursFromMs(data.ttlMs));
 
             // 删除最后一页最后一条后页码越界，自动回退到最后一页
             if (
@@ -116,6 +130,36 @@ export default function CacheManager() {
         }
     };
 
+    const commitTtl = async (hours: number) => {
+        setBusy(true);
+        setError(null);
+        setNotice(null);
+        try {
+            setTtlHours(hoursFromMs(await setCacheTtl(hours)));
+            setNotice("过期时间已更新");
+        } catch (err) {
+            setError(err instanceof ApiError ? err.message : String(err));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    /** 当前值不在预设里（例如 config.json5 自定义过）时补一个自定义选项 */
+    const ttlOptions = () => {
+        const hours = ttlHours();
+        if (
+            hours == null ||
+            TTL_OPTIONS.some((option) => Number(option.code) === hours)
+        ) {
+            return TTL_OPTIONS;
+        }
+        const name =
+            hours % 24 === 0
+                ? `${hours / 24} 天（自定义）`
+                : `${hours} 小时（自定义）`;
+        return [{ code: String(hours), name }, ...TTL_OPTIONS];
+    };
+
     onMount(() => load(1));
 
     return (
@@ -127,6 +171,21 @@ export default function CacheManager() {
                 </p>
             </div>
             <hr class="w-30 border-gray-400 dark:border-gray-600" />
+
+            <div class="flex flex-row items-center gap-3 flex-wrap">
+                <h3 class="text-xl font-normal">缓存过期时间</h3>
+                <Select
+                    class="min-w-[10rem]"
+                    clearable={false}
+                    options={ttlOptions()}
+                    value={ttlHours() == null ? "" : String(ttlHours())}
+                    disabled={busy() || loading()}
+                    onChange={(code) => void commitTtl(Number(code))}
+                />
+                <span class="text-sm text-gray-500">
+                    到期缓存自动失效；「清理过期」删除它们，调大时间后未清理的过期缓存会重新生效
+                </span>
+            </div>
 
             <div class="flex flex-row items-center gap-3 flex-wrap">
                 <input

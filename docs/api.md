@@ -28,6 +28,7 @@
 | DELETE         | `/api/cache?title=`                | 按标题删除缓存                                                                                            |
 | DELETE         | `/api/cache`                       | 清空缓存                                                                                                  |
 | POST           | `/api/cache/cleanup`               | 清理过期条目                                                                                              |
+| PATCH          | `/api/cache/ttl`                   | 设置缓存过期时间（`ttlHours` 小时，0 = 永不过期；立即生效，持久化后重启保留）                             |
 | GET            | `/api/clients`                     | 在线展示端列表                                                                                            |
 | POST           | `/api/clients/{id}/blink`          | 定向闪烁（`id` 可为会话 key 或自报身份）                                                                  |
 | POST           | `/api/clients/blink`               | 全部展示端闪烁                                                                                            |

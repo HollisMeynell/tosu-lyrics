@@ -84,7 +84,7 @@ cargo build --manifest-path tosu-proxy/Cargo.toml -r --bin tosu-lyrics
 - 启动顺序必须先确定运行目录，再加载全局配置、初始化数据库、设置和服务。不要让配置/迁移落到启动 shell 的旧目录。
 - 修改 `config.rs` 的字段、默认值或配置读取逻辑时，同步示例、README 和兼容处理。`GLOBAL_CONFIG` 是延迟初始化的全局配置，现有模式下配置修改后需重启。
 
-当前源码默认监听 `0.0.0.0:41280`，与根 README 的 `127.0.0.1` 示例不同。缓存 TTL 字段在 `Config` 中为 `lyric_cache_ttl_hours`，没有 camelCase rename/alias；当前应使用该字段，不能直接沿用旧 README 的 `lyricCacheTtlHours`。缺省 TTL 为 30 天，`0` 为不过期；调整字段兼容性时应同时补测试和文档。
+当前源码默认监听 `0.0.0.0:41280`，与根 README 的 `127.0.0.1` 示例不同。缓存 TTL 字段在 `Config` 中为 `lyric_cache_ttl_hours`，没有 camelCase rename/alias；当前应使用该字段，不能直接沿用旧 README 的 `lyricCacheTtlHours`。缺省 TTL 为 30 天，`0` 为不过期。该字段只作为启动初值：`PATCH /api/cache/ttl` 会把设置持久化到 `config` 表的 `cache_ttl_hours` 键并在运行时立即生效，之后以数据库值优先。TTL 在读取时判定，调大后未被「清理过期」删除的条目会重新生效。调整字段兼容性时应同时补测试和文档。
 
 ## 数据库与运行数据边界
 

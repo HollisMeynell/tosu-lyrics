@@ -48,6 +48,7 @@ pub static CONFIG_ENDPOINT_CACHE: &str = "cache";
 pub static CONFIG_ENDPOINT_CACHE_COUNT: &str = "count";
 pub static CONFIG_ENDPOINT_CACHE_CLEANUP: &str = "cleanup";
 pub static CONFIG_ENDPOINT_CACHE_CURRENT: &str = "current";
+pub static CONFIG_ENDPOINT_CACHE_TTL: &str = "ttl";
 pub static CONFIG_ENDPOINT_SERVER_ADDRESSES: &str = "server/addresses";
 
 static CONFIG_PATH: &str = "config.json5";

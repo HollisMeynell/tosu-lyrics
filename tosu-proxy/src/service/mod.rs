@@ -18,5 +18,6 @@ pub use song_source_service::on_osu_state_change;
 
 pub async fn init_service() -> Result<()> {
     song_source_service::init_song_service().await?;
+    cache_service::init().await;
     Ok(())
 }

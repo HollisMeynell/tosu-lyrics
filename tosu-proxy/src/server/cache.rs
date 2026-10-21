@@ -1,8 +1,8 @@
 use crate::config::{
     CONFIG_ENDPOINT_CACHE, CONFIG_ENDPOINT_CACHE_CLEANUP, CONFIG_ENDPOINT_CACHE_COUNT,
-    CONFIG_ENDPOINT_CACHE_CURRENT,
+    CONFIG_ENDPOINT_CACHE_CURRENT, CONFIG_ENDPOINT_CACHE_TTL,
 };
-use crate::model::http::cache::{CleanupResponse, CountResponse, RemovedResponse};
+use crate::model::http::cache::{CleanupResponse, CountResponse, RemovedResponse, TtlResponse};
 use crate::server::response::{CODE_INVALID_PARAM, render_error, render_service_error};
 use crate::service::cache_service;
 use salvo::http::StatusCode;
@@ -93,6 +93,42 @@ async fn cleanup_cache(res: &mut Response) {
     }
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TtlPatch {
+    ttl_hours: i64,
+}
+
+/// 设置缓存过期时间（小时）；0 表示永不过期
+#[handler]
+async fn set_cache_ttl(req: &mut Request, res: &mut Response) {
+    let Ok(body) = req.parse_json::<TtlPatch>().await else {
+        render_error(
+            res,
+            StatusCode::BAD_REQUEST,
+            CODE_INVALID_PARAM,
+            "请求体必须是包含 ttlHours 的 JSON",
+        );
+        return;
+    };
+    if !(0..=cache_service::MAX_TTL_HOURS).contains(&body.ttl_hours) {
+        render_error(
+            res,
+            StatusCode::BAD_REQUEST,
+            CODE_INVALID_PARAM,
+            &format!(
+                "ttlHours 必须在 0~{} 之间（0 表示永不过期）",
+                cache_service::MAX_TTL_HOURS
+            ),
+        );
+        return;
+    }
+    match cache_service::set_ttl_hours(body.ttl_hours).await {
+        Ok(ttl_ms) => res.render(Json(TtlResponse { ttl_ms })),
+        Err(err) => render_service_error(res, err),
+    }
+}
+
 /// 删除**当前播放歌曲**的歌词缓存；身份由服务端解析，调用方不传 bid/sid。
 #[handler]
 async fn delete_current_cache(res: &mut Response) {
@@ -115,6 +151,7 @@ pub fn get_cache_route() -> Router {
         .delete(clear_cache)
         .push(Router::with_path(CONFIG_ENDPOINT_CACHE_COUNT).get(count_cache))
         .push(Router::with_path(CONFIG_ENDPOINT_CACHE_CLEANUP).post(cleanup_cache))
+        .push(Router::with_path(CONFIG_ENDPOINT_CACHE_TTL).patch(set_cache_ttl))
         .push(Router::with_path(CONFIG_ENDPOINT_CACHE_CURRENT).delete(delete_current_cache))
         .push(Router::with_path("{bid}").delete(delete_cache))
 }
