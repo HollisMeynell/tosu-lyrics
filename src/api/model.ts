@@ -1,4 +1,4 @@
-import type { Shadow } from "@/types/globalTypes";
+import type { FontShape, Shadow } from "@/types/globalTypes";
 interface WebsocketMessage {
     type: string;
 }
@@ -49,6 +49,7 @@ interface WebsocketSettingTypeMap {
     setLyricLines: number;
     setBlink: null;
     setShadow: { first?: Shadow; second?: Shadow };
+    setFontShape: { first?: FontShape; second?: FontShape };
     /** 歌词加载中 / 加载结束: 展示端的 `.` 提示据此显示与清除 */
     setLyricLoading: boolean;
 }
@@ -63,14 +64,12 @@ interface BaseLyricSetter {
     second?: string;
 }
 
-
 interface SongInfo {
     title: string;
     artist: string;
     length: string;
     key: string;
 }
-
 
 export { isWebsocketMessage, isLyric, isSetting };
 

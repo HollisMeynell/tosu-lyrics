@@ -17,7 +17,7 @@
 | PUT            | `/api/lyrics/offset`               | 设置偏移（毫秒）                                                                                          |
 | POST           | `/api/lyrics/upload`               | 上传 LRC（multipart），绑定到发起时歌曲的 `sid`                                                           |
 | POST           | `/api/display/clear`               | 清空所有展示端（持续清屏，直到换歌 / 换源 / 上传）                                                        |
-| GET / PATCH    | `/api/settings`                    | 展示设置（颜色 / 字号 / 字体 / 对齐 / 翻译优先 / 副歌词 / 阴影）                                          |
+| GET / PATCH    | `/api/settings`                    | 展示设置（颜色 / 字号 / 字体 / 字形 / 对齐 / 翻译优先 / 副歌词 / 阴影）                                  |
 | GET / POST     | `/api/blocks`                      | 黑名单列表 / 新增（幂等）                                                                                 |
 | PATCH / DELETE | `/api/blocks/{id}`                 | 修改备注与名称 / 删除单条                                                                                 |
 | DELETE         | `/api/blocks`                      | 清空（幂等）                                                                                              |

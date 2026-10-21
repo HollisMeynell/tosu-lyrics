@@ -82,7 +82,13 @@ async function loadFamily(
     const current = registered.get(name);
     if (current?.version === version) return true;
     try {
-        const face = new FontFace(name, `url(${url})`);
+        // 声明字重 / 字宽的可用范围：可变字体的 wght / wdth 轴靠 CSS
+        // font-weight / font-stretch 驱动，不声明范围时浏览器只按常规字重
+        // 处理，字形调整对可变字体也不会生效。
+        const face = new FontFace(name, `url(${url})`, {
+            weight: "1 1000",
+            stretch: "50% 200%",
+        });
         const loaded = await face.load();
         if (current) document.fonts.delete(current.face);
         document.fonts.add(loaded);

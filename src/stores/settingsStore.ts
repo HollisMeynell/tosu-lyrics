@@ -1,10 +1,7 @@
 import { batch, createSignal } from "solid-js";
 import { AlignType, Pair, SettingsDto } from "@/types/globalTypes";
-import { alignmentOptions, Shadow } from "@/types/globalTypes";
-import {
-    DEFAULT_LYRIC_LINES,
-    normalizeLyricLines,
-} from "@/utils/lyricLines";
+import { alignmentOptions, FontShape, Shadow } from "@/types/globalTypes";
+import { DEFAULT_LYRIC_LINES, normalizeLyricLines } from "@/utils/lyricLines";
 
 export const DEFAULT_TEXT_COLOR = {
     first: "#ffffff",
@@ -28,6 +25,16 @@ export const DEFAULT_SHADOW: Shadow = {
     offsetY: 3,
 };
 
+/**
+ * 字形默认值：字重 700 保持此前歌词固定 font-bold 的观感。
+ * 与后端 `FontShapeSettings::default()` 一致（同 DEFAULT_SHADOW 的约定）。
+ */
+export const DEFAULT_FONT_SHAPE: FontShape = {
+    weight: 700,
+    width: 100,
+    slant: 0,
+};
+
 export const [font, setFont] = createSignal("");
 /** 副歌词字体（后端 font.second；为空时回落到主字体） */
 export const [secondFont, setSecondFont] = createSignal("");
@@ -44,6 +51,10 @@ export const [loadedMainFamily, setLoadedMainFamily] = createSignal("");
 export const [loadedSubFamily, setLoadedSubFamily] = createSignal("");
 export const [fontSize, setFontSize] =
     createSignal<Pair<number>>(DEFAULT_FONT_SIZE);
+export const [fontShape, setFontShape] = createSignal<Pair<FontShape>>({
+    first: DEFAULT_FONT_SHAPE,
+    second: DEFAULT_FONT_SHAPE,
+});
 export const [textColor, setTextColor] = createSignal(DEFAULT_TEXT_COLOR);
 export const [shadow, setShadow] = createSignal<Pair<Shadow>>({
     first: DEFAULT_SHADOW,
@@ -58,9 +69,8 @@ export const [showSecond, setShowSecond] = createSignal(true);
  * 写入这里的每个路径（HTTP 快照 / WS 广播）都已经过 `normalizeLyricLines`，
  * 所以渲染层只会拿到 1 / 3 / 5 / … / 15。
  */
-export const [lyricLines, setLyricLines] = createSignal<number>(
-    DEFAULT_LYRIC_LINES
-);
+export const [lyricLines, setLyricLines] =
+    createSignal<number>(DEFAULT_LYRIC_LINES);
 export const [alignment, setAlignment] = createSignal<AlignType>(
     alignmentOptions[1].value
 );
@@ -81,6 +91,10 @@ export const applySettings = (settings: SettingsDto) => {
         });
         setFont(settings.font.first);
         setSecondFont(settings.font.second);
+        setFontShape({
+            first: settings.fontShape?.first ?? DEFAULT_FONT_SHAPE,
+            second: settings.fontShape?.second ?? DEFAULT_FONT_SHAPE,
+        });
         setAlignment(settings.alignment);
         setUseTranslationAsMain(settings.translationMain);
         setShowSecond(settings.secondShow);

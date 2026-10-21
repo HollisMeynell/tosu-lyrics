@@ -2,6 +2,7 @@ import {
     alignment,
     font,
     fontSize,
+    fontShape,
     loadedSubFamily,
     lyricLines,
     secondFont,
@@ -238,13 +239,24 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         return `drop-shadow(${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.color})`;
     };
 
+    // 字形：字重 / 字宽映射可变字体的 wght / wdth 轴，倾斜是浏览器模拟斜切
+    const shapeStyle = (which: "first" | "second") => {
+        const s = fontShape()[which];
+        return {
+            "font-weight": String(s.weight),
+            "font-stretch": `${s.width}%`,
+            "font-style": s.slant !== 0 ? `oblique ${s.slant}deg` : "normal",
+        };
+    };
+
     const MainLyric: Component<MainLyricProps> = (props) => (
         <p
-            class="font-tLRC whitespace-nowrap text-4xl font-bold transition-[font-size] duration-300"
+            class="font-tLRC whitespace-nowrap text-4xl transition-[font-size] duration-300"
             style={{
                 filter: shadowFilter("first"),
                 color: textColor().first,
                 "font-family": resolveFamily(font()),
+                ...shapeStyle("first"),
                 "text-align": props.align || "center",
                 // 层级 0 为 1 倍、层级 1 与 2 为 1/2 倍 —— 与改动前的 active/inactive 完全一致
                 "font-size": `${fontSize().first * lineLevelScale(props.level)}em`,
@@ -257,7 +269,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     const SecondLyric: Component<SecondLyricProps> = (props) => (
         <p
             classList={{
-                "font-oLRC whitespace-nowrap text-2xl font-bold mt-4 transition-[font-size] duration-300": true,
+                "font-oLRC whitespace-nowrap text-2xl mt-4 transition-[font-size] duration-300": true,
                 block: props.block,
                 hidden: !props.block,
             }}
@@ -269,6 +281,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 "font-family": secondFont()
                     ? resolveFamily(secondFont())
                     : loadedSubFamily() || resolveFamily(font()),
+                ...shapeStyle("second"),
                 "text-align": props.align || "center",
                 "font-size": `${fontSize().second * lineLevelScale(props.level)}em`,
             }}
@@ -369,11 +382,12 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                     style={lyricAlignmentStyle()}
                 >
                     <p
-                        class="font-tLRC whitespace-nowrap font-bold"
+                        class="font-tLRC whitespace-nowrap"
                         style={{
                             filter: shadowFilter("first"),
                             color: textColor().first,
                             "font-family": resolveFamily(font()),
+                            ...shapeStyle("first"),
                             // 复用主歌词字号体系(用户调整主字号时提示同步变化),
                             // 取 1.15 倍: 比正常歌词再大一点, 让加载状态足够醒目
                             "font-size": `${fontSize().first * 1.15}em`,

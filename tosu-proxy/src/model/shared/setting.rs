@@ -11,6 +11,11 @@ pub const MAX_FONT_NAME_LEN: usize = 128;
 pub const MIN_LYRIC_LINES: i32 = 1;
 pub const MAX_LYRIC_LINES: i32 = 15;
 pub const DEFAULT_LYRIC_LINES: i32 = 3;
+pub const MIN_FONT_WEIGHT: f32 = 100.0;
+pub const MAX_FONT_WEIGHT: f32 = 900.0;
+pub const MIN_FONT_WIDTH: f32 = 50.0;
+pub const MAX_FONT_WIDTH: f32 = 200.0;
+pub const MAX_FONT_SLANT: f32 = 20.0;
 
 pub fn normalize_lyric_lines(value: i32) -> i32 {
     let clamped = value.clamp(MIN_LYRIC_LINES, MAX_LYRIC_LINES);
@@ -77,12 +82,33 @@ impl Default for ShadowSettings {
     }
 }
 
+/// 字形属性：字重（font-weight）/ 字宽（font-stretch 百分比）/ 倾斜（oblique 度数）。
+/// 默认 700 / 100 / 0，保持此前歌词固定 font-bold 的观感。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct FontShapeSettings {
+    pub weight: f32,
+    pub width: f32,
+    pub slant: f32,
+}
+
+impl Default for FontShapeSettings {
+    fn default() -> Self {
+        Self {
+            weight: 700.0,
+            width: 100.0,
+            slant: 0.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LyricSettings {
     pub text_color: Pair<String>,
     pub font_size: Pair<f32>,
     pub font: Pair<String>,
+    pub font_shape: Pair<FontShapeSettings>,
     pub alignment: String,
     pub translation_main: bool,
     pub second_show: bool,
@@ -96,6 +122,7 @@ impl Default for LyricSettings {
             text_color: Pair::new("#ffffff".to_string(), "#e0e0e0".to_string()),
             font_size: Pair::new(3.0, 2.0),
             font: Pair::same(String::new()),
+            font_shape: Pair::same(FontShapeSettings::default()),
             alignment: "center".to_string(),
             translation_main: true,
             second_show: true,
@@ -111,6 +138,7 @@ pub struct LyricSettingsPatch {
     pub text_color: Option<Pair<String>>,
     pub font_size: Option<Pair<f32>>,
     pub font: Option<Pair<String>>,
+    pub font_shape: Option<Pair<FontShapeSettings>>,
     pub alignment: Option<String>,
     pub translation_main: Option<bool>,
     pub second_show: Option<bool>,
@@ -123,6 +151,7 @@ pub enum SettingKey {
     TextColor,
     FontSize,
     Font,
+    FontShape,
     Alignment,
     TranslationMain,
     SecondShow,
@@ -136,6 +165,7 @@ impl SettingKey {
             SettingKey::TextColor => "setColor",
             SettingKey::FontSize => "setFontSize",
             SettingKey::Font => "setFont",
+            SettingKey::FontShape => "setFontShape",
             SettingKey::Alignment => "setAlignment",
             SettingKey::TranslationMain => "setTranslationMain",
             SettingKey::SecondShow => "setSecondShow",
@@ -145,10 +175,11 @@ impl SettingKey {
     }
 }
 
-pub const ALL_SETTING_KEYS: [SettingKey; 8] = [
+pub const ALL_SETTING_KEYS: [SettingKey; 9] = [
     SettingKey::TextColor,
     SettingKey::FontSize,
     SettingKey::Font,
+    SettingKey::FontShape,
     SettingKey::Alignment,
     SettingKey::TranslationMain,
     SettingKey::SecondShow,
@@ -220,6 +251,21 @@ fn validate_lyric_lines(value: i32) -> Result<()> {
     Ok(())
 }
 
+fn validate_font_shape(shape: &FontShapeSettings) -> Result<()> {
+    for (name, value, min, max) in [
+        ("字重", shape.weight, MIN_FONT_WEIGHT, MAX_FONT_WEIGHT),
+        ("字宽", shape.width, MIN_FONT_WIDTH, MAX_FONT_WIDTH),
+        ("倾斜", shape.slant, -MAX_FONT_SLANT, MAX_FONT_SLANT),
+    ] {
+        if !value.is_finite() || !(min..=max).contains(&value) {
+            return Err(invalid(format!(
+                "字形 {name} 必须在 {min}~{max} 之间: {value}"
+            )));
+        }
+    }
+    Ok(())
+}
+
 impl LyricSettings {
     pub async fn load() -> Self {
         let Some(raw) = SettingEntity::get_config(SETTINGS_DB_KEY)
@@ -253,6 +299,8 @@ impl LyricSettings {
         validate_font_size(self.font_size.second)?;
         validate_font_name(&self.font.first)?;
         validate_font_name(&self.font.second)?;
+        validate_font_shape(&self.font_shape.first)?;
+        validate_font_shape(&self.font_shape.second)?;
         validate_shadow(&self.shadow.first)?;
         validate_shadow(&self.shadow.second)?;
         validate_lyric_lines(self.lyric_lines)?;
@@ -275,6 +323,9 @@ impl LyricSettings {
         }
         if let Some(value) = patch.font {
             next.font = value;
+        }
+        if let Some(value) = patch.font_shape {
+            next.font_shape = value;
         }
         if let Some(value) = patch.alignment {
             next.alignment = value;
@@ -306,6 +357,9 @@ impl LyricSettings {
         if self.font != before.font {
             changed.push(SettingKey::Font);
         }
+        if self.font_shape != before.font_shape {
+            changed.push(SettingKey::FontShape);
+        }
         if self.alignment != before.alignment {
             changed.push(SettingKey::Alignment);
         }
@@ -329,6 +383,7 @@ impl LyricSettings {
             SettingKey::TextColor => serde_json::json!(self.text_color),
             SettingKey::FontSize => serde_json::json!(self.font_size),
             SettingKey::Font => serde_json::json!(self.font),
+            SettingKey::FontShape => serde_json::json!(self.font_shape),
             SettingKey::Alignment => serde_json::json!(Pair::same(&self.alignment)),
             SettingKey::TranslationMain => serde_json::json!(self.translation_main),
             SettingKey::SecondShow => serde_json::json!(self.second_show),
@@ -363,6 +418,9 @@ mod test {
         assert_eq!(d.text_color.second, "#e0e0e0");
         assert_eq!(d.font_size.first, 3.0);
         assert_eq!(d.font_size.second, 2.0);
+        assert_eq!(d.font_shape.first.weight, 700.0);
+        assert_eq!(d.font_shape.first.width, 100.0);
+        assert_eq!(d.font_shape.first.slant, 0.0);
         assert_eq!(d.alignment, "center");
         assert!(d.translation_main);
         assert!(d.second_show);
@@ -513,10 +571,42 @@ mod test {
         let json = serde_json::to_value(LyricSettings::default()).expect("序列化");
         assert!(json.get("textColor").is_some());
         assert!(json.get("fontSize").is_some());
+        assert!(json.get("fontShape").is_some());
         assert!(json.get("translationMain").is_some());
         assert!(json.get("secondShow").is_some());
         assert_eq!(json["textColor"]["first"], "#ffffff");
         assert_eq!(json["lyricLines"], DEFAULT_LYRIC_LINES);
+    }
+
+    #[test]
+    fn font_shape_defaults_and_patch_roundtrip() {
+        let before = LyricSettings::default();
+        assert!(validate_font_shape(&before.font_shape.first).is_ok());
+        let patch: LyricSettingsPatch = serde_json::from_str(
+            r#"{"fontShape":{"first":{"weight":300,"width":85,"slant":-8},"second":{"weight":900,"width":120,"slant":12}}}"#,
+        )
+        .expect("patch 解析");
+        let after = before.with_patch(patch).expect("patch 应用");
+        assert_eq!(after.font_shape.first.weight, 300.0);
+        assert_eq!(after.font_shape.first.width, 85.0);
+        assert_eq!(after.font_shape.first.slant, -8.0);
+        assert_eq!(after.font_shape.second.slant, 12.0);
+        assert_eq!(after.changed_keys(&before), vec![SettingKey::FontShape]);
+        assert_eq!(SettingKey::FontShape.ws_key(), "setFontShape");
+        assert_eq!(after.font_size, before.font_size);
+    }
+
+    #[test]
+    fn invalid_font_shape_rejected() {
+        let before = LyricSettings::default();
+        for raw in [
+            r#"{"fontShape":{"first":{"weight":2000,"width":100,"slant":0},"second":{"weight":700,"width":100,"slant":0}}}"#,
+            r#"{"fontShape":{"first":{"weight":700,"width":10,"slant":0},"second":{"weight":700,"width":100,"slant":0}}}"#,
+            r#"{"fontShape":{"first":{"weight":700,"width":100,"slant":90},"second":{"weight":700,"width":100,"slant":0}}}"#,
+        ] {
+            let patch: LyricSettingsPatch = serde_json::from_str(raw).expect("patch 解析");
+            assert!(before.with_patch(patch).is_err(), "应当拒绝: {raw}");
+        }
     }
 
     #[test]
@@ -525,6 +615,7 @@ mod test {
             serde_json::from_str(r#"{"alignment":"right"}"#).expect("部分字段应能解析");
         assert_eq!(settings.alignment, "right");
         assert_eq!(settings.font_size.first, 3.0);
+        assert_eq!(settings.font_shape.first.weight, 700.0);
         assert!(settings.second_show);
         assert_eq!(settings.lyric_lines, DEFAULT_LYRIC_LINES);
     }

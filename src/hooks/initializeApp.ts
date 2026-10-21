@@ -1,7 +1,9 @@
 import {
     DEFAULT_SHADOW,
+    DEFAULT_FONT_SHAPE,
     setAlignment,
     setFont,
+    setFontShape,
     setFontSize,
     setSecondFont,
     setShadow,
@@ -13,8 +15,12 @@ import {
 } from "@/stores/settingsStore";
 import { Websocket } from "@/api/websocket.ts";
 import { BaseLyricSetter, WebsocketSetting } from "@/api/model.ts";
-import type { Shadow } from "@/types/globalTypes";
-import { applyLyricEvent, clearLyrics, setLyricLoading } from "@/stores/lyricStore";
+import type { FontShape, Shadow } from "@/types/globalTypes";
+import {
+    applyLyricEvent,
+    clearLyrics,
+    setLyricLoading,
+} from "@/stores/lyricStore";
 import { lyricBlink } from "@/pages/LyricsBox";
 import { initializeDarkMode } from "@/stores/settingsStore";
 import { normalizeLyricLines } from "@/utils/lyricLines";
@@ -82,6 +88,16 @@ const handleSettingBroadcast = (data: WebsocketSetting) => {
             setShadow({
                 first: value?.first ?? DEFAULT_SHADOW,
                 second: value?.second ?? DEFAULT_SHADOW,
+            });
+            break;
+        }
+        case "setFontShape": {
+            const value = data.value as
+                | { first?: FontShape; second?: FontShape }
+                | undefined;
+            setFontShape({
+                first: value?.first ?? DEFAULT_FONT_SHAPE,
+                second: value?.second ?? DEFAULT_FONT_SHAPE,
             });
             break;
         }

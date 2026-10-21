@@ -14,6 +14,8 @@ export type SettingsDto = {
     fontSize: Pair<number>;
     /** 主 / 副歌词字体名，空串表示默认字体 */
     font: Pair<string>;
+    /** 主 / 副歌词字形（字重 / 字宽 / 倾斜） */
+    fontShape: Pair<FontShape>;
     alignment: AlignType;
     /** 是否以翻译为主 */
     translationMain: boolean;
@@ -56,6 +58,16 @@ export type Shadow = {
     offsetX: number;
     /** Y 偏移（px） */
     offsetY: number;
+};
+
+/**
+ * 字形属性：字重（font-weight）/ 字宽（font-stretch 百分比）/ 倾斜（度，正数向右斜）。
+ * 字重与字宽的效果取决于字体是否支持无级调节，倾斜由浏览器模拟斜切。
+ */
+export type FontShape = {
+    weight: number;
+    width: number;
+    slant: number;
 };
 
 export type Settings = {

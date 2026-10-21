@@ -4,6 +4,7 @@ import TextColor from "./TextColor";
 import Font from "./Font";
 import FontModeToggle from "../Upload/FontModeToggle";
 import FontSize from "./FontSize";
+import FontShape from "./FontShape";
 import Shadow from "../Shadow";
 import Upload from "../Upload";
 import { AlignType, alignmentOptions } from "@/types/globalTypes";
@@ -14,7 +15,7 @@ import {
     useTranslationAsMain,
 } from "@/stores/settingsStore";
 import { createSettingsController } from "@/hooks/useSettings";
-import { DEFAULT_SHADOW } from "@/stores/settingsStore";
+import { DEFAULT_FONT_SHAPE, DEFAULT_SHADOW } from "@/stores/settingsStore";
 import { SettingsPatch } from "@/types/globalTypes";
 import { setFontMode, clearSplitBackup } from "@/stores/fontModeStore";
 import LyricLines from "./LyricLines";
@@ -26,6 +27,7 @@ const DEFAULT_TEXT_STYLE: SettingsPatch = {
     textColor: { first: "#ffffff", second: "#e0e0e0" },
     fontSize: { first: 3, second: 2 },
     font: { first: "", second: "" },
+    fontShape: { first: DEFAULT_FONT_SHAPE, second: DEFAULT_FONT_SHAPE },
     alignment: "center",
     translationMain: true,
     secondShow: true,
@@ -111,6 +113,10 @@ export default function TextStyle() {
                                 disabled={settings.saving()}
                             />
                             <FontSize
+                                update={settings.update}
+                                disabled={settings.saving()}
+                            />
+                            <FontShape
                                 update={settings.update}
                                 disabled={settings.saving()}
                             />
