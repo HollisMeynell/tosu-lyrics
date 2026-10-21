@@ -2,6 +2,7 @@ import { createSignal } from "solid-js";
 import {
     Candidate,
     CurrentLyricDto,
+    LyricStatus,
     PreviewDto,
     applySource,
     clearSource,
@@ -80,9 +81,9 @@ export function createLyricsContentController() {
     const [saving, setSaving] = createSignal(false);
     const [error, setError] = createSignal<string | null>(null);
     const [notice, setNotice] = createSignal<string | null>(null);
-    /** `source|key` -> 是否有翻译；未知的键不在表里（显示"读取中"） */
-    const [translations, setTranslations] = createSignal<
-        Record<string, boolean>
+    /** `source|key` -> 歌词状态；未知的键不在表里（显示「需加载」） */
+    const [lyricStatuses, setLyricStatuses] = createSignal<
+        Record<string, LyricStatus>
     >({});
 
     const candidateId = (c: { source: string; key: string }) =>
@@ -247,17 +248,17 @@ export function createLyricsContentController() {
         }
     };
 
-    // 搜索完成后在后台补齐翻译标记，不阻塞用户
+    // 搜索完成后在后台补齐歌词状态标记，不阻塞用户
     const fillTranslations = async (items: Candidate[]) => {
         if (items.length === 0) return;
         try {
             const results = await checkTranslations(
                 items.map((c) => ({ source: c.source, key: c.key }))
             );
-            setTranslations((prev) => {
+            setLyricStatuses((prev) => {
                 const next = { ...prev };
                 for (const r of results)
-                    next[`${r.source}|${r.key}`] = r.hasTranslation;
+                    next[`${r.source}|${r.key}`] = r.status;
                 return next;
             });
         } catch {
@@ -285,7 +286,7 @@ export function createLyricsContentController() {
                 setManualSearch(true);
             }
             setCandidates(result.items);
-            setTranslations({});
+            setLyricStatuses({});
             void fillTranslations(result.items);
             if (result.items.length === 0) setNotice("没有找到候选");
             return true;
@@ -345,13 +346,19 @@ export function createLyricsContentController() {
                 candidate.key
             );
             setPreviews((prev) => ({ ...prev, [id]: result }));
-            // 预览顺带拿到了真实数据，可以顺手确定"有没有翻译"
-            setTranslations((prev) => ({
+            // 预览顺带拿到了真实数据，可以顺手确定歌词状态
+            setLyricStatuses((prev) => ({
                 ...prev,
-                [id]: result.lines.some((l) => !!l.translation?.trim()),
+                [id]: result.lines.some((l) => !!l.translation?.trim())
+                    ? "with-translation"
+                    : "original-only",
             }));
             return true;
         } catch (err) {
+            // 取词后确认没有可用歌词 → 标「无歌词」；其余错误保留原状态（仍可重试）
+            if (err instanceof ApiError && err.code === "no_lyric") {
+                setLyricStatuses((prev) => ({ ...prev, [id]: "no-lyric" }));
+            }
             // 批量加载(silent=true)时，单个候选「无歌词 no lyric」只算该候选失败，
             // 不得写入全局 error，否则会弹出「操作失败：no lyric」横幅。
             if (!silent) setError(message(err));
@@ -475,7 +482,7 @@ export function createLyricsContentController() {
         listLoading,
         loadAllCandidateLyrics,
         previews,
-        translations,
+        lyricStatuses,
         previewing,
         previewTarget,
         loading,

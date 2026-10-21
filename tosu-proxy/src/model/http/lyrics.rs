@@ -111,6 +111,7 @@ pub struct OffsetResponse {
 pub struct TranslationCheckItem {
     pub source: String,
     pub key: String,
+    pub has_lyric: bool,
     pub has_translation: bool,
 }
 

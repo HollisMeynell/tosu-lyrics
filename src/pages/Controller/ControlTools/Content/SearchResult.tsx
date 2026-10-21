@@ -1,6 +1,6 @@
 import { Component, For, Show, createSignal } from "solid-js";
 import { Button } from "@/components/ui";
-import { Candidate } from "@/services/lyricsContentService";
+import { Candidate, LyricStatus } from "@/services/lyricsContentService";
 import { createLyricsContentController } from "@/hooks/useLyricsContent";
 
 const deltaView = (deltaMs: number) => {
@@ -14,20 +14,29 @@ const deltaView = (deltaMs: number) => {
     return { text: `${seconds}s`, cls: "text-red-600 dark:text-red-400" };
 };
 
-const translationBadge = (has: boolean | undefined) => {
-    if (has === undefined)
+/**
+ * 歌词状态标识：需加载（未检查）/ 无歌词（红字）/ 仅原文 / 有翻译。
+ * 「仅原文」复用「有翻译」的绿色系但降低饱和度，与中性的「需加载」区分开。
+ */
+const lyricBadge = (status: LyricStatus | undefined) => {
+    if (status === undefined)
         return {
-            text: "待查询",
+            text: "需加载",
             cls: "bg-gray-100 dark:bg-gray-800 text-gray-500",
         };
-    if (has)
+    if (status === "no-lyric")
+        return {
+            text: "无歌词",
+            cls: "bg-gray-100 dark:bg-gray-800 text-red-600 dark:text-red-400",
+        };
+    if (status === "with-translation")
         return {
             text: "有翻译",
             cls: "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300",
         };
     return {
-        text: "无翻译",
-        cls: "bg-gray-100 dark:bg-gray-800 text-gray-500",
+        text: "仅原文",
+        cls: "bg-green-50 dark:bg-green-900/20 text-green-600/70 dark:text-green-300/60",
     };
 };
 const SearchResult: Component<{
@@ -62,8 +71,8 @@ const SearchResult: Component<{
         await c.search(title, artist);
     };
 
-    const translationOf = (candidate: Candidate) =>
-        c.translations()[c.candidateId(candidate)];
+    const statusOf = (candidate: Candidate) =>
+        c.lyricStatuses()[c.candidateId(candidate)];
 
     const currentLength = () => c.current()?.song.length ?? 0;
 
@@ -123,13 +132,9 @@ const SearchResult: Component<{
                         <div class="flex flex-col gap-2 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
                             <div class="flex flex-row items-center gap-3 flex-wrap">
                                 <span
-                                    class={`px-2 py-0.5 text-xs rounded shrink-0 ${translationBadge(translationOf(candidate)).cls}`}
+                                    class={`px-2 py-0.5 text-xs rounded shrink-0 ${lyricBadge(statusOf(candidate)).cls}`}
                                 >
-                                    {
-                                        translationBadge(
-                                            translationOf(candidate)
-                                        ).text
-                                    }
+                                    {lyricBadge(statusOf(candidate)).text}
                                 </span>
                                 <span class="px-2 py-0.5 text-xs rounded bg-gray-100 dark:bg-gray-800">
                                     {candidate.source}

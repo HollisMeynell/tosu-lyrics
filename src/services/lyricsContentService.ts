@@ -55,6 +55,12 @@ export interface PreviewDto {
     lines: LyricLineDto[];
 }
 
+/**
+ * 候选歌词状态：需加载（未检查）→ 无歌词 / 仅原文 / 有翻译。
+ * 「无歌词」= 检查完成但没有可用歌词；「仅原文」= 有歌词但没有翻译。
+ */
+export type LyricStatus = "no-lyric" | "original-only" | "with-translation";
+
 const LYRICS_URL = `${BACKEND_API_BASE}/lyrics`;
 
 async function toApiError(res: Response): Promise<ApiError> {
@@ -139,7 +145,7 @@ export async function setOffset(offset: number): Promise<number> {
 
 export async function checkTranslations(
     items: { source: string; key: string }[]
-): Promise<{ source: string; key: string; hasTranslation: boolean }[]> {
+): Promise<{ source: string; key: string; status: LyricStatus }[]> {
     if (items.length === 0) return [];
     const res = await fetch(`${LYRICS_URL}/translation-check`, {
         method: "POST",
@@ -148,7 +154,20 @@ export async function checkTranslations(
     });
     if (!res.ok) throw await toApiError(res);
     const body = (await res.json()) as {
-        items: { source: string; key: string; hasTranslation: boolean }[];
+        items: {
+            source: string;
+            key: string;
+            hasLyric: boolean;
+            hasTranslation: boolean;
+        }[];
     };
-    return body.items ?? [];
+    return (body.items ?? []).map((item) => ({
+        source: item.source,
+        key: item.key,
+        status: !item.hasLyric
+            ? "no-lyric"
+            : item.hasTranslation
+              ? "with-translation"
+              : "original-only",
+    }));
 }

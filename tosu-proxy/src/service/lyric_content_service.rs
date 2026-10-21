@@ -366,22 +366,26 @@ mod test {
     }
 }
 
-pub async fn check_translations(items: Vec<(String, String)>) -> Vec<(String, String, bool)> {
+pub async fn check_translations(items: Vec<(String, String)>) -> Vec<(String, String, bool, bool)> {
     use futures_util::stream::{self, StreamExt};
 
     const CONCURRENCY: usize = 8;
 
     let results: Vec<_> = stream::iter(items)
         .map(|(source, key)| async move {
-            let has = match fetch(&source, &key).await {
-                Ok(lyric) => lyric.get_lyrics().iter().any(|line| {
-                    line.translation
-                        .as_deref()
-                        .is_some_and(|t| !t.trim().is_empty())
-                }),
-                Err(_) => false,
+            // fetch 成功保证有可用歌词；失败 = 加载完成仍无歌词（来源侧把请求失败也归为空结果）
+            let (has_lyric, has_translation) = match fetch(&source, &key).await {
+                Ok(lyric) => (
+                    true,
+                    lyric.get_lyrics().iter().any(|line| {
+                        line.translation
+                            .as_deref()
+                            .is_some_and(|t| !t.trim().is_empty())
+                    }),
+                ),
+                Err(_) => (false, false),
             };
-            (source, key, has)
+            (source, key, has_lyric, has_translation)
         })
         .buffer_unordered(CONCURRENCY)
         .collect()

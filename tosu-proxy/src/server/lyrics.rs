@@ -246,11 +246,14 @@ async fn post_translation_check(req: &mut Request, res: &mut Response) {
     res.render(Json(TranslationCheckResponse {
         items: results
             .into_iter()
-            .map(|(source, key, has_translation)| TranslationCheckItem {
-                source,
-                key,
-                has_translation,
-            })
+            .map(
+                |(source, key, has_lyric, has_translation)| TranslationCheckItem {
+                    source,
+                    key,
+                    has_lyric,
+                    has_translation,
+                },
+            )
             .collect(),
     }));
 }
