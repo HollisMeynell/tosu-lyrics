@@ -72,18 +72,11 @@ export default function Upload() {
             return `字体已上传：${entry.name}（${entry.fileName}，${Math.round(entry.size / 1024)} KB）`;
         }, "字体上传失败");
 
-    const onLrc = (e: Event) => {
+    const pickHandler = (onFile: (file: File) => void) => (e: Event) => {
         const input = e.currentTarget as HTMLInputElement;
         const file = input.files?.[0];
         input.value = "";
-        if (file) void uploadLrcFile(file);
-    };
-
-    const onFont = (e: Event) => {
-        const input = e.currentTarget as HTMLInputElement;
-        const file = input.files?.[0];
-        input.value = "";
-        if (file) void uploadFont(file);
+        if (file) onFile(file);
     };
 
     const dropHandler = (onFile: (f: File) => void) => (e: DragEvent) => {
@@ -99,6 +92,56 @@ export default function Upload() {
         void refreshSong();
         void refreshFonts();
     });
+
+    /** 方正的拖拽上传卡片：整块可点击选择文件，也可直接拖入 */
+    const DropZone = (props: {
+        kind: string;
+        hint: string;
+        accept: string;
+        onFile: (file: File) => void;
+    }) => (
+        <label
+            class={`mx-auto flex w-full max-w-xs min-h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed p-6 text-center transition-colors ${
+                dragOver() === props.kind
+                    ? "border-[#ec4899] bg-pink-50 dark:bg-pink-900/20"
+                    : "border-gray-300 dark:border-gray-600"
+            }`}
+            onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(props.kind);
+            }}
+            onDragLeave={() => setDragOver(null)}
+            onDrop={dropHandler(props.onFile)}
+        >
+            <svg
+                class="size-8 text-gray-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+            >
+                <path
+                    d="M12 15V4m0 0 4 4m-4-4-4 4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                />
+                <path
+                    d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"
+                    stroke-linecap="round"
+                />
+            </svg>
+            <span class="text-sm text-gray-500">{props.hint}</span>
+            <span class="text-sm text-[#ec4899]">或点击选择文件</span>
+            <input
+                type="file"
+                class="sr-only"
+                accept={props.accept}
+                disabled={busy()}
+                onChange={pickHandler(props.onFile)}
+            />
+        </label>
+    );
 
     return (
         <div class="flex flex-col gap-4">
@@ -125,33 +168,6 @@ export default function Upload() {
             <section class="flex flex-col gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div class="flex flex-row items-center gap-3 flex-wrap">
                     <h3 class="text-xl font-normal">歌词文件 (.lrc)</h3>
-                    <span class="text-sm text-gray-500">
-                        当前歌曲：{songTitle() ?? "无（需先播放一首歌）"}
-                    </span>
-                </div>
-                <div
-                    class={`flex flex-row flex-wrap items-center gap-3 p-3 rounded-md border-2 border-dashed transition-colors ${
-                        dragOver() === "lrc"
-                            ? "border-[#ec4899] bg-pink-50 dark:bg-pink-900/20"
-                            : "border-gray-300 dark:border-gray-600"
-                    }`}
-                    onDragOver={(e) => {
-                        e.preventDefault();
-                        setDragOver("lrc");
-                    }}
-                    onDragLeave={() => setDragOver(null)}
-                    onDrop={dropHandler((f) => void uploadLrcFile(f))}
-                >
-                    <span class="text-sm text-gray-500">
-                        把 .lrc 拖到这里，或
-                    </span>
-                    <input
-                        type="file"
-                        accept=".lrc,.txt,text/plain"
-                        disabled={busy()}
-                        onChange={onLrc}
-                        class="text-sm"
-                    />
                     <Button
                         class="px-3 py-1"
                         onClick={() => void refreshSong()}
@@ -159,7 +175,16 @@ export default function Upload() {
                     >
                         刷新歌曲
                     </Button>
+                    <span class="text-sm text-gray-500">
+                        当前歌曲：{songTitle() ?? "无（需先播放一首歌）"}
+                    </span>
                 </div>
+                <DropZone
+                    kind="lrc"
+                    hint="把 .lrc 文件拖到这里"
+                    accept=".lrc,.txt,text/plain"
+                    onFile={(f) => void uploadLrcFile(f)}
+                />
                 <p class="text-xs text-gray-500">
                     不支持的文件不会替换当前歌词；上传成功后展示端立即生效。
                 </p>
@@ -179,30 +204,12 @@ export default function Upload() {
                 </div>
 
                 {/* 上传区域 */}
-                <div
-                    class={`flex flex-row flex-wrap items-center gap-3 p-3 rounded-md border-2 border-dashed transition-colors ${
-                        dragOver() === "font"
-                            ? "border-[#ec4899] bg-pink-50 dark:bg-pink-900/20"
-                            : "border-gray-300 dark:border-gray-600"
-                    }`}
-                    onDragOver={(e) => {
-                        e.preventDefault();
-                        setDragOver("font");
-                    }}
-                    onDragLeave={() => setDragOver(null)}
-                    onDrop={dropHandler((f) => void uploadFont(f))}
-                >
-                    <span class="text-sm text-gray-500">
-                        把字体文件拖到这里，或
-                    </span>
-                    <input
-                        type="file"
-                        accept=".ttf,.otf,.woff,.woff2"
-                        disabled={busy()}
-                        onChange={onFont}
-                        class="text-sm"
-                    />
-                </div>
+                <DropZone
+                    kind="font"
+                    hint="把字体文件拖到这里"
+                    accept=".ttf,.otf,.woff,.woff2"
+                    onFile={(f) => void uploadFont(f)}
+                />
                 <p class="text-xs text-gray-500">
                     上传后会自动识别字体名称并保存，可在「文字样式」里选用。
                 </p>
