@@ -36,7 +36,7 @@ function CacheItem({
     busy: boolean;
 }) {
     return (
-        <div class="max-w-200 p-2 bg-fuchsia-100 dark:bg-[#364153] dark:hover:bg-gray-600 transition-colors duration-200 ease-in-out rounded-lg flex flex-row flex-wrap items-center justify-between gap-4 overflow-hidden">
+        <div class="p-2 bg-fuchsia-100 dark:bg-[#364153] dark:hover:bg-gray-600 transition-colors duration-200 ease-in-out rounded-lg flex flex-row flex-wrap items-center justify-between gap-4 overflow-hidden">
             <div class="flex flex-row flex-wrap items-center gap-2 min-w-0">
                 <span class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-lg text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-500/30 dark:text-white shrink-0">
                     {ms2str(item.audioLength)}
@@ -242,7 +242,7 @@ export default function CacheManager() {
                 </div>
             </Show>
 
-            <div class="flex flex-col gap-2">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
                 <For each={items()}>
                     {(item) => (
                         <CacheItem
