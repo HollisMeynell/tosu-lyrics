@@ -14,6 +14,7 @@ import {
 } from "@/services/lyricsContentService";
 import { ApiError } from "@/services/settingsService";
 import { clearDisplay } from "@/services/statusService";
+import { deleteCurrentCache } from "@/services/cacheService";
 
 const message = (err: unknown) =>
     err instanceof ApiError ? err.message : String(err);
@@ -420,14 +421,23 @@ export function createLyricsContentController() {
         }
     };
 
-    /** 清空所有展示端；语义是持续清屏，直到换歌 / 换源 / 上传歌词 */
+    /**
+     * 清空所有展示端并删除当前歌曲的歌词缓存；清屏语义不变，
+     * 持续到换歌 / 换源 / 上传歌词。缓存删除只限当前歌曲（后端按 bid / sid 归属），
+     * 其他歌曲的缓存、来源绑定、偏移、黑名单都不受影响。
+     */
     const clear = async () => {
         setSaving(true);
         setError(null);
         setNotice(null);
         try {
             await clearDisplay();
-            setNotice("已清屏（换歌 / 换源 / 上传歌词后恢复）");
+            const removed = await deleteCurrentCache();
+            setNotice(
+                removed > 0
+                    ? "已清屏，并清除当前歌曲的歌词缓存（换歌 / 换源 / 上传歌词后恢复）"
+                    : "已清屏（换歌 / 换源 / 上传歌词后恢复）"
+            );
             await loadCurrent();
             return true;
         } catch (err) {

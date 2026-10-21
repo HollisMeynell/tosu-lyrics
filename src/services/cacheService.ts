@@ -69,6 +69,17 @@ export async function deleteCacheItem(bid: number): Promise<number> {
     return body.removed;
 }
 
+/**
+ * 删除当前播放歌曲的歌词缓存（bid 精确 + sid 歌曲级，只动该歌曲，不影响其他缓存）。
+ * 歌曲身份由后端解析；当前没有歌曲时返回 0。
+ */
+export async function deleteCurrentCache(): Promise<number> {
+    const body = await jsonOrThrow<{ removed: number }>(
+        await fetch(`${CACHE_URL}/current`, { method: "DELETE" })
+    );
+    return body.removed;
+}
+
 export async function deleteCacheByTitle(title: string): Promise<number> {
     const params = new URLSearchParams({ title });
     const body = await jsonOrThrow<{ removed: number }>(

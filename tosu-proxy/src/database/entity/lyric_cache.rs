@@ -4,7 +4,7 @@ use crate::lyric::Lyric;
 use sea_orm::ActiveValue;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
-use sea_orm::{PaginatorTrait, QueryOrder, QuerySelect};
+use sea_orm::{Condition, PaginatorTrait, QueryOrder, QuerySelect};
 
 pub fn now_ms() -> i64 {
     sea_orm::sqlx::types::chrono::Utc::now().timestamp_millis()
@@ -89,6 +89,20 @@ impl Entity {
 
     pub async fn delete_by_bid(bid: i32) -> crate::error::Result<u64> {
         let result = <Self as EntityTrait>::delete_by_id(bid)
+            .exec(database())
+            .await?;
+        Ok(result.rows_affected)
+    }
+
+    /// 删除一首歌的缓存：bid 精确行 + 相同 sid 的歌曲级回退行。
+    /// 同一歌曲的不同谱面共享 sid，其他歌曲（不同 bid 且不同 sid）不受影响。
+    pub async fn delete_by_bid_or_sid(bid: i32, sid: i32) -> crate::error::Result<u64> {
+        let result = Self::delete_many()
+            .filter(
+                Condition::any()
+                    .add(Column::Bid.eq(bid))
+                    .add(Column::Sid.eq(sid)),
+            )
             .exec(database())
             .await?;
         Ok(result.rows_affected)

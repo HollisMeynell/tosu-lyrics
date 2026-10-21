@@ -22,6 +22,7 @@
 | GET | `/api/cache?page=&size=&q=` | 缓存分页 + 标题过滤 |
 | GET | `/api/cache/count` | 缓存总数 |
 | DELETE | `/api/cache/{bid}` | 删除单条缓存 |
+| DELETE | `/api/cache/current` | 删除**当前播放歌曲**的歌词缓存（bid 精确 + sid 歌曲级，只动该歌曲，不影响其他缓存；无歌曲时 `removed=0`） |
 | DELETE | `/api/cache?title=` | 按标题删除缓存 |
 | DELETE | `/api/cache` | 清空缓存 |
 | POST | `/api/cache/cleanup` | 清理过期条目 |

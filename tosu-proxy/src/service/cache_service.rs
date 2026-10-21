@@ -82,6 +82,12 @@ pub async fn delete(bid: i32) -> Result<bool> {
     Ok(LyricCacheEntity::delete_by_bid(bid).await? > 0)
 }
 
+/// 删除一首歌的歌词缓存：当前 bid 的行 + 相同 sid 的歌曲级回退行。
+/// 范围只含 `lyric_cache`；来源绑定、偏移、黑名单与展示设置不受影响。
+pub async fn delete_for_song(bid: i32, sid: i32) -> Result<u64> {
+    LyricCacheEntity::delete_by_bid_or_sid(bid, sid).await
+}
+
 pub async fn delete_by_title(title: &str) -> Result<u64> {
     LyricCacheEntity::delete_by_title_like(title).await
 }

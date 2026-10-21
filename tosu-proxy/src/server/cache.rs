@@ -1,5 +1,6 @@
 use crate::config::{
     CONFIG_ENDPOINT_CACHE, CONFIG_ENDPOINT_CACHE_CLEANUP, CONFIG_ENDPOINT_CACHE_COUNT,
+    CONFIG_ENDPOINT_CACHE_CURRENT,
 };
 use crate::model::http::cache::{CleanupResponse, CountResponse, RemovedResponse};
 use crate::server::response::{CODE_INVALID_PARAM, render_error, render_service_error};
@@ -92,11 +93,28 @@ async fn cleanup_cache(res: &mut Response) {
     }
 }
 
+/// 删除**当前播放歌曲**的歌词缓存；身份由服务端解析，调用方不传 bid/sid。
+#[handler]
+async fn delete_current_cache(res: &mut Response) {
+    let snapshot = crate::service::lyric_service().await;
+    let Some(song) = snapshot.get_now_song() else {
+        res.render(Json(RemovedResponse { removed: 0 }));
+        return;
+    };
+    let bid = song.bid as i32;
+    let sid = song.sid as i32;
+    match cache_service::delete_for_song(bid, sid).await {
+        Ok(removed) => res.render(Json(RemovedResponse { removed })),
+        Err(err) => render_service_error(res, err),
+    }
+}
+
 pub fn get_cache_route() -> Router {
     Router::with_path(CONFIG_ENDPOINT_CACHE)
         .get(list_cache)
         .delete(clear_cache)
         .push(Router::with_path(CONFIG_ENDPOINT_CACHE_COUNT).get(count_cache))
         .push(Router::with_path(CONFIG_ENDPOINT_CACHE_CLEANUP).post(cleanup_cache))
+        .push(Router::with_path(CONFIG_ENDPOINT_CACHE_CURRENT).delete(delete_current_cache))
         .push(Router::with_path("{bid}").delete(delete_cache))
 }
