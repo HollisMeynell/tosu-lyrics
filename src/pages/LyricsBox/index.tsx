@@ -32,12 +32,12 @@ import { LyricLine } from "@/types/lyricTypes.ts";
 import { loadFont, resolveFamily } from "@/utils/fonts.ts";
 import { measureLineWidth } from "@/utils/lyricScroll.ts";
 import {
-    LYRIC_LINE_HEIGHT,
     LyricLineLevel,
     boxLineCount,
     lineDistance,
     lineLevel,
     lineLevelScale,
+    lineRowHeight,
     lyricBoxHeight,
     visibleSideCount,
     windowLineCount,
@@ -100,7 +100,8 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
      */
     const boxLines = () => boxLineCount(lyricLines(), props.viewportLines);
     /** 允许参与显示的最大行数：Controller 不会超过固定 viewport */
-    const visibleLines = () => windowLineCount(lyricLines(), props.viewportLines);
+    const visibleLines = () =>
+        windowLineCount(lyricLines(), props.viewportLines);
     /** 当前歌词上下各允许显示多少行（Controller 里 lyricLines=1 时为 0） */
     const visibleSide = () => visibleSideCount(visibleLines());
 
@@ -256,8 +257,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     const SecondLyric: Component<SecondLyricProps> = (props) => (
         <p
             classList={{
-                "font-oLRC whitespace-nowrap text-2xl font-bold mt-4 transition-[font-size] duration-300":
-                    true,
+                "font-oLRC whitespace-nowrap text-2xl font-bold mt-4 transition-[font-size] duration-300": true,
                 block: props.block,
                 hidden: !props.block,
             }}
@@ -313,9 +313,7 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                   : lyric().main;
 
         const getSecondLyric = () =>
-            useTranslationAsMain()
-                ? lyric().origin
-                : lyric().main;
+            useTranslationAsMain() ? lyric().origin : lyric().main;
 
         // 行距离 → 样式层级：距离 0 当前行 / 1 相邻行 / ≥2 最外层行，
         // 距离再大也不会继续缩小字号（15 行时距离 2…7 都是最外层样式）
@@ -324,8 +322,9 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         /**
          * Controller 固定 viewport 下，超出「允许显示行数」的行整行隐藏。
          *
-         * 用 visibility 而不是 display：每行仍占满 100px，居中位移与相邻行位置
-         * 完全不变（15 行时 Controller 显示的仍是与 3 行时相同的三行）。
+         * 用 visibility 而不是 display：每行仍占满自己的行高（中间 3 行完整、
+         * 额外行压缩），居中位移与相邻行位置完全不变（15 行时 Controller 显示的
+         * 仍是与 3 行时相同的三行）。
          * /lyrics 不加这个限制 —— 它的窗口高度本身就会裁掉多余行。
          */
         const clipped = () =>
@@ -334,20 +333,17 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
         return (
             <li
                 classList={{
-                    "w-fit flex flex-col justify-center items-center select-none":
-                        true,
+                    "w-fit flex flex-col justify-center items-center select-none transition-[height] duration-300": true,
                     "animate-scroll": cursor() === index && scroll(),
                     invisible: clipped(),
                 }}
                 style={{
                     ...lyricAlignmentStyle(),
-                    height: `${LYRIC_LINE_HEIGHT}px`,
+                    height: `${lineRowHeight(distance())}px`,
                 }}
             >
                 <MainLyric text={getMainLyric()} level={level()} />
-                <Show
-                    when={lyric().origin && showSecond()}
-                >
+                <Show when={lyric().origin && showSecond()}>
                     <SecondLyric
                         block={level() === 0}
                         text={getSecondLyric()}
@@ -359,8 +355,9 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
     };
 
     return (
-        // 窗口高度 = boxLines × 单行高度：/lyrics 为 lyricLines（3 行即原来的 300px），
-        // Controller 恒为固定 viewport 的 3 行高度（300px），所以面板位置不会被挤动。
+        // 窗口高度 = 中间 3 行完整高度 + 其余行压缩高度：/lyrics 为 lyricLines
+        // （3 行即原来的 300px），Controller 恒为固定 viewport 的 3 行高度（300px），
+        // 所以面板位置不会被挤动。
         // 歌词列表仍是整份渲染，由 overflow-hidden 裁出可见窗口，不会生成 undefined / 重复歌词
         <div
             class="w-full overflow-hidden relative"
@@ -395,8 +392,9 @@ const LyricsBox: Component<LyricsBoxProps> = (props) => {
                 ref={lyricUL}
                 class="w-full px-10 flex flex-col list-none transition-transform duration-300"
                 style={{
-                    // 当前歌词始终落在窗口正中间（3 行时即原来的 -(cursor - 1) * 100；
-                    // Controller 恒按 3 行窗口居中，/lyrics 按设置的 windowLineCount 居中）
+                    // 当前歌词始终落在窗口正中间（3 行时可见行位置与原来的
+                    // -(cursor - 1) * 100 逐像素一致；Controller 恒按 3 行窗口居中，
+                    // /lyrics 按设置的 windowLineCount 居中）
                     transform: `translateY(${windowTranslateY(
                         cursor(),
                         boxLines()
