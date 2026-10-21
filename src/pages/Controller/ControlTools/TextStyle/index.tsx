@@ -9,6 +9,7 @@ import Upload from "../Upload";
 import { AlignType, alignmentOptions } from "@/types/globalTypes";
 import {
     alignment,
+    lyricLines,
     showSecond,
     useTranslationAsMain,
 } from "@/stores/settingsStore";
@@ -17,7 +18,8 @@ import { DEFAULT_SHADOW } from "@/stores/settingsStore";
 import { SettingsPatch } from "@/types/globalTypes";
 import { setFontMode, clearSplitBackup } from "@/stores/fontModeStore";
 import LyricLines from "./LyricLines";
-import { DEFAULT_LYRIC_LINES } from "@/utils/lyricLines";
+import LyricLinesPreview from "./LyricLinesPreview";
+import { DEFAULT_LYRIC_LINES, normalizeLyricLines } from "@/utils/lyricLines";
 
 // 原项目默认：颜色 #ffffff/#e0e0e0，字号 3em/2em，居中，翻译优先，副歌词开，阴影关
 const DEFAULT_TEXT_STYLE: SettingsPatch = {
@@ -36,6 +38,12 @@ export default function TextStyle() {
     onMount(() => {
         void settings.load();
     });
+
+    /**
+     * 行数 > 3 时上传区挪到左下角、右侧改为行数预览；
+     * 1 / 3 行保持原布局（上传区在右侧）。
+     */
+    const manyLines = () => normalizeLyricLines(lyricLines()) > 3;
 
     return (
         <div class="flex flex-col gap-4">
@@ -138,12 +146,18 @@ export default function TextStyle() {
                     <Show when={settings.saving()}>
                         <p class="text-sm text-gray-500">正在保存…</p>
                     </Show>
+
+                    {/* 行数 > 3：上传区挪到左下角，右侧让位给行数预览 */}
+                    <Show when={manyLines()}>
+                        <Upload />
+                    </Show>
                 </div>
 
-                {/* 右侧：阴影调整 + 字体资源 / 字体上传。
-                    两个页面的组件与状态原样复用，只换摆放位置 */}
+                {/* 右侧：行数 > 3 时显示行数预览，否则保持原布局显示上传区 */}
                 <div class="flex flex-1 min-w-0 flex-col gap-6">
-                    <Upload />
+                    <Show when={manyLines()} fallback={<Upload />}>
+                        <LyricLinesPreview />
+                    </Show>
                 </div>
             </div>
         </div>
