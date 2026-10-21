@@ -39,6 +39,15 @@ const lyricBadge = (status: LyricStatus | undefined) => {
         cls: "bg-green-50 dark:bg-green-900/20 text-green-600/70 dark:text-green-300/60",
     };
 };
+
+/** 候选歌曲 → 音乐平台详情页；key 就是平台歌曲 id（QQ= songmid，网易云= 歌曲 id） */
+const platformUrl = (candidate: Candidate) => {
+    if (candidate.source === "QQ")
+        return `https://y.qq.com/n/ryqq/songDetail/${candidate.key}`;
+    if (candidate.source === "Netease")
+        return `https://music.163.com/#/song?id=${candidate.key}`;
+    return null;
+};
 const SearchResult: Component<{
     controller: ReturnType<typeof createLyricsContentController>;
 }> = (props) => {
@@ -139,9 +148,28 @@ const SearchResult: Component<{
                                 <span class="px-2 py-0.5 text-xs rounded bg-gray-100 dark:bg-gray-800">
                                     {candidate.source}
                                 </span>
-                                <span class="text-base">
-                                    {candidate.title} — {candidate.artist}
-                                </span>
+                                <Show
+                                    when={platformUrl(candidate)}
+                                    fallback={
+                                        <span class="text-base">
+                                            {candidate.title} —{" "}
+                                            {candidate.artist}
+                                        </span>
+                                    }
+                                >
+                                    {(url) => (
+                                        <a
+                                            class="text-base text-inherit hover:text-[#ec4899] hover:underline"
+                                            href={url()}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            title="在音乐平台打开"
+                                        >
+                                            {candidate.title} —{" "}
+                                            {candidate.artist}
+                                        </a>
+                                    )}
+                                </Show>
                                 <span class="text-xs text-gray-500">
                                     {Math.round(candidate.length / 1000)}s
                                 </span>
