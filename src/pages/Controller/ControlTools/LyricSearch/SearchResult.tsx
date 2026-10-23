@@ -87,7 +87,7 @@ const SearchResult: Component<{
 
     return (
         <div class="flex flex-col gap-3">
-            <div class="flex flex-row items-center flex-wrap gap-3">
+            <div class="flex flex-col items-start gap-3">
                 <h3 class="text-xl font-normal">搜索结果</h3>
                 <input
                     type="text"
@@ -97,17 +97,20 @@ const SearchResult: Component<{
                     onInput={(e) => setKeyword(e.currentTarget.value)}
                     onKeyDown={(e) => {
                         if (e.isComposing || e.key !== "Enter") return;
-                        if (!keyword().trim() || c.searching()) return;
+                        if (c.searching()) return;
                         void doSearch();
                     }}
                 />
-                <span class="text-sm text-gray-500">留空则为当前歌曲</span>
                 <Button
                     class="px-4 py-1"
                     onClick={doSearch}
                     disabled={c.searching()}
                 >
-                    {c.searching() ? "搜索中..." : "搜索"}
+                    {c.searching()
+                        ? "搜索中..."
+                        : keyword().trim()
+                          ? "搜索"
+                          : "搜索原曲"}
                 </Button>
                 <Button
                     class="px-4 py-1"
@@ -120,20 +123,6 @@ const SearchResult: Component<{
                     共 {c.candidates().length} 项
                 </span>
             </div>
-
-            <Show when={c.candidates().length === 0}>
-                <p class="text-sm text-gray-500">
-                    {c.manualSearch()
-                        ? "没有找到匹配的候选，换个关键词试试。"
-                        : c.candidateState() === "error"
-                          ? "读取失败：切一首歌或点「搜索」就会重新获取。"
-                          : c.candidateState() === "loading"
-                            ? "正在查找可以使用的歌词…"
-                            : c.candidateState() === "loaded"
-                              ? "当前歌曲暂无候选。也可在上方输入「歌曲标题/艺术家」后点击搜索。"
-                              : "还没有候选歌词，稍等一下或点「搜索」获取。"}
-                </p>
-            </Show>
 
             <div class="flex flex-col gap-3 max-h-[420px] overflow-y-auto">
                 <For each={c.candidates()}>

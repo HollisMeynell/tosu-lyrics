@@ -39,7 +39,8 @@ WS **不是**管理通道 —— 客户端通过 WS 发送的任何内容都不�
 | --------------------------------- | --------------------------------------------------------- |
 | `/lyrics`                         | **歌词展示页**（加入 OBS 浏览器源的地址）                 |
 | `/lyrics/controller/client`       | 在线展示端                                                |
-| `/lyrics/controller/content`      | 歌词内容（当前歌词 / 搜索 / 预览 / 来源 / 偏移 / 清屏）   |
+| `/lyrics/controller/content`      | 歌词内容（当前歌词 / 预览 / 来源 / 偏移 / 清屏）          |
+| `/lyrics/controller/lyricSearch`  | 歌词搜索（关键词搜索 / 候选列表 / 应用来源）              |
 | `/lyrics/controller/textstyle`    | 文字样式（颜色 / 字号 / 字体 / 对齐 / 翻译优先 / 副歌词） |
 | `/lyrics/controller/shadow`       | 阴影（主 / 副独立）                                       |
 | `/lyrics/controller/blackList`    | 黑名单                                                    |

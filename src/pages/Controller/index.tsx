@@ -91,6 +91,11 @@ const Controller: Component<ControllerProps> = (props) => {
             label: "歌词内容",
         },
         {
+            href: "/lyrics/controller/lyricSearch",
+            icon: "search",
+            label: "歌词搜索",
+        },
+        {
             href: "/lyrics/controller/textstyle",
             icon: "palette",
             label: "文字样式",

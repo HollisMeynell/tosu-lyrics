@@ -17,6 +17,9 @@ const BlackListLyrics = lazy(
     () => import("@/pages/Controller/ControlTools/BlackList")
 );
 const Content = lazy(() => import("@/pages/Controller/ControlTools/Content"));
+const LyricSearch = lazy(
+    () => import("@/pages/Controller/ControlTools/LyricSearch")
+);
 const TextStyle = lazy(
     () => import("@/pages/Controller/ControlTools/TextStyle")
 );
@@ -117,6 +120,7 @@ export default function AppRoutes() {
                 <Route path="/blackList" component={BlackListLyrics} />
                 <Route path="/client" component={ClientList} />
                 <Route path="/content" component={Content} />
+                <Route path="/lyricSearch" component={LyricSearch} />
                 <Route path="/textstyle" component={TextStyle} />
                 <Route path="/cacheManager" component={CacheManager} />
                 <Route path="/qrcode" component={QrCode} />

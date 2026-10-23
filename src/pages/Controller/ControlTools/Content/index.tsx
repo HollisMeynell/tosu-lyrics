@@ -1,17 +1,13 @@
 import { createEffect, on, onMount, Show } from "solid-js";
 import CurrentLyrics from "./CurrentLyrics";
-import SearchResult from "./SearchResult";
 import { createLyricsContentController } from "@/hooks/useLyricsContent";
-import { lyrics, lyricLoading } from "@/stores/lyricStore";
+import { lyrics } from "@/stores/lyricStore";
 
 export default function Content() {
     const controller = createLyricsContentController();
 
     onMount(async () => {
-        // 先取当前歌曲身份，再加载候选：这样 loadCandidates() 能直接拼出缓存 key，
-        // 不必自己再补拉一次 /api/lyrics/current —— 那会把"开始搜索"的时机推后。
         await controller.loadCurrent();
-        void controller.loadStoredCandidates();
     });
 
     // 歌词列表变化（换歌 / 重新加载）后刷新当前歌词数据，预览区随之更新。
@@ -27,34 +23,11 @@ export default function Content() {
     );
 
     // `current()` 更新后只负责结束"搜索结果预览"，避免把上一首的预览留在新歌上。
-    // 候选列表已不再依赖 sid / current()：完全由 `lyricLoading` 驱动 ——
-    //   true  → 后端开始处理新歌，立即清空旧候选（不再闪现上一首候选）；
-    //   false → 后端这一轮搜索结束，读取 GET /api/lyrics/search-results 并显示。
-    // 主歌词是否匹配成功不影响候选显示（匹配失败同样会走到 false）。
     createEffect(
         on(
             () => controller.current()?.song?.sid,
             () => {
                 controller.clearPreview();
-            },
-            { defer: true }
-        )
-    );
-
-    // 候选列表完全跟随后端的候选状态，与主歌词是否匹配成功无关：
-    // - $name 由 true 表示「后端已开始处理新歌」（begin_song 广播）→ 立刻清空上一首候选，消除闪现；
-    // - 由 true 变 false 表示「后端这一轮搜索已结束」（load_plan 的所有出口都会广播）
-    //   → 此时 music_cache 已是最终结果，直接读取显示。匹配失败也会走这里，因此候选不会丢。
-    createEffect(
-        on(
-            () => lyricLoading(),
-            (loading) => {
-                if (loading) {
-                    controller.startCandidateRead();
-                    return;
-                }
-                // 只做一次兜底读取；**不**停止轮询（轮询改由"读到非空 / 切歌换代 / 安全上限"终止）
-                void controller.loadStoredCandidates();
             },
             { defer: true }
         )
@@ -90,14 +63,7 @@ export default function Content() {
                 </div>
             </Show>
 
-            <div class="flex flex-1 flex-col gap-4 xl:flex-row xl:items-start">
-                <div class="flex flex-1 min-w-0 flex-col">
-                    <CurrentLyrics controller={controller} />
-                </div>
-                <div class="flex flex-1 min-w-0 flex-col">
-                    <SearchResult controller={controller} />
-                </div>
-            </div>
+            <CurrentLyrics controller={controller} />
         </div>
     );
 }
