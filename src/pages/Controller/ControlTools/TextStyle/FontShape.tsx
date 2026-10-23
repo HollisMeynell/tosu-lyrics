@@ -92,6 +92,8 @@ const ShapeSlider: Component<{
 };
 
 export default function FontShapeEditor(props: FontShapeProps) {
+    const [expanded, setExpanded] = createSignal(false);
+
     const commit = (
         order: "first" | "second",
         key: ShapeKey,
@@ -106,31 +108,81 @@ export default function FontShapeEditor(props: FontShapeProps) {
     };
 
     return (
-        <div class="flex flex-col items-start md:flex-row md:items-center gap-4 md:gap-9">
-            <h2 class="text-xl font-normal">字形</h2>
-            <div class="flex flex-col gap-3">
-                <For each={["first", "second"] as const}>
-                    {(order) => (
-                        <div class="flex flex-row items-center gap-3 flex-wrap">
-                            <p>{order === "first" ? "主歌词:" : "副歌词:"}</p>
-                            <For each={SLIDERS}>
-                                {(slider) => (
-                                    <ShapeSlider
-                                        slider={slider}
-                                        value={fontShape()[order][slider.key]}
-                                        disabled={props.disabled}
-                                        onCommit={(value) =>
-                                            commit(order, slider.key, value)
-                                        }
-                                    />
-                                )}
-                            </For>
-                        </div>
-                    )}
-                </For>
-                <p class="text-xs text-gray-500">
-                    字重、字宽需要字体本身支持无级调节（常见于可变字体），普通字体可能没有变化；倾斜由浏览器模拟斜切，所有字体都有效。
-                </p>
+        <div class="flex flex-col gap-4">
+            <button
+                type="button"
+                class="-mx-2 flex w-full flex-row items-center gap-3 rounded-md px-2 py-1 text-left cursor-pointer select-none transition-colors hover:bg-gray-100 dark:hover:bg-gray-800/60"
+                aria-expanded={expanded()}
+                aria-controls="font-shape-panel"
+                onClick={() => setExpanded((v) => !v)}
+            >
+                <h2 class="text-xl font-normal">字形</h2>
+                <span class="ml-auto flex flex-row items-center gap-1 text-sm text-gray-500">
+                    {expanded() ? "收起" : "展开"}
+                    <svg
+                        class="size-4 transition-transform duration-300 motion-reduce:transition-none"
+                        classList={{ "rotate-90": expanded() }}
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        aria-hidden="true"
+                    >
+                        <path
+                            d="m6 3 5 5-5 5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                    </svg>
+                </span>
+            </button>
+            <hr class="w-24 border-gray-400 dark:border-gray-600" />
+
+            <div
+                id="font-shape-panel"
+                inert={!expanded()}
+                class={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${
+                    expanded() ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                }`}
+            >
+                <div class="min-h-0 overflow-hidden">
+                    <div class="flex flex-col gap-3 pb-1">
+                        <For each={["first", "second"] as const}>
+                            {(order) => (
+                                <div class="flex flex-row items-center gap-3 flex-wrap">
+                                    <p>
+                                        {order === "first"
+                                            ? "主歌词:"
+                                            : "副歌词:"}
+                                    </p>
+                                    <For each={SLIDERS}>
+                                        {(slider) => (
+                                            <ShapeSlider
+                                                slider={slider}
+                                                value={
+                                                    fontShape()[order][
+                                                        slider.key
+                                                    ]
+                                                }
+                                                disabled={props.disabled}
+                                                onCommit={(value) =>
+                                                    commit(
+                                                        order,
+                                                        slider.key,
+                                                        value
+                                                    )
+                                                }
+                                            />
+                                        )}
+                                    </For>
+                                </div>
+                            )}
+                        </For>
+                        <p class="text-xs text-gray-500">
+                            字重、字宽需要字体本身支持无级调节（常见于可变字体），普通字体可能没有变化；倾斜由浏览器模拟斜切，所有字体都有效。
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     );
