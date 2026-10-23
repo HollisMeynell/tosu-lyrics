@@ -1,45 +1,89 @@
-// 功能: 面板-文字样式（颜色、字体、显示效果）
-//
-// 受控组件：值由父组件传入，提交时机由父组件决定。
-// 拖动取色器时只更新本地预览，松手（change）才提交，避免连续发 HTTP 请求；
-// 若提交失败，父组件不会改动数据源，本地预览会被清掉从而回到服务端值。
-// 值可带 alpha（#rrggbbaa）：取色器只改 RGB，提交时保留原有不透明度。
-import { Component, createSignal } from "solid-js";
-import { parseColor, withAlpha } from "@/utils/color";
+import { Component, createSignal, onCleanup, onMount } from "solid-js";
+import Coloris from "@melloware/coloris";
+import "@melloware/coloris/dist/coloris.css";
+import "./CustomColorSelector.css";
 
-interface customColorSelectorProps {
+interface CustomColorSelectorProps {
     class?: string;
     value: string;
     disabled?: boolean;
-    /** 松手时提交最终颜色（保留原有不透明度） */
     onCommit: (value: string) => void;
 }
 
-const customColorSelector: Component<customColorSelectorProps> = (props) => {
-    const [preview, setPreview] = createSignal<string | undefined>(undefined);
+let initialized = false;
+
+const CustomColorSelector: Component<CustomColorSelectorProps> = (props) => {
+    let input!: HTMLInputElement;
+    let opened = false;
+    let disposed = false;
+    const [preview, setPreview] = createSignal<string>();
     const shown = () => preview() ?? props.value;
-    const alpha = () => parseColor(props.value).alpha;
+
+    onMount(() => {
+        if (!initialized) {
+            Coloris.init();
+            Coloris({
+                el: ".lyrics-color-input",
+                wrap: false,
+                format: "hex",
+                formatToggle: false,
+                alpha: true,
+                themeMode: "light",
+                focusInput: false,
+                closeButton: true,
+                closeLabel: "完成",
+            });
+            initialized = true;
+        }
+
+        const handleOpen = () => {
+            opened = true;
+        };
+        const handleClose = () => {
+            opened = false;
+            const value = input.value;
+            setPreview(undefined);
+            input.value = props.value;
+            if (!disposed && !props.disabled && value !== props.value) {
+                props.onCommit(value);
+            }
+        };
+        input.addEventListener("open", handleOpen);
+        input.addEventListener("close", handleClose);
+        onCleanup(() => {
+            disposed = true;
+            if (opened) Coloris.close(true);
+            input.removeEventListener("open", handleOpen);
+            input.removeEventListener("close", handleClose);
+        });
+    });
 
     return (
         <div class={`w-6 h-6 relative ${props.class ?? ""}`}>
             <input
-                type="color"
-                class="absolute -inset-2 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
-                value={parseColor(shown()).rgb}
+                ref={input}
+                type="text"
+                readonly
+                aria-label="选择颜色和不透明度"
+                class="lyrics-color-input absolute -inset-2 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
+                value={shown()}
                 disabled={props.disabled}
                 onInput={(e) => setPreview(e.currentTarget.value)}
-                onChange={(e) => {
-                    const value = e.currentTarget.value;
-                    setPreview(undefined);
-                    props.onCommit(withAlpha(value, alpha()));
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        input.click();
+                    }
                 }}
             />
-            <div
-                class="color-mask absolute top-0 left-0 w-full h-full rounded-full border-[1.5px] border-[#e5e7eb] dark:border-[#475569] z-0 pointer-events-none"
-                style={{ "background-color": withAlpha(shown(), alpha()) }}
-            ></div>
+            <div class="absolute inset-0 rounded-full border-[1.5px] border-[#e5e7eb] dark:border-[#475569] pointer-events-none overflow-hidden lyrics-color-swatch">
+                <div
+                    class="w-full h-full"
+                    style={{ "background-color": shown() }}
+                />
+            </div>
         </div>
     );
 };
 
-export default customColorSelector;
+export default CustomColorSelector;

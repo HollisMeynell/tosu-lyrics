@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@melloware/coloris':
+        specifier: ^0.25.0
+        version: 0.25.0
       '@solidjs/router':
         specifier: ^0.15.3
         version: 0.15.3(solid-js@1.9.6)
@@ -375,6 +378,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.29':
     resolution: {integrity: sha512-uw6guiW/gcAGPDhLmd77/6lW8QLeiV5RUTsAX46Db6oLhGaVj4lhnPwb184s1bkc8kdVg/+h988dro8GRDpmYQ==}
+
+  '@melloware/coloris@0.25.0':
+    resolution: {integrity: sha512-RBWVFLjWbup7GRkOXb9g3+ZtR9AevFtJinrRz2cYPLjZ3TCkNRGMWuNbmQWbZ5cF3VU7aQDZwUsYgIY/bGrh2g==}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -1968,6 +1974,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.4
+
+  '@melloware/coloris@0.25.0': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:

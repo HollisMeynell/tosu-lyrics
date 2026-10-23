@@ -116,7 +116,7 @@ async fn set_cache_ttl(req: &mut Request, res: &mut Response) {
             res,
             StatusCode::BAD_REQUEST,
             CODE_INVALID_PARAM,
-            &format!(
+            format!(
                 "ttlHours 必须在 0~{} 之间（0 表示永不过期）",
                 cache_service::MAX_TTL_HOURS
             ),

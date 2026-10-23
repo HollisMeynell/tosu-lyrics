@@ -1,0 +1,44 @@
+.lyrics-color-swatch {
+    background: repeating-conic-gradient(#e5e7eb 0% 25%, #fff 0% 50%) 0 / 8px
+        8px;
+}
+
+#clr-picker {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    color: #334155;
+    box-shadow: 0 10px 25px rgb(0 0 0 / 15%);
+    font-family: inherit;
+}
+
+#clr-picker input.clr-color {
+    border-color: #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #334155;
+}
+
+#clr-picker input.clr-color:focus {
+    border-color: #ec4899;
+    box-shadow: 0 0 0 1px #ec4899;
+}
+
+#clr-picker .clr-close {
+    border-radius: 8px;
+    background: #ec4899;
+    color: #fff;
+    font-family: inherit;
+}
+
+.dark #clr-picker {
+    border-color: #475569;
+    background: #020616;
+    color: #fff;
+}
+
+.dark #clr-picker input.clr-color {
+    border-color: #475569;
+    background: #020616;
+    color: #fff;
+}
