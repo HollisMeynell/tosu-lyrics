@@ -1,4 +1,4 @@
-// 功能: 面板-字体设置（字号）
+// 功能: 面板-文字样式（字号）
 import { fontSize } from "@/stores/settingsStore";
 import type { SettingsPatch } from "@/types/globalTypes";
 

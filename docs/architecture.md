@@ -35,16 +35,16 @@ WS **不是**管理通道 —— 客户端通过 WS 发送的任何内容都不�
 
 ### 页面
 
-| 路径                              | 说明                                                      |
-| --------------------------------- | --------------------------------------------------------- |
-| `/lyrics`                         | **歌词展示页**（加入 OBS 浏览器源的地址）                 |
-| `/lyrics/controller/client`       | 在线展示端                                                |
-| `/lyrics/controller/content`      | 歌词内容（当前歌词 / 预览 / 来源 / 偏移 / 清屏）          |
-| `/lyrics/controller/lyricSearch`  | 歌词搜索（关键词搜索 / 候选列表 / 应用来源）              |
-| `/lyrics/controller/textstyle`    | 文字样式（颜色 / 行数 / 对齐 / 阴影 / 翻译优先 / 副歌词 / LRC 与字体上传） |
-| `/lyrics/controller/fontSettings` | 字体设置（共用 / 分开字体、主副字体、字号、字形）        |
-| `/lyrics/controller/blackList`    | 黑名单                                                    |
-| `/lyrics/controller/cacheManager` | 歌词缓存                                                  |
-| `/lyrics/controller/qrcode`       | 连接二维码（IP 选择 + 扫码打开控制台）                    |
+| 路径                              | 说明                                                                    |
+| --------------------------------- | ----------------------------------------------------------------------- |
+| `/lyrics`                         | **歌词展示页**（加入 OBS 浏览器源的地址）                               |
+| `/lyrics/controller/client`       | 在线展示端                                                              |
+| `/lyrics/controller/content`      | 歌词内容（当前歌词 / 预览 / 来源 / 偏移 / 清屏 / LRC 上传）             |
+| `/lyrics/controller/lyricSearch`  | 歌词搜索（关键词搜索 / 候选列表 / 应用来源）                            |
+| `/lyrics/controller/textstyle`    | 文字样式（颜色 / 字号 / 字形 / 行数 / 对齐 / 阴影 / 翻译优先 / 副歌词） |
+| `/lyrics/controller/fontSettings` | 字体设置（共用 / 分开字体、主副字体、字体库上传）                       |
+| `/lyrics/controller/blackList`    | 黑名单                                                                  |
+| `/lyrics/controller/cacheManager` | 歌词缓存                                                                |
+| `/lyrics/controller/qrcode`       | 连接二维码（IP 选择 + 扫码打开控制台）                                  |
 
 > 访问 `/` 会永久重定向到 `/lyrics`。

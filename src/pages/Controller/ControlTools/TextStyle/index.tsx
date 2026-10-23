@@ -1,8 +1,9 @@
 import { Show, onMount } from "solid-js";
 import { Button, ToggleSwitch, ToggleNSwitch } from "@/components/ui";
 import TextColor from "./TextColor";
+import FontSize from "./FontSize";
+import FontShape from "./FontShape";
 import Shadow from "../Shadow";
-import Upload from "../Upload";
 import { AlignType, alignmentOptions } from "@/types/globalTypes";
 import {
     alignment,
@@ -38,8 +39,8 @@ export default function TextStyle() {
     });
 
     /**
-     * 行数 > 3 时上传区挪到左下角、右侧改为行数预览；
-     * 1 / 3 行保持原布局（上传区在右侧）。
+     * 行数 > 3 时右侧显示行数预览（顶部预览固定 3 行视口，看不出多行排布）；
+     * 1 / 3 行不需要预览，设置区占满整行。
      */
     const manyLines = () => normalizeLyricLines(lyricLines()) > 3;
 
@@ -72,7 +73,7 @@ export default function TextStyle() {
             </div>
 
             <div class="flex flex-col gap-6 xl:flex-row xl:items-start">
-                {/* 左侧：文字样式设置（颜色 / 歌词行数 / 对齐 / 阴影 / 开关） */}
+                {/* 左侧：文字样式设置（颜色 / 字号 / 字形 / 行数 / 对齐 / 阴影 / 开关） */}
                 <div class="flex flex-1 min-w-0 flex-col gap-4">
                     <Show
                         when={!settings.loading()}
@@ -80,6 +81,14 @@ export default function TextStyle() {
                     >
                         <div class="flex flex-col items-start gap-6 md:gap-4">
                             <TextColor
+                                update={settings.update}
+                                disabled={settings.saving()}
+                            />
+                            <FontSize
+                                update={settings.update}
+                                disabled={settings.saving()}
+                            />
+                            <FontShape
                                 update={settings.update}
                                 disabled={settings.saving()}
                             />
@@ -134,19 +143,14 @@ export default function TextStyle() {
                     <Show when={settings.saving()}>
                         <p class="text-sm text-gray-500">正在保存…</p>
                     </Show>
-
-                    {/* 行数 > 3：上传区挪到左下角，右侧让位给行数预览 */}
-                    <Show when={manyLines()}>
-                        <Upload />
-                    </Show>
                 </div>
 
-                {/* 右侧：行数 > 3 时显示行数预览，否则保持原布局显示上传区 */}
-                <div class="flex flex-1 min-w-0 flex-col gap-6">
-                    <Show when={manyLines()} fallback={<Upload />}>
+                {/* 右侧：行数 > 3 时显示行数预览 */}
+                <Show when={manyLines()}>
+                    <div class="flex flex-1 min-w-0 flex-col gap-6">
                         <LyricLinesPreview />
-                    </Show>
-                </div>
+                    </div>
+                </Show>
             </div>
         </div>
     );

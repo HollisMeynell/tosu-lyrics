@@ -9,6 +9,7 @@ import ColorSelector from "./CustomColorSelector";
 import Select from "./Select";
 import FontPicker from "./FontPicker";
 import Mask from "./Mask";
+import DropZone from "./DropZone";
 
 export {
     Button,
@@ -22,4 +23,5 @@ export {
     Select,
     FontPicker,
     Mask,
+    DropZone,
 };

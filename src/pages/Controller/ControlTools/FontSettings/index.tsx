@@ -1,9 +1,8 @@
-// 功能: 面板-字体设置（共用 / 分开字体、主副字体、字号、字形）
+// 功能: 面板-字体设置（共用 / 分开字体、主副字体、字体库上传）
 import { Show, onMount } from "solid-js";
 import FontModeToggle from "./FontModeToggle";
 import Font from "./Font";
-import FontSize from "./FontSize";
-import FontShape from "./FontShape";
+import FontUpload from "./FontUpload";
 import { createSettingsController } from "@/hooks/useSettings";
 
 export default function FontSettings() {
@@ -34,20 +33,15 @@ export default function FontSettings() {
                         update={settings.update}
                         disabled={settings.saving()}
                     />
-                    <FontSize
-                        update={settings.update}
-                        disabled={settings.saving()}
-                    />
-                    <FontShape
-                        update={settings.update}
-                        disabled={settings.saving()}
-                    />
                 </div>
             </Show>
 
             <Show when={settings.saving()}>
                 <p class="text-sm text-gray-500">正在保存…</p>
             </Show>
+
+            {/* 字体上传：页面底部，上传后可在上方字体下拉里选用 */}
+            <FontUpload />
         </div>
     );
 }

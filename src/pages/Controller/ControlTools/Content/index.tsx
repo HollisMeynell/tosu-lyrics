@@ -1,5 +1,6 @@
 import { createEffect, on, onMount, Show } from "solid-js";
 import CurrentLyrics from "./CurrentLyrics";
+import LrcUpload from "./LrcUpload";
 import { createLyricsContentController } from "@/hooks/useLyricsContent";
 import { lyrics } from "@/stores/lyricStore";
 
@@ -64,6 +65,9 @@ export default function Content() {
             </Show>
 
             <CurrentLyrics controller={controller} />
+
+            {/* 歌词上传：页面底部，上传 .lrc 覆盖当前歌曲的歌词 */}
+            <LrcUpload />
         </div>
     );
 }

@@ -1,4 +1,4 @@
-// 功能: 面板-字体设置（字形：字重 / 字宽 / 倾斜）
+// 功能: 面板-文字样式（字形：字重 / 字宽 / 倾斜）
 import { Component, createSignal, For } from "solid-js";
 import { fontShape } from "@/stores/settingsStore";
 import type {
