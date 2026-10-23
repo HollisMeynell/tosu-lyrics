@@ -62,7 +62,9 @@ export default function Controller(props: FontProps) {
     return (
         <div class="flex flex-col items-start gap-4">
             <div class="flex flex-col items-start md:flex-row md:items-center gap-4 md:gap-19">
-                <h2 class="text-xl font-normal">主歌词字体</h2>
+                <h2 class="text-xl font-normal">
+                    {shared() ? "歌词字体" : "主歌词字体"}
+                </h2>
                 <FontPicker
                     class="w-56"
                     options={options()}
@@ -72,17 +74,8 @@ export default function Controller(props: FontProps) {
                 />
             </div>
 
-            <Show
-                when={!shared()}
-                fallback={
-                    <div class="flex flex-col items-start md:flex-row md:items-center gap-4 md:gap-19">
-                        <h2 class="text-xl font-normal">副歌词字体</h2>
-                        <span class="text-sm text-gray-500">
-                            共用字体模式：副歌词跟随主字体
-                        </span>
-                    </div>
-                }
-            >
+            {/* 共用模式下副歌词跟随主字体，整行（标签 + 下拉）直接隐藏 */}
+            <Show when={!shared()}>
                 <div class="flex flex-col items-start md:flex-row md:items-center gap-4 md:gap-19">
                     <h2 class="text-xl font-normal">副歌词字体</h2>
                     <FontPicker
