@@ -83,7 +83,7 @@ const HamburgerIcon: Component<{ class: string }> = (props) => {
 };
 
 const Controller: Component<ControllerProps> = (props) => {
-    // 导航栏配置（阴影 / 上传与字体已并入文字样式页，不再单独占一项）
+    // 导航栏配置（阴影 / 上传已并入文字样式页，不再单独占一项）
     const navItems: NavItem[] = [
         {
             href: "/lyrics/controller/content",
@@ -99,6 +99,11 @@ const Controller: Component<ControllerProps> = (props) => {
             href: "/lyrics/controller/textstyle",
             icon: "palette",
             label: "文字样式",
+        },
+        {
+            href: "/lyrics/controller/fontSettings",
+            icon: "font",
+            label: "字体设置",
         },
         {
             href: "/lyrics/controller/blackList",

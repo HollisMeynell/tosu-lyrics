@@ -148,7 +148,7 @@ export default function Upload() {
             <div class="header space-x-4">
                 <h2 class="text-xl font-medium inline">上传字体或歌词文件</h2>
                 <p class="text-sm inline text-gray-500">
-                    上传的歌词会用在当前歌曲上；上传的字体可在「文字样式」里直接选用
+                    上传的歌词会用在当前歌曲上；上传的字体可在「字体设置」里直接选用
                 </p>
             </div>
             <hr class="w-30 border-gray-400 dark:border-gray-600" />
@@ -211,7 +211,7 @@ export default function Upload() {
                     onFile={(f) => void uploadFont(f)}
                 />
                 <p class="text-xs text-gray-500">
-                    上传后会自动识别字体名称并保存，可在「文字样式」里选用。
+                    上传后会自动识别字体名称并保存，可在「字体设置」里选用。
                 </p>
 
                 {/* 已上传字体列表 */}

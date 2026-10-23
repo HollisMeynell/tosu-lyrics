@@ -23,6 +23,9 @@ const LyricSearch = lazy(
 const TextStyle = lazy(
     () => import("@/pages/Controller/ControlTools/TextStyle")
 );
+const FontSettings = lazy(
+    () => import("@/pages/Controller/ControlTools/FontSettings")
+);
 const CacheManager = lazy(
     () => import("@/pages/Controller/ControlTools/CacheManager")
 );
@@ -122,6 +125,7 @@ export default function AppRoutes() {
                 <Route path="/content" component={Content} />
                 <Route path="/lyricSearch" component={LyricSearch} />
                 <Route path="/textstyle" component={TextStyle} />
+                <Route path="/fontSettings" component={FontSettings} />
                 <Route path="/cacheManager" component={CacheManager} />
                 <Route path="/qrcode" component={QrCode} />
             </Route>

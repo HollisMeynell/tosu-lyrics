@@ -1,4 +1,4 @@
-// 功能: 面板-文字样式（主 / 副歌词字体选择）
+// 功能: 面板-字体设置（主 / 副歌词字体选择）
 import { Show, onMount } from "solid-js";
 import { FontPicker } from "@/components/ui";
 import { fontMode } from "@/stores/fontModeStore";

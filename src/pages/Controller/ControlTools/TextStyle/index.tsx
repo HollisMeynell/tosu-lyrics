@@ -1,10 +1,6 @@
 import { Show, onMount } from "solid-js";
 import { Button, ToggleSwitch, ToggleNSwitch } from "@/components/ui";
 import TextColor from "./TextColor";
-import Font from "./Font";
-import FontModeToggle from "../Upload/FontModeToggle";
-import FontSize from "./FontSize";
-import FontShape from "./FontShape";
 import Shadow from "../Shadow";
 import Upload from "../Upload";
 import { AlignType, alignmentOptions } from "@/types/globalTypes";
@@ -76,7 +72,7 @@ export default function TextStyle() {
             </div>
 
             <div class="flex flex-col gap-6 xl:flex-row xl:items-start">
-                {/* 左侧：文字样式设置（颜色 / 歌词行数 / 对齐 / 共用字体 / 主副字体 / 字号 / 开关） */}
+                {/* 左侧：文字样式设置（颜色 / 歌词行数 / 对齐 / 阴影 / 开关） */}
                 <div class="flex flex-1 min-w-0 flex-col gap-4">
                     <Show
                         when={!settings.loading()}
@@ -106,20 +102,6 @@ export default function TextStyle() {
                                 />
                             </div>
                             <Shadow />
-                            {/* 共用 / 分开字体：放在歌词字体设置上方 */}
-                            <FontModeToggle />
-                            <Font
-                                update={settings.update}
-                                disabled={settings.saving()}
-                            />
-                            <FontSize
-                                update={settings.update}
-                                disabled={settings.saving()}
-                            />
-                            <FontShape
-                                update={settings.update}
-                                disabled={settings.saving()}
-                            />
                             <div class="flex flex-row items-center gap-3">
                                 <ToggleSwitch
                                     disabled={settings.saving()}

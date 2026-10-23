@@ -32,7 +32,9 @@ export default function FontModeToggle() {
         // 备份当前分开设置，再合并成同一个字体（优先沿用主字体）
         writeSplitBackup({ first: font(), second: secondFont() });
         const common = font() || secondFont();
-        if (await settings.update({ font: { first: common, second: common } })) {
+        if (
+            await settings.update({ font: { first: common, second: common } })
+        ) {
             setFontMode("shared");
         }
     };
