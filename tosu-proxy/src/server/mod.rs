@@ -68,7 +68,6 @@ pub async fn start_server() {
     let listener_url = format!("{}:{}", GLOBAL_CONFIG.server, GLOBAL_CONFIG.port);
     info!("server start: http://127.0.0.1:{}", GLOBAL_CONFIG.port);
     let acceptor = TcpListener::new(listener_url).bind().await;
-    open_controller_page();
     let server = Server::new(acceptor);
     let handle = server.handle();
     SERVER_HANDLE
@@ -76,6 +75,9 @@ pub async fn start_server() {
         .map_err(|_| Error::Impossible)
         .expect("?");
     info!("web 服务器初始化完成");
+    if GLOBAL_CONFIG.open_console.unwrap_or(true) {
+        open_controller_page();
+    }
     server.serve(router).await;
 }
 
@@ -226,7 +228,7 @@ fn open_controller_page() {
         GLOBAL_CONFIG.port
     );
     match webbrowser::open(&url) {
-        Ok(()) => info!("已用默认浏览器打开 {url}"),
+        Ok(()) => info!("已用默认浏览器打开控制台, 如果不需要请修改配置文件中的"),
         Err(err) => warn!("无法自动打开浏览器({url}): {err}"),
     }
 }

@@ -66,6 +66,8 @@ pub struct Config {
     pub database: String,
     #[serde(default)]
     pub lyric_cache_ttl_hours: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub open_console: Option<bool>,
     pub tosu: Option<TosuConfig>,
 }
 
@@ -77,6 +79,7 @@ impl Default for Config {
             port: 41280,
             database: "sqlite://lyric.db?mode=rwc".to_string(),
             lyric_cache_ttl_hours: None,
+            open_console: Some(true),
             tosu: Some(TosuConfig {
                 url: "ws://127.0.0.1:24050/websocket/v2".to_string(),
             }),

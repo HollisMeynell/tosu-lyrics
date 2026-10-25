@@ -25,6 +25,7 @@
     log: "info",
     port: 41280,
     database: "sqlite://lyric.db?mode=rwc",
+    openConsole: true,
     tosu: {
         url: "ws://127.0.0.1:24050/websocket/v2"
     },
@@ -38,6 +39,7 @@
 | `server` / `port` | 后端监听地址与端口（默认 `127.0.0.1:41280`） |
 | `log` | 日志级别：`trace` / `debug` / `info` / `warn` / `error` |
 | `database` | SQLite 连接串 |
+| `openConsole` | 启用自动打开浏览器进入控制台的行为 |
 | `tosu.url` | tosu 的 v2 WebSocket 地址 |
 | `lyricCacheTtlHours` | 歌词缓存 TTL，缺省 30 天，`0` 为不过期 |
 
