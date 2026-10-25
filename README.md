@@ -51,3 +51,22 @@
 ```css
 .dark body { background-color: rgba(0, 0, 0, 0); }
 ```
+## 使用 tosu 游戏叠加层
+
+此操作需要手动处理, 您可以按照如下步骤或者直接粘贴给 Agent 完成
+
+- 打开 tosu 的 `static` 目录
+- 创建 lyrics 目录
+- 创建一个空文件, 将下面代码内容写入后按需修改, 将此文件重命名为 `index.html`
+- 如果您修改了本服务的端口, 请修改 41280 为您目前使用的端口
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0;url=http://127.0.0.1:41280/lyrics">
+</head>
+<body></body>
+</html>
+```
