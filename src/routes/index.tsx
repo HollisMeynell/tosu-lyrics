@@ -82,11 +82,14 @@ const RoutesRoot: Component<RouteSectionProps<unknown>> = (props) => {
  * lyricLines(5/7/…/15) 变高，控制面板的位置始终与 3 行时一致；多出来的歌词在
  * 这个固定 viewport 内被裁剪/隐藏。`/lyrics` 不传该 prop，仍按设置完整显示。
  *
+ * 控制台整页背景默认跟随暗色模式（亮白 / #212121），只作用在这个布局上；
+ * `/lyrics` 作为 OBS 浏览器源必须保持透明背景，不能把背景放到 body 或 LyricsBox。
+ *
  * 移动端窄屏时预览区整体用 `zoom` 缩小（布局高度按比例变矮，跑马灯测宽
  * 数学不受影响）；`zoom` 只作用在预览上，`/lyrics` 展示页不受影响。
  */
 const ControllerLayout: Component<RouteSectionProps<unknown>> = (props) => (
-    <div class="h-full flex flex-col justify-center bg-white">
+    <div class="h-full flex flex-col justify-center bg-white dark:bg-[#212121]">
         <div class="max-md:[zoom:0.7]">
             <LyricsBox viewportLines={CONTROLLER_VIEWPORT_LINES} />
         </div>
